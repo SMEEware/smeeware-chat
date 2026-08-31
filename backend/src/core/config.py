@@ -107,12 +107,19 @@ class OllamaSettings(BaseModel):
     Modell wohin geht, entscheidet der Katalog in ``services/ai/catalog.py``.
     """
 
-    enabled: bool = True
+    # Opt-in: aus, solange nicht ausdruecklich OLLAMA_ENABLED=true gesetzt ist.
+    # Frueher stand hier True -- dann bot das Auswahlfeld ein lokales Modell an,
+    # auch wenn gar kein Ollama lief, und der erste Klick scheiterte.
+    enabled: bool = False
     base_url: str = "http://localhost:11434/v1"
     # Ollama prueft keinen Schluessel, der OpenAI-Client besteht aber auf
     # einem. Ein Platzhalter ist billiger als eine Sonderbehandlung.
     api_key: str = "ollama"
-    # Faellt nur, wenn ein Aufruf ohne Modellangabe kommt -- der Katalog
+    # Der Modell-Tag, den Ollama kennt (OLLAMA_MODEL). Leer = keins gewaehlt:
+    # dann taucht im Auswahlfeld auch kein lokales Modell auf. Ein Ollama ohne
+    # Modell ist eine Auswahl, die beim ersten Klick ins Leere liefe.
+    model: str = ""
+    # Notnagel, falls doch ohne Modellangabe aufgerufen wird -- der Katalog
     # nennt sonst immer ein Tag.
     default_model: str = "llama3.2"
     # Zehn Minuten statt sechzig Sekunden: ein lokales 30B-MoE muss beim
@@ -122,6 +129,16 @@ class OllamaSettings(BaseModel):
     # Kein Wiederholen: eine abgelaufene Anfrage nochmal zu schicken hiesse,
     # denselben Kaltstart ein zweites Mal zu bezahlen.
     max_retries: int = Field(default=0, ge=0)
+
+    @property
+    def konfiguriert(self) -> bool:
+        """An UND ein Modell benannt -- beides noetig, damit lokal etwas laeuft.
+
+        Genau die Bedingung, unter der ein lokales Modell im Auswahlfeld
+        auftauchen darf: ``OLLAMA_ENABLED=true`` allein reicht nicht, ohne
+        ``OLLAMA_MODEL`` gaebe es nichts anzubieten.
+        """
+        return self.enabled and bool(self.model.strip())
 
 
 class OpenAISettings(BaseModel):
@@ -479,10 +496,17 @@ class Settings(BaseModel):
                 max_bytes=int(os.getenv("TRANSCRIBE_MAX_BYTES", "25000000")),
             ),
             ollama=OllamaSettings(
-                enabled=_as_bool(os.getenv("OLLAMA_ENABLED"), default=True),
+                enabled=_as_bool(os.getenv("OLLAMA_ENABLED"), default=False),
                 base_url=os.getenv("OLLAMA_BASE_URL", "http://localhost:11434/v1"),
                 api_key=os.getenv("OLLAMA_API_KEY", "ollama"),
-                default_model=os.getenv("OLLAMA_DEFAULT_MODEL", "llama3.2"),
+                # OLLAMA_MODEL ist der neue Name; OLLAMA_DEFAULT_MODEL bleibt
+                # als aelterer Alias gueltig, damit vorhandene .env nicht bricht.
+                model=(os.getenv("OLLAMA_MODEL") or os.getenv("OLLAMA_DEFAULT_MODEL") or ""),
+                default_model=(
+                    os.getenv("OLLAMA_MODEL")
+                    or os.getenv("OLLAMA_DEFAULT_MODEL")
+                    or "llama3.2"
+                ),
                 timeout=float(os.getenv("OLLAMA_TIMEOUT", "600")),
                 max_retries=int(os.getenv("OLLAMA_MAX_RETRIES", "0")),
             ),

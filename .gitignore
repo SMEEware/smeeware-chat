@@ -17,6 +17,12 @@ backend/.pytest_cache/
 # Geheimnisse und lokale Daten
 backend/.env
 backend/data/
+# weitere lokale Env-Dateien (Docker/Compose lesen backend/.env)
+.env
+.env.*
+!.env.example
+frontend/.env
+frontend/.env.*
 
 # macOS
 .DS_Store

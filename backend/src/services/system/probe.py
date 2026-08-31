@@ -23,6 +23,7 @@ import socket
 import sys
 import time
 from dataclasses import asdict, dataclass, field
+from pathlib import Path
 from typing import Any
 
 import psutil
@@ -110,6 +111,35 @@ def _platte() -> tuple[str, Any]:
     return "/", psutil.disk_usage("/")
 
 
+def _container() -> str | None:
+    """Laeuft das Backend in einem Container -- und in was fuer einem?
+
+    Wichtig fuer die Ehrlichkeit des Systemchecks: ``psutil`` liest RAM, Last
+    und Uptime aus ``/proc``, und das gehoert dem Host. Die Zahlen stimmen also,
+    beschreiben aber die MASCHINE, nicht den Container -- und der Hostname ist
+    die Container-ID, nicht der Servername. Ohne diesen Hinweis liest sich das
+    Modal wie wirrer Zustand; mit ihm ist klar, was man da sieht.
+    """
+    if Path("/.dockerenv").exists():
+        return "docker"
+    # Podman/systemd setzen diese Variable; ein Wert wie "podman" ist direkt gut.
+    if wert := os.getenv("container"):
+        return wert
+    try:
+        cgroup = Path("/proc/1/cgroup").read_text()
+    except OSError:
+        return None
+    for markierung, name in (
+        ("kubepods", "kubernetes"),
+        ("docker", "docker"),
+        ("containerd", "containerd"),
+        ("lxc", "lxc"),
+    ):
+        if markierung in cgroup:
+            return name
+    return None
+
+
 def _dauer(sekunden: float) -> str:
     sekunden = int(sekunden)
     tage, rest = divmod(sekunden, 86400)
@@ -167,6 +197,9 @@ class SystemProbe:
                 "python": sys.version.split()[0],
                 "uptime": _dauer(time.time() - psutil.boot_time()),
                 "uptime_sekunden": int(time.time() - psutil.boot_time()),
+                # None ausserhalb eines Containers -- das Frontend zeigt den
+                # Hinweis dann gar nicht erst an.
+                "container": _container(),
             },
             cpu={
                 "kerne": kerne,
@@ -255,6 +288,13 @@ def _bewerten(daten: Systemdaten) -> None:
         hinweise.append(
             f"Load is high: {c['last'][0]} across {c['kerne']} cores "
             f"({c['last_je_kern']} per core)."
+        )
+
+    if laufzeit := daten.host.get("container"):
+        hinweise.append(
+            f"Running inside a {laufzeit} container: memory, CPU, load and "
+            f"uptime are the host's (shared kernel), and the hostname is the "
+            f"container id -- not the server's name."
         )
 
     daten.hinweise = hinweise

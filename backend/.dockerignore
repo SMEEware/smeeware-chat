@@ -1,0 +1,22 @@
+# Was nie ins Image gehoert -- Geheimnisse, Zustand, lokale Caches.
+
+# Geheimnisse: kommen zur Laufzeit ueber env_file/-e, nicht ins Image gebrannt.
+.env
+.env.*
+!.env.example
+
+# Laufzeit-Zustand: liegt im gemounteten Volume, nicht im Image.
+data/
+
+# Lokale Python-Umgebung und Caches (das Image baut ein eigenes venv).
+.venv/
+__pycache__/
+**/__pycache__/
+*.py[cod]
+.ruff_cache/
+.mypy_cache/
+.pytest_cache/
+
+# Sonstiges
+.DS_Store
+*.log

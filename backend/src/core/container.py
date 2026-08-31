@@ -9,6 +9,7 @@ Singleton gehalten. ``aclose`` raeumt beim Shutdown in umgekehrter Reihenfolge a
 
 from __future__ import annotations
 
+import time
 from typing import Any, TypeVar
 
 import httpx
@@ -18,7 +19,9 @@ from src.core.exceptions import ConfigurationError
 from src.core.logging import get_logger
 from src.services.ai.agent import Agent
 from src.services.prompts.library import PromptLibrary
+from src.services.ai import catalog
 from src.services.ai.base import LLMProvider
+from src.services.ai.catalog import ModelEntry
 from src.services.ai.providers import (
     create_ollama,
     create_openai,
@@ -97,6 +100,9 @@ class ServiceProvider:
         self._instances: dict[str, Any] = {}
         # Beim Start gerendert: die Skill-Uebersicht fuer den System-Prompt.
         self._skills_block = ""
+        # Letzter Erreichbarkeits-Ping an Ollama: (Zeitpunkt, erreichbar?).
+        # Kurz gecacht, damit die Modell-Liste nicht bei jedem Aufruf wartet.
+        self._ollama_probe: tuple[float, bool] | None = None
 
     # ------------------------------------------------------------------ #
     # Services                                                            #
@@ -183,10 +189,59 @@ class ServiceProvider:
         return len(schluessel)
 
     def _create_ollama(self) -> LLMProvider | None:
-        if not self.settings.ollama.enabled:
+        cfg = self.settings.ollama
+        if not cfg.enabled:
             logger.info("OLLAMA_ENABLED=false -- keine lokalen Modelle")
             return None
-        return create_ollama(self.settings.ollama)
+        if not cfg.model.strip():
+            logger.info("OLLAMA_MODEL fehlt -- keine lokalen Modelle")
+            return None
+        return create_ollama(cfg)
+
+    @property
+    def lokale_modelle(self) -> tuple[ModelEntry, ...]:
+        """Die lokalen Katalogeintraege aus ``OLLAMA_MODEL`` -- ohne Ping.
+
+        Fuer ``/chat``: waehlt jemand das lokale Modell ausdruecklich, soll der
+        Aufruf es versuchen, auch wenn ein Erreichbarkeits-Ping gerade
+        danebenlaege. Die Liste blendet Unerreichbares aus, ``resolve`` nicht.
+        """
+        return catalog.lokale_modelle(self.settings.ollama)
+
+    async def lokale_modelle_sichtbar(self) -> tuple[ModelEntry, ...]:
+        """Wie ``lokale_modelle``, aber nur wenn Ollama gerade antwortet.
+
+        So verschwindet der lokale Eintrag aus dem Auswahlfeld, wenn zwar
+        konfiguriert, aber kein Ollama laeuft -- statt einer Auswahl, die beim
+        Klick scheitert.
+        """
+        eintraege = self.lokale_modelle
+        if not eintraege:
+            return ()
+        return eintraege if await self._ollama_erreichbar() else ()
+
+    async def _ollama_erreichbar(self) -> bool:
+        """Kurzer, gecachter Ping an den OpenAI-kompatiblen ``/models``.
+
+        15 Sekunden Cache in beide Richtungen: ein frisch gestartetes Ollama
+        taucht von selbst wieder auf, und eine offene Modell-Liste wartet nicht
+        bei jedem Aufruf auf das Netz. Jeder Fehler heisst "nicht erreichbar" --
+        ein fehlender Dienst ist kein Serverfehler.
+        """
+        jetzt = time.monotonic()
+        if self._ollama_probe is not None and jetzt - self._ollama_probe[0] < 15.0:
+            return self._ollama_probe[1]
+
+        basis = self.settings.ollama.base_url.rstrip("/")
+        ok = False
+        try:
+            async with httpx.AsyncClient(timeout=1.5) as client:
+                antwort = await client.get(f"{basis}/models")
+            ok = antwort.status_code < 500
+        except Exception:  # noqa: BLE001 -- ein Dienst weniger ist kein Fehler
+            ok = False
+        self._ollama_probe = (jetzt, ok)
+        return ok
 
     @property
     def prompts(self) -> PromptLibrary:

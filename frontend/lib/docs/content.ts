@@ -761,8 +761,8 @@ data: [DONE]`,
       "gated": false
     },
     {
-      "id": "qwen3.6-uncensored",
-      "name": "Qwen3.6 Uncensored",
+      "id": "qwen3",
+      "name": "qwen3:8b",
       "description": "Runs locally through Ollama — nothing leaves the machine.",
       "group": "Local",
       "runtime": "local",
@@ -830,7 +830,7 @@ data: [DONE]`,
     },
     {
       type: "paragraph",
-      text: "The list is filtered to what can actually run: without OPENAI_API_KEY the whole OpenAI group is gone, without Ollama the local one. A model that is offered here will not fail on the key.",
+      text: "The list is filtered to what can actually run: without OPENAI_API_KEY the whole OpenAI group is gone, and the Local one only appears when Ollama is enabled (OLLAMA_ENABLED=true), a model is named (OLLAMA_MODEL) and that Ollama is reachable. The local entry's id and tag come straight from OLLAMA_MODEL, so pick a model that can think and call tools. A model that is offered here will not fail on the key.",
     },
     { type: "heading", id: "usage", title: "Using it with /chat" },
     {

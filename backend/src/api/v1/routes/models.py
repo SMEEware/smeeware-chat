@@ -26,7 +26,7 @@ async def list_models(provider: ProviderDep) -> ModelListResponse:
     """The models that /chat and /chat/stream accept as 'model'."""
     eintraege = verfuegbar(
         openai=provider.openai is not None,
-        ollama=provider.ollama is not None,
+        lokal=await provider.lokale_modelle_sichtbar(),
     )
     modelle = [
         ModelInfo(

@@ -42,10 +42,12 @@ def _fuer(
     """Aus dem Modellnamen den passenden Agenten und die Optionen bauen.
 
     Hier faellt die Uebersetzung vom kurzen Namen auf das Tag, das der
-    Anbieter kennt: das Frontend schickt "qwen3.6-uncensored", Ollama will
-    "tripolskypetr/qwen3.6-uncensored-aggressive:latest" sehen. Ein
+    Anbieter kennt: das Frontend schickt den kurzen Namen eines lokalen
+    Modells, Ollama will den vollen ``OLLAMA_MODEL``-Tag sehen. Ein
     unbekannter Name kommt als 422 aus ``resolve`` zurueck, statt bei
-    irgendeinem Anbieter in dessen Fehlermeldung zu landen.
+    irgendeinem Anbieter in dessen Fehlermeldung zu landen. Die lokalen
+    Eintraege reicht ``lokale_modelle`` bei -- ohne sie kennte ``resolve``
+    nur die feste Liste und wiese das eigene Ollama-Modell als unbekannt ab.
     """
     # Die vom Nutzer gewaehlte Stimme fuer read_aloud in den Anfrage-Kontext
     # legen -- das Werkzeug liest sie dort, ohne dass sie durch jede Schicht
@@ -53,7 +55,7 @@ def _fuer(
     # spaetere Aufgabe genau diesen Kontext kopiert.
     setze_wahl(model=payload.tts_model, voice=payload.voice_id)
 
-    eintrag = resolve(payload.model)
+    eintrag = resolve(payload.model, lokal=provider.lokale_modelle)
     agent = provider.agent_for(
         eintrag.runtime, prompt=payload.prompt, tools=payload.tools
     )

@@ -1,0 +1,15 @@
+# Was nie in den Build-Kontext / ins Image gehoert.
+
+node_modules/
+.next/
+out/
+build/
+*.tsbuildinfo
+
+# lokale Env-Dateien (das Frontend bekommt seine Env zur Laufzeit)
+.env
+.env.*
+
+.git/
+.DS_Store
+*.log

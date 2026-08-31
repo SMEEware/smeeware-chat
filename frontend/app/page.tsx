@@ -61,7 +61,7 @@ const quickstartTabs = [
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       messages: [{ role: "user", content: "Hello!" }],
-      model: "qwen3.6-uncensored",
+      model: "deepseek-v4-pro",
     }),
   },
 );

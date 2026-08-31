@@ -3,6 +3,7 @@
 import * as React from "react";
 import {
   ActivityIcon,
+  BoxIcon,
   CpuIcon,
   HardDriveIcon,
   MemoryStickIcon,
@@ -22,6 +23,10 @@ export type Systemdaten = {
     machine: string;
     python: string;
     uptime: string;
+    // Gesetzt, wenn das Backend in einem Container laeuft ("docker", …). Dann
+    // sind RAM/CPU/Uptime die des Hosts und der Hostname die Container-ID --
+    // der Hinweis dazu steht in ``hinweise``.
+    container?: string | null;
   };
   cpu: {
     kerne: number;
@@ -106,9 +111,20 @@ export function SystemModal({
             <ActivityIcon className="size-4" />
           </span>
           <div className="flex min-w-0 flex-col">
-            <h2 className="font-heading text-[15px] font-semibold tracking-tight">
-              System check
-            </h2>
+            <div className="flex items-center gap-2">
+              <h2 className="font-heading text-[15px] font-semibold tracking-tight">
+                System check
+              </h2>
+              {host.container ? (
+                <span
+                  title="Runs in a container — CPU/RAM/uptime are the host's, the hostname is the container id."
+                  className="inline-flex items-center gap-1 rounded-full border border-border/70 bg-muted/50 px-1.5 py-px font-mono text-[9px] tracking-wide text-muted-foreground uppercase"
+                >
+                  <BoxIcon className="size-2.5" />
+                  {host.container}
+                </span>
+              ) : null}
+            </div>
             <p className="truncate text-[11px] text-muted-foreground/60">
               {host.hostname} · {host.system} {host.release} · {host.machine} ·
               up {host.uptime}
