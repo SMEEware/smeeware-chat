@@ -1,0 +1,25 @@
+"use client";
+
+import { MoonIcon, SunIcon } from "lucide-react";
+import { useTheme } from "next-themes";
+
+import { Button } from "@/components/ui/button";
+
+export function ThemeToggle() {
+  const { resolvedTheme, setTheme } = useTheme();
+
+  return (
+    <Button
+      className="cursor-pointer"
+      variant="ghost"
+      size="icon-sm"
+      aria-label="Toggle theme"
+      onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
+    >
+      {/* Per CSS statt per State: sonst muesste die Komponente auf die
+          Hydration warten und das Icon wuerde nachtraeglich umspringen. */}
+      <SunIcon className="hidden dark:block" />
+      <MoonIcon className="dark:hidden" />
+    </Button>
+  );
+}

@@ -1,0 +1,22 @@
+# Abhängigkeiten (werden von start.sh eingerichtet)
+frontend/node_modules/
+backend/.venv/
+
+# Build-Ausgaben und Caches
+frontend/.next/
+frontend/out/
+frontend/build/
+frontend/*.tsbuildinfo
+backend/__pycache__/
+backend/**/__pycache__/
+backend/*.py[cod]
+backend/.ruff_cache/
+backend/.mypy_cache/
+backend/.pytest_cache/
+
+# Geheimnisse und lokale Daten
+backend/.env
+backend/data/
+
+# macOS
+.DS_Store

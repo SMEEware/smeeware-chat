@@ -1,0 +1,42 @@
+"""Sammelt alle Routen der v1-API."""
+
+from __future__ import annotations
+
+from fastapi import APIRouter
+
+from src.api.v1.routes import (
+    account,
+    apikeys,
+    chat,
+    chats,
+    events,
+    health,
+    models,
+    notifications,
+    prompts,
+    tools,
+    transcribe,
+    tts,
+    uploads,
+    vision,
+)
+
+router = APIRouter()
+router.include_router(health.router)
+router.include_router(account.router)
+router.include_router(apikeys.router)
+router.include_router(events.router)
+router.include_router(notifications.router)
+router.include_router(chat.router)
+# /chat und /chats kollidieren nicht -- getrennte Prefixe.
+router.include_router(chats.router)
+router.include_router(models.router)
+router.include_router(tools.router)
+router.include_router(vision.router)
+# Anhaenge liegen neben dem Vision-Dienst, der sie spaeter ansieht.
+router.include_router(uploads.router)
+router.include_router(transcribe.router)
+router.include_router(tts.router)
+router.include_router(prompts.router)
+
+__all__ = ["router"]

@@ -1,0 +1,44 @@
+import type { NextRequest } from "next/server";
+
+import { SESSION_COOKIE, SESSION_HEADER } from "@/lib/auth/session";
+import { ACCOUNT_ENDPOINT } from "@/lib/chat/backend";
+
+/** Das Profilbild -- lesen und setzen, beides nur angemeldet. */
+export async function GET(request: NextRequest) {
+  return weiter(request, "GET");
+}
+
+export async function PUT(request: NextRequest) {
+  return weiter(request, "PUT", await request.formData());
+}
+
+async function weiter(request: NextRequest, method: string, body?: FormData) {
+  const sitzung = request.cookies.get(SESSION_COOKIE)?.value;
+
+  let upstream: Response;
+  try {
+    upstream = await fetch(`${ACCOUNT_ENDPOINT}/avatar`, {
+      method,
+      headers: sitzung ? { [SESSION_HEADER]: sitzung } : undefined,
+      body,
+      signal: request.signal,
+      cache: "no-store",
+    });
+  } catch {
+    if (request.signal.aborted) return new Response(null, { status: 499 });
+    return Response.json(
+      { error: { message: "Backend unreachable." } },
+      { status: 502 },
+    );
+  }
+
+  return new Response(upstream.body, {
+    status: upstream.status,
+    headers: {
+      "Content-Type":
+        upstream.headers.get("Content-Type") ?? "application/json",
+      // Privat und veraenderlich: nur im Browser dieser Person.
+      "Cache-Control": "private, no-cache",
+    },
+  });
+}
