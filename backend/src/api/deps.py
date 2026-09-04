@@ -15,6 +15,7 @@ from src.core.exceptions import ConfigurationError, UnauthorizedError
 from src.services.ai.agent import Agent
 from src.services.chats import ChatStore
 from src.services.chats.public import PublicChatStore
+from src.services.plugins import PluginStore
 
 
 def get_provider(request: Request) -> ServiceProvider:
@@ -70,6 +71,20 @@ def get_public_chats(
     return oeffentlich
 
 
+def get_plugins(
+    provider: Annotated[ServiceProvider, Depends(get_provider)],
+    session: Annotated[str | None, Header(alias="X-Session-Id")] = None,
+) -> PluginStore:
+    """Die Plugin-Auswahl -- nur fuer Angemeldete.
+
+    Sie ist zwar unverschluesselt, gehoert aber zum Konto: wer sie aendert,
+    aendert, was das Modell im naechsten Turn tun darf.
+    """
+    if provider.sessions.holen(session) is None:
+        raise UnauthorizedError("Not signed in.")
+    return provider.plugins
+
+
 def _bearer(authorization: str | None) -> str | None:
     """Den Schluessel aus ``Authorization: Bearer <key>`` ziehen.
 
@@ -116,4 +131,5 @@ SettingsDep = Annotated[Settings, Depends(get_settings_dep)]
 AgentDep = Annotated[Agent, Depends(get_agent)]
 ChatStoreDep = Annotated[ChatStore, Depends(get_chats)]
 PublicChatStoreDep = Annotated[PublicChatStore, Depends(get_public_chats)]
+PluginStoreDep = Annotated[PluginStore, Depends(get_plugins)]
 ApiAccessDep = Annotated[None, Depends(require_api_access)]

@@ -29,7 +29,7 @@ HERZSCHLAG = 15.0
 router = APIRouter(prefix="/chat", tags=["chat"])
 
 
-def _fuer(
+async def _fuer(
     provider: ServiceProvider, payload: ChatRequest
 ) -> tuple[Agent, CompletionOptions]:
     """Aus dem Modellnamen den passenden Agenten und die Optionen bauen.
@@ -46,7 +46,10 @@ def _fuer(
 
     eintrag = resolve(payload.model, lokal=provider.lokale_modelle)
     agent = provider.agent_for(
-        eintrag.runtime, prompt=payload.prompt, tools=payload.tools
+        eintrag.runtime,
+        prompt=payload.prompt,
+        tools=payload.tools,
+        erlaubt=await provider.werkzeug_auswahl(),
     )
     optionen = payload.to_options().merged(model=eintrag.upstream)
 
@@ -67,7 +70,7 @@ def _fuer(
 async def chat(
     payload: ChatRequest, provider: ProviderDep, _: ApiAccessDep = None
 ) -> ChatResponse:
-    agent, options = _fuer(provider, payload)
+    agent, options = await _fuer(provider, payload)
     completion = await agent.complete(payload.to_domain_messages(), options)
 
     return ChatResponse(
@@ -99,7 +102,7 @@ async def chat_stream(
     provider: ProviderDep,
     _: ApiAccessDep = None,
 ) -> StreamingResponse:
-    agent, options = _fuer(provider, payload)
+    agent, options = await _fuer(provider, payload)
     return StreamingResponse(
         _sse(agent, payload, options),
         media_type="text/event-stream",

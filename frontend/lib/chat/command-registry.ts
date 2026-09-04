@@ -374,6 +374,18 @@ export const COMMANDS: CommandEntry[] = [
     keywords: ["folder", "project", "path", "directory", "cwd", "context"],
   },
   {
+    id: "manage-plugins",
+    kind: "action",
+    befehl: BEFEHL.managePlugins,
+    trigger: "plugins",
+    label: "Manage plugins",
+    description: "Choose which tools the model may use",
+    hint: "Opens the plugin manager. Type /install <slug> or /deactivate <slug> to switch one directly.",
+    icon: WrenchIcon,
+    group: "context",
+    keywords: ["plugin", "tool", "install", "uninstall", "deactivate", "extension"],
+  },
+  {
     id: "reference-message",
     kind: "action",
     befehl: BEFEHL.referenceMessage,

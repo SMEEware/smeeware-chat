@@ -42,6 +42,8 @@ from src.services.notifications import NotificationStore, VerschluesselteHinweis
 from src.services.apikeys import ApiKeyStore
 from src.services.chats.encrypted import EncryptedChatStore
 from src.services.chats.public import PublicChatStore
+from src.services.plugins import FilteredToolBox, PluginStore
+from src.services.plugins.service import erlaubte_werkzeuge, fingerabdruck
 from src.services.skills import SkillLibrary
 from src.services.tools.base import ToolBox
 from src.services.tools.composite import CompositeToolBox
@@ -145,17 +147,26 @@ class ServiceProvider:
         *,
         prompt: str | None = None,
         tools: bool = True,
+        erlaubt: frozenset[str] | None = None,
     ) -> Agent:
         """Ein Agent je Laufzeit, ebenfalls gehalten.
 
         Ein Agent ist zwar duenn, sein Bau liest aber den System-Prompt aus
         der Sammlung und haengt den Skill-Block an -- Arbeit, die sich pro
         Anfrage nicht lohnt, wenn sich am Ergebnis nichts aendert.
+
+        ``erlaubt`` gehoert in den Schluessel, nicht nur in den Bau: der Agent
+        traegt seine Toolbox in sich. Ohne diesen Anteil antwortete nach dem
+        Umschalten eines Plugins weiter der alte Agent mit der alten
+        Werkzeugliste -- ohne Fehlermeldung, was den Fehler teuer macht.
         """
         name = prompt or self.settings.default_prompt
+        marke = fingerabdruck(erlaubt) if erlaubt is not None else "alle"
         return self._singleton(
-            f"agent:{name}:{runtime}:{'t' if tools else '-'}",
-            lambda: self.create_agent(name, runtime=runtime, tools=tools),
+            f"agent:{name}:{runtime}:{'t' if tools else '-'}:{marke}",
+            lambda: self.create_agent(
+                name, runtime=runtime, tools=tools, erlaubt=erlaubt
+            ),
         )
 
     def vergiss_agenten(self, prompt: str | None = None) -> int:
@@ -313,6 +324,18 @@ class ServiceProvider:
         return EncryptedChatStore(speicher, sitzung.dek)
 
     @property
+    def plugins(self) -> PluginStore:
+        """Welche Plugins installiert sind -- in derselben Datei wie das Konto."""
+        return self._singleton(
+            "plugins", lambda: PluginStore(self.settings.chats_db_path)
+        )
+
+    async def werkzeug_auswahl(self) -> frozenset[str]:
+        """Die Werkzeugnamen, die nach der Plugin-Auswahl uebrig bleiben."""
+        vorhanden = [spec.name for spec in await self.toolbox.specs()]
+        return erlaubte_werkzeuge(vorhanden, await self.plugins.installiert())
+
+    @property
     def public_chats(self) -> PublicChatStore | None:
         """Geteilte Chats -- ohne Sitzung lesbar, deshalb eigener Schluessel.
 
@@ -421,7 +444,12 @@ class ServiceProvider:
         return self.agent_for("hosted")
 
     def create_agent(
-        self, prompt: str, *, runtime: str = "hosted", tools: bool = True
+        self,
+        prompt: str,
+        *,
+        runtime: str = "hosted",
+        tools: bool = True,
+        erlaubt: frozenset[str] | None = None,
     ) -> Agent:
         """Baut einen Agenten mit einem beliebigen Prompt aus der Sammlung.
 
@@ -441,9 +469,22 @@ class ServiceProvider:
         return Agent(
             self.provider_for(runtime),
             system_prompt=system_prompt,
-            toolbox=self.toolbox if tools else self.notify_toolbox,
+            toolbox=self._werkzeuge(tools, erlaubt),
             max_tool_rounds=self.settings.mcp_max_tool_rounds,
         )
+
+    def _werkzeuge(self, tools: bool, erlaubt: frozenset[str] | None) -> ToolBox:
+        """Was der Agent zu sehen bekommt.
+
+        ``tools=False`` schlaegt alles -- die Wahl am Request bleibt staerker
+        als die installierten Plugins. ``erlaubt=None`` heisst "ungefiltert"
+        und ist der Weg fuer Aufrufer ohne Sitzung, etwa interne Werkzeuge.
+        """
+        if not tools:
+            return self.notify_toolbox
+        if erlaubt is None:
+            return self.toolbox
+        return FilteredToolBox(self.toolbox, erlaubt)
 
     def _create_vision(self) -> VisionService | None:
         vision = self.settings.vision
@@ -582,6 +623,7 @@ class ServiceProvider:
             await self.api_keys.ensure_schema()
             if (oeffentlich := self.public_chats) is not None:
                 await oeffentlich.ensure_schema()
+            await self.plugins.ensure_schema()
         if self.skills is not None:
             self._skills_block = await _render_skills(self.skills)
         _ = self.agent

@@ -50,6 +50,7 @@ import {
 import { NotificationsModal } from "@/components/chat/notifications-modal";
 import { SettingsDialog } from "@/components/chat/settings-dialog";
 import { WorkspaceModal } from "@/components/chat/workspace-modal";
+import { PluginManager } from "@/components/chat/plugin-manager";
 import { tourStarten } from "@/components/chat/chat-tour";
 import { useNotifications } from "@/hooks/use-notifications";
 import { BEFEHL, onBefehl, openChatCommand } from "@/lib/chat/commands";
@@ -149,6 +150,7 @@ export function ChatSidebar() {
   const [einstellungen, setEinstellungen] = React.useState(false);
   const [hinweiseOffen, setHinweiseOffen] = React.useState(false);
   const [workspacesOffen, setWorkspacesOffen] = React.useState(false);
+  const [pluginsOffen, setPluginsOffen] = React.useState(false);
 
   React.useEffect(() => {
     const abEinst = onBefehl(BEFEHL.openSettingsDialog, () =>
@@ -157,6 +159,7 @@ export function ChatSidebar() {
     const abWs = onBefehl(BEFEHL.manageWorkspaces, () =>
       setWorkspacesOffen(true),
     );
+    const abPlugins = onBefehl(BEFEHL.managePlugins, () => setPluginsOffen(true));
     const abTour = onBefehl(BEFEHL.startTour, () => tourStarten());
     const abPersona = onBefehl(BEFEHL.newSystemPrompt, () =>
       setEinstellungen(true),
@@ -164,6 +167,7 @@ export function ChatSidebar() {
     return () => {
       abEinst();
       abWs();
+      abPlugins();
       abTour();
       abPersona();
     };
@@ -429,6 +433,8 @@ export function ChatSidebar() {
         open={hinweiseOffen}
         onOpenChange={setHinweiseOffen}
       />
+
+      <PluginManager open={pluginsOffen} onOpenChange={setPluginsOffen} />
 
       <AlertDialog open={entleerenOffen} onOpenChange={setEntleerenOffen}>
         <AlertDialogContent>

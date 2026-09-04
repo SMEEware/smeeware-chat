@@ -35,6 +35,7 @@ export const BEFEHL = {
   shareLiveChat: "smeeware-share-live-chat",
 
   manageWorkspaces: "smeeware:manage-workspaces",
+  managePlugins: "smeeware:manage-plugins",
   selectFolder: "smeeware:open-folder",
 
   thinkingVisibility: "smeeware:thinking-toggle",

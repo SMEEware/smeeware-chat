@@ -104,7 +104,8 @@ async def delete_account(
     """Setzt die Installation auf den Auslieferungszustand zurueck.
 
     Weg sind: das Konto (Name, Passwort-Hash, eingepackter Schluessel,
-    Profilbild), alle Chats, alle Hinweise und die hochgeladenen Anhaenge.
+    Profilbild), alle Chats, alle Hinweise, die Plugin-Auswahl und die
+    hochgeladenen Anhaenge.
     Es bleibt, was nicht am Konto haengt -- die Skills etwa. Danach ist keine
     Sitzung mehr offen, und die Anmeldeseite fuehrt wieder durchs Einrichten.
 
@@ -120,6 +121,7 @@ async def delete_account(
         await provider.chats.delete_all()
     await provider.notifications.delete_all()
     await provider.api_keys.delete_all()
+    await provider.plugins.alle_entfernen()
     await asyncio.to_thread(_anhaenge_leeren, provider.settings.uploads_dir)
     await provider.accounts.delete()
     provider.sessions.alle_schliessen()

@@ -14,6 +14,7 @@ from src.api.v1.routes import (
     health,
     models,
     notifications,
+    plugins,
     prompts,
     public,
     tools,
@@ -40,5 +41,6 @@ router.include_router(uploads.router)
 router.include_router(transcribe.router)
 router.include_router(tts.router)
 router.include_router(prompts.router)
+router.include_router(plugins.router)
 
 __all__ = ["router"]

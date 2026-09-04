@@ -11,6 +11,7 @@ import {
   MicIcon,
   PaperclipIcon,
   SquareIcon,
+  WrenchIcon,
   TextQuoteIcon,
   XIcon,
 } from "lucide-react";
@@ -26,6 +27,10 @@ import { AttachmentChips } from "@/components/chat/attachment-chips";
 import { VoiceLevel } from "@/components/chat/voice-level";
 import { ModelSelector } from "@/components/chat/model-selector";
 import { SlashMenu } from "@/components/chat/slash-menu";
+import { toast } from "sonner";
+
+import { usePlugins, useSetPluginInstalled } from "@/hooks/use-plugins";
+import { alsPluginBefehl } from "@/lib/chat/plugin-commands";
 import { useSound } from "@/hooks/use-sound";
 import { useTranscribe } from "@/hooks/use-transcribe";
 import {
@@ -172,6 +177,10 @@ export function ChatComposer({
 
   const workspace = useWorkspaces(aktiverWorkspace);
 
+  const plugins = usePlugins();
+  const pluginSchalten = useSetPluginInstalled();
+  const aktivePlugins = plugins.data?.installed_count ?? 0;
+
   React.useLayoutEffect(() => {
     const textarea = textareaRef.current;
     if (!textarea) return;
@@ -304,8 +313,55 @@ export function ChatComposer({
     [onAttachmentsChange],
   );
 
+  const pluginBefehlAusfuehren = (eingabe: string): boolean => {
+    const befehl = alsPluginBefehl(eingabe);
+    if (!befehl) return false;
+
+    const treffer = plugins.data?.plugins.find((p) => p.slug === befehl.slug);
+    if (!treffer) {
+      const nah = (plugins.data?.plugins ?? [])
+        .filter(
+          (p) => p.slug.includes(befehl.slug) || befehl.slug.includes(p.slug),
+        )
+        .slice(0, 3)
+        .map((p) => p.slug);
+      toast.error(
+        nah.length > 0
+          ? `No plugin \u201c${befehl.slug}\u201d. Did you mean ${nah.join(", ")}?`
+          : `No plugin \u201c${befehl.slug}\u201d.`,
+      );
+      onValueChange("");
+      return true;
+    }
+
+    const installieren = befehl.aktion === "install";
+    if (installieren && !treffer.available) {
+      toast.error(
+        `${treffer.title} needs ${treffer.missing_requirements.join(", ") || "tools that are not loaded"}.`,
+      );
+      onValueChange("");
+      return true;
+    }
+
+    pluginSchalten.mutate(
+      { slug: treffer.slug, installed: installieren },
+      {
+        onSuccess: () =>
+          toast.success(
+            installieren
+              ? `${treffer.title} installed.`
+              : `${treffer.title} deactivated.`,
+          ),
+        onError: (fehler) => toast.error(fehler.message),
+      },
+    );
+    onValueChange("");
+    return true;
+  };
+
   const submit = () => {
     if (!canSend) return;
+    if (pluginBefehlAusfuehren(value)) return;
     playSend();
     onSubmit(zitat ? `${alsBlockzitat(zitat)}\n\n${value}` : value);
     setZitat(null);
@@ -636,6 +692,28 @@ export function ChatComposer({
                 {workspace ? (
                   <span className="truncate text-[11px] font-medium">
                     {workspace.name}
+                  </span>
+                ) : null}
+              </InputGroupButton>
+
+              <InputGroupButton
+                type="button"
+                variant="ghost"
+                size="xs"
+                aria-label="Manage plugins"
+                title="Plugins — which tools the model may use"
+                className={cn(
+                  "gap-1.5 rounded-full",
+                  aktivePlugins > 0
+                    ? "text-primary hover:bg-primary/10"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                )}
+                onClick={() => dispatchCommand(BEFEHL.managePlugins)}
+              >
+                <WrenchIcon />
+                {aktivePlugins > 0 ? (
+                  <span className="text-[11px] font-medium">
+                    {aktivePlugins}
                   </span>
                 ) : null}
               </InputGroupButton>

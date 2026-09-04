@@ -9,6 +9,10 @@ export const CHATS_ENDPOINT =
   process.env.LLM_CHATS_URL ??
   CHAT_STREAM_ENDPOINT.replace(/\/chat\/stream\/?$/, "/chats");
 
+export const PLUGINS_ENDPOINT =
+  process.env.LLM_PLUGINS_URL ??
+  CHAT_STREAM_ENDPOINT.replace(/\/chat\/stream\/?$/, "/plugins");
+
 export const PUBLIC_CHATS_ENDPOINT =
   process.env.LLM_PUBLIC_CHATS_URL ??
   CHAT_STREAM_ENDPOINT.replace(/\/chat\/stream\/?$/, "/public/chats");
