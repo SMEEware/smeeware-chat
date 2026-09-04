@@ -6,13 +6,10 @@ import {
   AlertCircleIcon,
   ArrowUpRightIcon,
   BookOpenIcon,
-  BracesIcon,
-  BugPlay,
   EyeIcon,
   KeyRoundIcon,
   RotateCcwIcon,
   SearchIcon,
-  SparklesIcon,
 } from "lucide-react";
 
 import { toast } from "sonner";
@@ -108,7 +105,10 @@ export function ChatPanel({ chatId, initialMessages }: ChatPanelProps) {
 
   const hasMessages = messages.length > 0;
 
-  const eintraege = React.useMemo(() => gruppiereVersteckte(messages), [messages]);
+  const eintraege = React.useMemo(
+    () => gruppiereVersteckte(messages),
+    [messages],
+  );
 
   const [commentSignal, setCommentSignal] = React.useState(0);
   React.useEffect(
@@ -585,11 +585,11 @@ function Einstieg({
   return (
     <Link
       href={href}
-      className="group relative flex w-full items-center gap-3 overflow-hidden sm:w-auto sm:flex-1 rounded-xl px-3.5 py-2.5 text-left ring-1 ring-border/70 transition-colors ring-inset hover:bg-primary/[0.04] hover:ring-primary/40"
+      className="group relative flex w-full items-center gap-3 overflow-hidden sm:w-auto sm:flex-1 rounded-xl px-3.5 py-2.5 text-left ring-1 ring-border/70 transition-colors ring-inset hover:bg-primary/4 hover:ring-primary/40"
     >
       <span
         aria-hidden
-        className="absolute inset-y-0 -left-full w-full bg-gradient-to-r from-transparent via-primary/12 to-transparent transition-transform duration-700 ease-out group-hover:translate-x-[200%]"
+        className="absolute inset-y-0 -left-full w-full bg-linear-to-r from-transparent via-primary/12 to-transparent transition-transform duration-700 ease-out group-hover:translate-x-[200%]"
       />
       <Icon className="relative size-4 shrink-0 text-muted-foreground/70 transition-colors group-hover:text-primary" />
       <span className="relative min-w-0">

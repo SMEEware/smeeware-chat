@@ -244,11 +244,11 @@ export function ChatSidebar() {
               closeOnMobile();
               oeffneNeuenChat(neuerChat)(event);
             }}
-            className="group relative flex h-9 items-center gap-2.5 overflow-hidden rounded-lg px-2.5 text-[13px] font-medium text-foreground/80 ring-1 ring-sidebar-border/80 transition-colors ring-inset hover:bg-primary/[0.06] hover:text-foreground hover:ring-primary/45"
+            className="group relative flex h-9 items-center gap-2.5 overflow-hidden rounded-lg px-2.5 text-[13px] font-medium text-foreground/80 ring-1 ring-sidebar-border/80 transition-colors ring-inset hover:bg-primary/6 hover:text-foreground hover:ring-primary/45"
           >
             <span
               aria-hidden
-              className="absolute inset-y-0 -left-full w-full bg-gradient-to-r from-transparent via-primary/15 to-transparent transition-transform duration-700 ease-out group-hover:translate-x-[200%]"
+              className="absolute inset-y-0 -left-full w-full bg-linear-to-r from-transparent via-primary/15 to-transparent transition-transform duration-700 ease-out group-hover:translate-x-[200%]"
             />
             <PlusIcon className="relative size-4 text-muted-foreground/70 transition-[color,transform] duration-300 group-hover:rotate-90 group-hover:text-primary" />
             <span className="relative">New chat</span>
@@ -382,7 +382,7 @@ export function ChatSidebar() {
               title="Replay the tour"
               className="group ms-auto flex size-7 cursor-pointer items-center justify-center rounded-md text-muted-foreground/50 transition-colors hover:bg-primary/10 hover:text-primary"
             >
-              <CompassIcon className="size-4 transition-transform duration-500 group-hover:rotate-[135deg]" />
+              <CompassIcon className="size-4 transition-transform duration-500 group-hover:rotate-135" />
             </button>
 
             <button
@@ -420,7 +420,10 @@ export function ChatSidebar() {
 
       <SettingsDialog open={einstellungen} onOpenChange={setEinstellungen} />
 
-      <WorkspaceModal open={workspacesOffen} onOpenChange={setWorkspacesOffen} />
+      <WorkspaceModal
+        open={workspacesOffen}
+        onOpenChange={setWorkspacesOffen}
+      />
 
       <NotificationsModal
         open={hinweiseOffen}
@@ -432,9 +435,8 @@ export function ChatSidebar() {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete all chats?</AlertDialogTitle>
             <AlertDialogDescription>
-              All {chats?.length ?? 0}{" "}
-              {chats?.length === 1 ? "chat" : "chats"} will be removed for
-              good. This cannot be undone.
+              All {chats?.length ?? 0} {chats?.length === 1 ? "chat" : "chats"}{" "}
+              will be removed for good. This cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -487,8 +489,7 @@ export function ChatSidebar() {
             <AlertDialogDescription>
               Anyone with the link can read &ldquo;{teilen?.title}&rdquo;
               without signing in — including whatever you write in it from now
-              on. Hidden messages stay hidden. You can stop sharing at any
-              time.
+              on. Hidden messages stay hidden. You can stop sharing at any time.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

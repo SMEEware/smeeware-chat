@@ -107,7 +107,7 @@ function DocsBlock({ block }: { block: DocBlock }) {
         <ol className="flex flex-col gap-5 border-l pl-6">
           {block.steps.map((step, index) => (
             <li key={step.title} className="relative">
-              <span className="absolute -left-[34px] flex size-5 items-center justify-center rounded-full bg-muted text-[11px] font-medium text-muted-foreground ring-4 ring-background">
+              <span className="absolute -left-8.5 flex size-5 items-center justify-center rounded-full bg-muted text-[11px] font-medium text-muted-foreground ring-4 ring-background">
                 {index + 1}
               </span>
               <p className="font-medium">{step.title}</p>
@@ -184,11 +184,11 @@ function DocsBlock({ block }: { block: DocBlock }) {
             <Link
               key={card.href}
               href={card.href}
-              className="group/card relative flex flex-col gap-1 overflow-hidden rounded-2xl p-4 ring-1 ring-border/70 transition-colors ring-inset hover:bg-primary/[0.04] hover:ring-primary/40"
+              className="group/card relative flex flex-col gap-1 overflow-hidden rounded-2xl p-4 ring-1 ring-border/70 transition-colors ring-inset hover:bg-primary/4 hover:ring-primary/40"
             >
               <span
                 aria-hidden
-                className="absolute inset-y-0 -left-full w-full bg-gradient-to-r from-transparent via-primary/12 to-transparent transition-transform duration-700 ease-out group-hover/card:translate-x-[200%]"
+                className="absolute inset-y-0 -left-full w-full bg-linear-to-r from-transparent via-primary/12 to-transparent transition-transform duration-700 ease-out group-hover/card:translate-x-[200%]"
               />
               <span className="relative flex items-center gap-1.5 font-medium">
                 {card.title}
@@ -224,7 +224,7 @@ function AuthenticatedDocsLink({
   return (
     <Link
       href={block.href}
-      className="group/auth-link flex items-center gap-3 rounded-2xl border border-primary/20 bg-primary/[0.04] p-4 ring-1 ring-primary/5 transition-colors hover:bg-primary/[0.08] hover:ring-primary/20"
+      className="group/auth-link flex items-center gap-3 rounded-2xl border border-primary/20 bg-primary/4 p-4 ring-1 ring-primary/5 transition-colors hover:bg-primary/8 hover:ring-primary/20"
     >
       <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
         <KeyRoundIcon className="size-4" />
