@@ -5,6 +5,7 @@ import {
   CopyIcon,
   EyeIcon,
   EyeOffIcon,
+  StickyNoteIcon,
   TextQuoteIcon,
   TextSelectIcon,
 } from "lucide-react";
@@ -20,7 +21,7 @@ import { dispatchQuote } from "@/lib/chat/commands";
 import { cn } from "@/lib/utils";
 
 /**
- * Rechtsklick auf eine Nachricht: zitieren, kopieren, ausblenden.
+ * Rechtsklick auf eine Nachricht: zitieren, kopieren, notieren, ausblenden.
  *
  * Warum ueberhaupt ein eigenes Menue -- das Kommando "Quote selection" aus
  * Palette und Slash-Menue konnte nie funktionieren: beide ziehen den Fokus in
@@ -39,6 +40,7 @@ export function MessageContextMenu({
   text,
   hidden,
   onHide,
+  onNote,
   className,
   children,
 }: {
@@ -48,6 +50,8 @@ export function MessageContextMenu({
   text: string;
   hidden: boolean;
   onHide: (versteckt: boolean) => void;
+  /** Eine private Notiz an dieser Nachricht anfangen. */
+  onNote?: () => void;
   className?: string;
   children: React.ReactNode;
 }) {
@@ -100,6 +104,13 @@ export function MessageContextMenu({
         </ContextMenuItem>
 
         <ContextMenuSeparator />
+
+        {onNote ? (
+          <ContextMenuItem onClick={onNote}>
+            <StickyNoteIcon />
+            Add note
+          </ContextMenuItem>
+        ) : null}
 
         {hidden ? (
           <ContextMenuItem onClick={() => onHide(false)}>

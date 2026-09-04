@@ -91,6 +91,13 @@ export function ChatMessage({
   const konto = useAccount();
   const zeigeDenken = useSettings((zustand) => zustand.thinking);
 
+  // Zwei Wege fuehren zur Notiz: die Palette (ueber ``commentSignal``, nur an
+  // der letzten Nachricht) und das Kontextmenue dieser Nachricht. Beide
+  // zaehlen hoch statt zu schalten -- so wirkt auch der zweite Aufruf
+  // hintereinander, was ein boolescher Schalter nicht koennte.
+  const [notizZaehler, setNotizZaehler] = React.useState(0);
+  const notizSignal = commentSignal + notizZaehler;
+
   /**
    * Das Kontextmenue nur dort, wo es etwas bewirken kann. In der
    * oeffentlichen Ansicht gibt es keinen Composer zum Zitieren und keinen
@@ -110,6 +117,7 @@ export function ChatMessage({
         }
         hidden={message.hidden ?? false}
         onHide={(versteckt) => onHide?.(message.id, versteckt)}
+        onNote={() => setNotizZaehler((z) => z + 1)}
         className={klasse}
       >
         {kinder}
@@ -161,7 +169,7 @@ export function ChatMessage({
               chatId={chatId}
               messageId={message.id}
               comments={message.comments}
-              openSignal={commentSignal}
+              openSignal={notizSignal}
               align="end"
             />
           )}
@@ -284,7 +292,7 @@ export function ChatMessage({
             chatId={chatId}
             messageId={message.id}
             comments={message.comments}
-            openSignal={commentSignal}
+            openSignal={notizSignal}
           />
         )}
       </MessageContent>

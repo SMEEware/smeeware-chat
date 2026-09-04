@@ -58,7 +58,15 @@ export function UserMessage({
   const collapsed = overflows && !expanded;
 
   return (
-    <Bubble variant="outline" align="end">
+    // Mindestbreite: eine Blase ist ein Block, kein Etikett. Ohne sie
+    // schrumpft "ok" auf ein Pillchen, und eine Spalte aus verschieden
+    // breiten Fetzen liest sich unruhig. ``min()`` statt einer festen Zahl,
+    // damit die Blase auf schmalen Geraeten nicht breiter wird als der Platz.
+    <Bubble
+      variant="outline"
+      align="end"
+      className="min-w-[min(13rem,100%)]"
+    >
       <BubbleContent className="px-4 py-3">
         <span
           className="block overflow-hidden transition-[max-height] duration-200"

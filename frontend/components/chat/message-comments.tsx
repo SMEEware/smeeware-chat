@@ -3,21 +3,8 @@
 import * as React from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { formatDistanceToNow } from "date-fns";
-import {
-  CheckIcon,
-  LockIcon,
-  MessageSquareTextIcon,
-  PencilLineIcon,
-  SendHorizontalIcon,
-  Trash2Icon,
-} from "lucide-react";
+import { XIcon } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
 import {
   addComment,
   removeComment,
@@ -27,12 +14,20 @@ import type { ChatComment } from "@/lib/chat/types";
 import { cn } from "@/lib/utils";
 
 /**
- * Private Notizen an einer Nachricht.
+ * Private Notizen an einer Nachricht -- als Randbemerkung, nicht als Fenster.
  *
- * Auf jeder Nachricht erreichbar -- der Ausloeser blendet sich beim
- * Ueberfahren ein und bleibt sichtbar, sobald Notizen da sind. Ein Klick
- * oeffnet ein kleines Fenster mit den vorhandenen Notizen und einem Feld
- * fuer eine neue. Die Notizen erreichen das Modell nie; sie leben nur hier.
+ * Vorher lagen sie hinter einem Popover, das ein Chip unter jeder Nachricht
+ * oeffnete. Das war der Fehler: eine Notiz ist eine Anmerkung, und ihr ganzer
+ * Wert besteht darin, neben dem zu stehen, was sie anmerkt. Hinter einem
+ * Klick versteckt weiss man nicht einmal, dass es sie gibt -- und der Chip
+ * unter jeder Nachricht machte den Verlauf unruhig, um genau das zu sagen.
+ *
+ * Jetzt stehen sie da, wo sie hingehoeren: unter der Nachricht, eingerueckt
+ * an einer Haarlinie, kleiner und leiser als das Gespraech. Angelegt werden
+ * sie ueber das Kontextmenue der Nachricht oder die Palette; ohne Notizen ist
+ * hier nichts zu sehen und nichts im Weg.
+ *
+ * Die Notizen erreichen das Modell nie -- sie leben nur im Verlauf.
  */
 export function MessageComments({
   chatId,
@@ -44,268 +39,202 @@ export function MessageComments({
   chatId: string;
   messageId: string;
   comments?: ChatComment[];
-  /** Zaehlt hoch, wenn die Palette hier eine Notiz will -- oeffnet das Fenster. */
+  /** Zaehlt hoch, wenn Palette oder Kontextmenue hier eine Notiz wollen. */
   openSignal?: number;
-  /** Wo das Fenster andockt -- bei Nutzernachrichten rechtsbuendig. */
+  /** Bei Nutzernachrichten haengt der Strich rechts statt links. */
   align?: "start" | "end";
 }) {
   const client = useQueryClient();
-  const [offen, setOffen] = React.useState(false);
-  const hatNotizen = comments.length > 0;
+  const [entwurf, setEntwurf] = React.useState<string | null>(null);
 
-  // Das Palette-Signal: oeffnen. Ein Frame Vorlauf, nicht direkt im
-  // Effekt-Rumpf -- so ruegt der Linter die Kaskade nicht (wie in der Tour).
+  /**
+   * Nur eine ECHTE Erhoehung oeffnet den Entwurf -- nicht ein Wert, der beim
+   * Einhaengen schon ueber null lag.
+   *
+   * Der Palettenzaehler wird immer an die letzte Nachricht gereicht. Wer ihn
+   * einmal benutzt hat, haengt danach jede neu ankommende Nachricht mit
+   * demselben Wert ein; eine Pruefung auf ``> 0`` haette dann bei jeder
+   * Antwort ungefragt ein Notizfeld aufgeklappt. Der Ausgangswert im Ref ist
+   * der beim Einhaengen -- ab da zaehlt nur noch, was dazukommt.
+   */
+  const gesehen = React.useRef(openSignal);
+
+  // Ein Frame Vorlauf statt setState direkt im Effekt-Rumpf -- sonst ruegt
+  // der Linter die Kaskade (dieselbe Loesung wie in der Tour).
   React.useEffect(() => {
-    if (openSignal <= 0) return;
-    const id = requestAnimationFrame(() => setOffen(true));
+    if (openSignal <= gesehen.current) return;
+    gesehen.current = openSignal;
+    const id = requestAnimationFrame(() => setEntwurf(""));
     return () => cancelAnimationFrame(id);
   }, [openSignal]);
 
+  if (comments.length === 0 && entwurf === null) return null;
+
+  const rechts = align === "end";
+
   return (
-    <Popover open={offen} onOpenChange={setOffen}>
-      <PopoverTrigger
-        render={
-          <button
-            type="button"
-            aria-label={hatNotizen ? `${comments.length} notes` : "Add a note"}
-            className={cn(
-              "inline-flex h-6 cursor-pointer items-center gap-1.5 rounded-full px-2 text-[11px] font-medium transition-all",
-              hatNotizen
-                ? "bg-primary/10 text-primary hover:bg-primary/15"
-                : cn(
-                    "text-muted-foreground/70 hover:bg-muted/70 hover:text-foreground",
-                    // Ohne Notizen zurueckhaltend: erst beim Ueberfahren der
-                    // Nachricht (oder Fokus/geoeffnet) taucht er ganz auf.
-                    "opacity-0 focus-visible:opacity-100 group-hover/message:opacity-100",
-                    offen && "opacity-100",
-                  ),
-            )}
-          />
-        }
-      >
-        <MessageSquareTextIcon className="size-3.5" />
-        {hatNotizen ? comments.length : "Note"}
-      </PopoverTrigger>
+    <div
+      className={cn(
+        "flex w-full flex-col gap-1.5",
+        // Die Haarlinie sitzt auf der Seite, die zur Nachricht zeigt, und
+        // bindet die Notizen sichtbar an sie.
+        rechts
+          ? "items-end border-e-2 border-border/50 pe-3 text-end"
+          : "items-start border-s-2 border-border/50 ps-3",
+      )}
+    >
+      {comments.map((comment) => (
+        <Notiz
+          key={comment.id}
+          comment={comment}
+          rechts={rechts}
+          onSpeichern={(text) =>
+            updateComment(chatId, messageId, comment.id, text, client)
+          }
+          onEntfernen={() =>
+            removeComment(chatId, messageId, comment.id, client)
+          }
+        />
+      ))}
 
-      <PopoverContent
-        align={align}
-        sideOffset={6}
-        className="w-80 overflow-hidden rounded-2xl border-border/70 p-0 shadow-xl shadow-black/10"
-      >
-        <div className="flex items-center gap-1.5 border-b border-border/60 px-3.5 py-2.5">
-          <LockIcon className="size-3 text-muted-foreground/60" />
-          <span className="text-[11px] font-medium tracking-wide text-muted-foreground/80">
-            Private notes
-          </span>
-          <span className="ms-auto text-[10px] text-muted-foreground/50">
-            only you can see these
-          </span>
-        </div>
-
-        {hatNotizen ? (
-          <ul className="flex max-h-56 flex-col gap-1 overflow-y-auto p-2">
-            {comments.map((comment) => (
-              <NotizZeile
-                key={comment.id}
-                comment={comment}
-                onSpeichern={(text) =>
-                  updateComment(chatId, messageId, comment.id, text, client)
-                }
-                onEntfernen={() =>
-                  removeComment(chatId, messageId, comment.id, client)
-                }
-              />
-            ))}
-          </ul>
-        ) : (
-          <p className="px-4 py-5 text-center text-[12px] text-muted-foreground/60">
-            No notes yet. Jot something down for later — it stays with this
-            message.
-          </p>
-        )}
-
+      {entwurf !== null ? (
         <NotizFeld
-          onAnlegen={(text) => addComment(chatId, messageId, text, client)}
-        />
-      </PopoverContent>
-    </Popover>
-  );
-}
-
-/** Eine einzelne Notiz -- Ansicht mit Zeit, auf Wunsch bearbeitbar. */
-function NotizZeile({
-  comment,
-  onSpeichern,
-  onEntfernen,
-}: {
-  comment: ChatComment;
-  onSpeichern: (text: string) => void;
-  onEntfernen: () => void;
-}) {
-  const [bearbeiten, setBearbeiten] = React.useState(false);
-  const [text, setText] = React.useState(comment.text);
-
-  if (bearbeiten) {
-    return (
-      <li className="rounded-xl bg-muted/50 p-2">
-        <AutoTextarea
-          value={text}
-          autoFocus
-          onChange={setText}
-          onSubmit={() => {
-            onSpeichern(text);
-            setBearbeiten(false);
+          wert={entwurf}
+          onChange={setEntwurf}
+          onFertig={(text) => {
+            if (text.trim()) addComment(chatId, messageId, text, client);
+            setEntwurf(null);
           }}
-          onCancel={() => {
-            setText(comment.text);
-            setBearbeiten(false);
-          }}
-          className="bg-background"
+          onAbbrechen={() => setEntwurf(null)}
         />
-        <div className="mt-1.5 flex justify-end gap-1">
-          <Button
-            size="xs"
-            variant="ghost"
-            className="h-6 px-2 text-[11px]"
-            onClick={() => {
-              setText(comment.text);
-              setBearbeiten(false);
-            }}
-          >
-            Cancel
-          </Button>
-          <Button
-            size="xs"
-            className="h-6 gap-1 px-2 text-[11px]"
-            onClick={() => {
-              onSpeichern(text);
-              setBearbeiten(false);
-            }}
-          >
-            <CheckIcon className="size-3" />
-            Save
-          </Button>
-        </div>
-      </li>
-    );
-  }
-
-  return (
-    <li className="group/note flex flex-col gap-0.5 rounded-xl px-2.5 py-2 transition-colors hover:bg-muted/50">
-      <p className="text-[13px] leading-relaxed whitespace-pre-wrap text-foreground/85 wrap-break-word">
-        {comment.text}
-      </p>
-      <div className="flex items-center gap-2">
-        <time className="text-[10px] text-muted-foreground/50">
-          {relativeZeit(comment.createdAt)}
-        </time>
-        <div className="ms-auto flex items-center gap-0.5 opacity-0 transition-opacity group-hover/note:opacity-100 focus-within:opacity-100">
-          <button
-            type="button"
-            onClick={() => setBearbeiten(true)}
-            aria-label="Edit note"
-            className="cursor-pointer rounded p-0.5 text-muted-foreground/50 hover:text-foreground"
-          >
-            <PencilLineIcon className="size-3" />
-          </button>
-          <button
-            type="button"
-            onClick={onEntfernen}
-            aria-label="Delete note"
-            className="cursor-pointer rounded p-0.5 text-muted-foreground/50 hover:text-destructive"
-          >
-            <Trash2Icon className="size-3" />
-          </button>
-        </div>
-      </div>
-    </li>
-  );
-}
-
-/** Das Feld fuer eine neue Notiz -- Enter schickt, Shift+Enter neue Zeile. */
-function NotizFeld({ onAnlegen }: { onAnlegen: (text: string) => void }) {
-  const [text, setText] = React.useState("");
-
-  const absenden = () => {
-    if (!text.trim()) return;
-    onAnlegen(text);
-    setText("");
-  };
-
-  return (
-    <div className="flex items-end gap-1.5 border-t border-border/60 p-2">
-      <AutoTextarea
-        value={text}
-        onChange={setText}
-        onSubmit={absenden}
-        placeholder="Add a note…"
-        className="flex-1"
-      />
-      <Button
-        type="button"
-        size="icon-sm"
-        aria-label="Add note"
-        disabled={!text.trim()}
-        className="size-8 shrink-0 rounded-lg"
-        onClick={absenden}
-      >
-        <SendHorizontalIcon className="size-3.5" />
-      </Button>
+      ) : null}
     </div>
   );
 }
 
 /**
- * Ein Textfeld, das mit dem Inhalt mitwaechst. Enter schickt, Shift+Enter
- * macht eine neue Zeile, Escape bricht ab (wenn ein Abbruch gegeben ist).
+ * Eine Notiz. Ein Klick auf den Text macht sie bearbeitbar -- kein
+ * Stift-Symbol, das erst erscheinen muss, und keine Save-Leiste darunter:
+ * Enter schliesst ab, Escape verwirft, ein Klick daneben speichert.
  */
-function AutoTextarea({
-  value,
-  onChange,
-  onSubmit,
-  onCancel,
-  placeholder,
-  autoFocus,
-  className,
+function Notiz({
+  comment,
+  rechts,
+  onSpeichern,
+  onEntfernen,
 }: {
-  value: string;
-  onChange: (value: string) => void;
-  onSubmit: () => void;
-  onCancel?: () => void;
-  placeholder?: string;
-  autoFocus?: boolean;
-  className?: string;
+  comment: ChatComment;
+  rechts: boolean;
+  onSpeichern: (text: string) => void;
+  onEntfernen: () => void;
+}) {
+  const [entwurf, setEntwurf] = React.useState<string | null>(null);
+
+  if (entwurf !== null) {
+    return (
+      <NotizFeld
+        wert={entwurf}
+        onChange={setEntwurf}
+        onFertig={(text) => {
+          // Leer heisst geloescht: ein leeres Kaestchen stehen zu lassen
+          // waere ein Zustand, den niemand gewollt hat.
+          if (text.trim()) onSpeichern(text);
+          else onEntfernen();
+          setEntwurf(null);
+        }}
+        onAbbrechen={() => setEntwurf(null)}
+      />
+    );
+  }
+
+  return (
+    <div
+      className={cn(
+        "group/note flex max-w-full items-baseline gap-2",
+        rechts && "flex-row-reverse",
+      )}
+    >
+      <button
+        type="button"
+        onClick={() => setEntwurf(comment.text)}
+        className={cn(
+          "cursor-text text-[12.5px] leading-relaxed whitespace-pre-wrap text-muted-foreground transition-colors wrap-break-word hover:text-foreground",
+          rechts ? "text-end" : "text-start",
+        )}
+      >
+        {comment.text}
+      </button>
+
+      <span
+        className={cn(
+          "flex shrink-0 items-baseline gap-1.5 text-[10px] text-muted-foreground/45",
+          rechts && "flex-row-reverse",
+        )}
+      >
+        <time dateTime={comment.createdAt}>
+          {relativeZeit(comment.createdAt)}
+        </time>
+        <button
+          type="button"
+          onClick={onEntfernen}
+          aria-label="Delete note"
+          className="cursor-pointer opacity-0 transition-opacity group-hover/note:opacity-100 hover:text-destructive focus-visible:opacity-100"
+        >
+          <XIcon className="size-3" />
+        </button>
+      </span>
+    </div>
+  );
+}
+
+/**
+ * Das Feld -- fuer eine neue Notiz wie fuers Bearbeiten einer bestehenden.
+ *
+ * Kein Rahmen, kein Knopf: es sitzt genau dort, wo die Notiz danach steht,
+ * und sieht ihr so aehnlich wie moeglich. Was man tippt, ist bereits das
+ * Ergebnis.
+ */
+function NotizFeld({
+  wert,
+  onChange,
+  onFertig,
+  onAbbrechen,
+}: {
+  wert: string;
+  onChange: (wert: string) => void;
+  onFertig: (wert: string) => void;
+  onAbbrechen: () => void;
 }) {
   const ref = React.useRef<HTMLTextAreaElement>(null);
 
+  // Waechst mit dem Inhalt, damit das Feld nie scrollt, solange die Notiz
+  // kurz ist -- und das ist sie fast immer.
   React.useLayoutEffect(() => {
     const el = ref.current;
     if (!el) return;
     el.style.height = "auto";
-    el.style.height = `${Math.min(el.scrollHeight, 140)}px`;
-  }, [value]);
+    el.style.height = `${Math.min(el.scrollHeight, 160)}px`;
+  }, [wert]);
 
   return (
     <textarea
       ref={ref}
-      value={value}
-      autoFocus={autoFocus}
+      autoFocus
       rows={1}
-      placeholder={placeholder}
+      value={wert}
+      placeholder="Note to self…"
       onChange={(event) => onChange(event.target.value)}
+      onBlur={() => onFertig(wert)}
       onKeyDown={(event) => {
         if (event.key === "Enter" && !event.shiftKey) {
           event.preventDefault();
-          onSubmit();
-        } else if (event.key === "Escape" && onCancel) {
+          onFertig(wert);
+        } else if (event.key === "Escape") {
           event.preventDefault();
-          onCancel();
+          onAbbrechen();
         }
       }}
-      className={cn(
-        "max-h-36 min-h-8 w-full resize-none rounded-lg border border-border/60 bg-background px-2.5 py-1.5 text-[13px] leading-relaxed outline-none placeholder:text-muted-foreground/50 focus:border-primary/40",
-        className,
-      )}
+      className="w-full resize-none rounded-md bg-muted/40 px-2 py-1 text-[12.5px] leading-relaxed text-foreground outline-none placeholder:text-muted-foreground/45 focus:bg-muted/60"
     />
   );
 }
