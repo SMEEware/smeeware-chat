@@ -15,12 +15,17 @@ export LLM_STREAM_URL="${LLM_STREAM_URL:-http://127.0.0.1:8000/api/v1/chat/strea
 # Setzt "npm ci" aus, wenn du die Abhaengigkeiten selbst verwaltest.
 SKIP_DEPS="${SKIP_DEPS:-0}"
 
+# -shell: das Werkzeug run_shell fuer diesen Lauf einschalten.
+SHELL_TOOL=0
+
 usage() {
   cat <<'EOF'
 Usage: start.sh [-dev|-build]
 
   -dev     Backend + "next dev"                 (Default)
   -build   Backend + "next build && next start"
+  -shell   SHELL_ENABLED=true fuer diesen Lauf -- das Modell darf Befehle
+           ausfuehren. Kombinierbar, z.B.: ./start.sh -build -shell
 
 Fuer den Server immer -dev NICHT benutzen: der Dev-Server liefert seine
 Chunks nur an localhost aus und antwortet hinter einer Domain mit 403.
@@ -35,6 +40,7 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     -dev|--dev)     MODE="dev";   shift ;;
     -build|--build) MODE="build"; shift ;;
+    -shell|--shell) SHELL_TOOL=1;  shift ;;
     -h|--help)      usage; exit 0 ;;
     *) echo "Unbekannte Option: $1" >&2; usage; exit 1 ;;
   esac
@@ -132,6 +138,17 @@ cleanup() {
   fi
 }
 trap cleanup EXIT INT TERM
+
+# backend/.env setzt SHELL_ENABLED=false. Das Backend liest die Datei mit
+# load_dotenv() ohne override=True, also gewinnt eine Variable, die hier schon
+# in der Umgebung steht -- der Schalter gilt nur fuer diesen Lauf, die Datei
+# bleibt unveraendert. Ohne -shell exportieren wir nichts, dann entscheidet
+# weiterhin die .env.
+if [[ "$SHELL_TOOL" == "1" ]]; then
+  export SHELL_ENABLED=true
+  echo ">> SHELL_ENABLED=true -- run_shell ist aktiv (laeuft mit den Rechten"
+  echo ">>   des Backend-Prozesses; jeder angemeldete Nutzer erreicht es)"
+fi
 
 echo ">> Backend: $BACKEND_DIR"
 cd "$BACKEND_DIR"
