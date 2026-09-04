@@ -6,6 +6,7 @@ import { ServerToasts } from "@/components/chat/server-toasts";
 import { SpeechFenster } from "@/components/chat/speech-fenster";
 import { VideoFenster } from "@/components/chat/video-fenster";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
+import { Toaster } from "@/components/ui/sonner";
 
 /**
  * Der Chat ist eine App-Ansicht, keine Dokumentseite: er fuellt genau
@@ -40,6 +41,11 @@ export default function ChatLayout({ children }: LayoutProps<"/chat">) {
           sie zeigt auf Elemente in der Sidebar wie im Chat und gehoert
           deshalb dorthin, wo beide zusammenkommen. */}
       <ChatTour />
+      {/* Kurze Rueckmeldungen fuer client-seitige Kommandos (kopiert,
+          Modell gewechselt, umbenannt). Die Hinweise aus dem Backend laufen
+          weiter ueber ServerToasts -- das hier ist nur fuer das, was im
+          Browser selbst passiert. */}
+      <Toaster position="bottom-center" />
     </SidebarProvider>
   );
 }

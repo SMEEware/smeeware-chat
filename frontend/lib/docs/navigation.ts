@@ -1,6 +1,7 @@
 import type { LucideIcon } from "lucide-react";
 import {
   BookOpenIcon,
+  CommandIcon,
   KeyRoundIcon,
   RocketIcon,
   TerminalIcon,
@@ -188,6 +189,23 @@ export const docsNavigation: DocGroup[] = [
         title: "Prompt",
         description: "Fetch one system prompt verbatim.",
         method: "GET",
+      },
+    ],
+  },
+  {
+    title: "Chat app",
+    icon: CommandIcon,
+    pages: [
+      {
+        slug: "chat/commands",
+        title: "Commands & shortcuts",
+        description:
+          "The command palette, the slash menu, and every shortcut.",
+      },
+      {
+        slug: "chat/workspaces",
+        title: "Workspaces",
+        description: "Give the model a project and path to work from.",
       },
     ],
   },

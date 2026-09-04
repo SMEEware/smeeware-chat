@@ -10,6 +10,7 @@ from src.api.v1.routes import (
     chat,
     chats,
     events,
+    fs,
     health,
     models,
     notifications,
@@ -26,6 +27,7 @@ router.include_router(health.router)
 router.include_router(account.router)
 router.include_router(apikeys.router)
 router.include_router(events.router)
+router.include_router(fs.router)
 router.include_router(notifications.router)
 router.include_router(chat.router)
 # /chat und /chats kollidieren nicht -- getrennte Prefixe.

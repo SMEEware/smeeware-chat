@@ -7,6 +7,7 @@ import type { HttpMethod } from "@/lib/docs/navigation";
  */
 export type DocBlock =
   | { type: "lead"; text: string }
+  | { type: "auth-link"; text: string; label: string; href: string }
   | { type: "heading"; id: string; title: string }
   | { type: "paragraph"; text: string }
   | { type: "code"; language: string; filename?: string; code: string }
@@ -84,6 +85,106 @@ const requestTabs: DocBlock = {
 };
 
 export const docsContent: Record<string, DocBlock[]> = {
+  "chat/commands": [
+    {
+      type: "lead",
+      text: "Every action in the chat lives in one catalog. Two surfaces read it: the command palette and the slash menu. They can never drift apart, because there is only one list behind both.",
+    },
+    { type: "heading", id: "palette", title: "The command palette" },
+    {
+      type: "paragraph",
+      text: "Press ⌘K (Ctrl+K on Windows and Linux) anywhere in the chat to open the palette. It shows the whole catalog — grouped by purpose — plus your open chats, your workspaces, and your personas. Start typing to filter across labels, descriptions and keywords at once.",
+    },
+    {
+      type: "callout",
+      variant: "info",
+      title: "Dynamic groups",
+      text: "Some groups are filled at runtime: your Chats, Workspaces and Personas, the Answer / Transcription / Read-aloud model pickers, and “Reference a chat”. Selecting a persona switches the system prompt, a model switches what answers, and a referenced chat pulls its transcript into the box as context.",
+    },
+    { type: "heading", id: "slash", title: "The slash menu" },
+    {
+      type: "paragraph",
+      text: "Type / at the start of a word in the message box to open the slash menu. It carries the quick, in-flow commands: actions like /new, /attach and /record, and templates like /prompt, /spec, /plan and /image. Arrow keys move, Enter runs, Esc closes.",
+    },
+    {
+      type: "paragraph",
+      text: "Templates do not send anything on their own. They drop a fill-in scaffold into the message box; you replace the placeholders and send, and the model turns your notes into the finished prompt, spec, plan or image request.",
+    },
+    { type: "heading", id: "groups", title: "How commands are grouped" },
+    {
+      type: "params",
+      rows: [
+        { name: "Chat", type: "group", text: "Start, share and manage conversations." },
+        { name: "Compose", type: "group", text: "Drop a ready-made template into the message." },
+        { name: "Context", type: "group", text: "The workspace and references the model works from." },
+        { name: "Input", type: "group", text: "Bring files and voice into the message." },
+        { name: "Models", type: "group", text: "Pick what answers, transcribes and speaks." },
+        { name: "Personas", type: "group", text: "Swap the system prompt behind the answers." },
+        { name: "Preferences", type: "group", text: "Thinking, tools, notifications and theme." },
+        { name: "Go to", type: "group", text: "Jump to the docs, account and settings." },
+        { name: "Access", type: "group", text: "Keys for the API." },
+      ],
+    },
+    { type: "heading", id: "shortcuts", title: "Keyboard shortcuts" },
+    {
+      type: "params",
+      rows: [
+        { name: "⌘K", type: "shortcut", text: "Open the command palette." },
+        { name: "⌘J", type: "shortcut", text: "Start a new chat." },
+        { name: "⌘O", type: "shortcut", text: "Attach files." },
+        { name: "⌘I", type: "shortcut", text: "Start voice recording." },
+      ],
+    },
+    {
+      type: "paragraph",
+      text: "The shortcut list in the sidebar footer is generated from the same catalog, so a key printed there always matches what the command actually does.",
+    },
+  ],
+  "chat/workspaces": [
+    {
+      type: "lead",
+      text: "A workspace is the context you are working in — a project, a folder, a set of notes. The active workspace rides along with every message, so the model always knows which project and path you mean.",
+    },
+    { type: "heading", id: "add", title: "Create a workspace" },
+    {
+      type: "steps",
+      steps: [
+        {
+          title: "Open the manager",
+          text: "Click the folder pill in the message bar, run “Workspaces” from the palette, or type /workspace.",
+        },
+        {
+          title: "Pick a folder",
+          text: "Give it a name and notes, then Browse. The browser lists the folders on the machine the agent runs on — locally that's your computer, deployed it's the agent's host — so the path always points somewhere the agent's tools can reach. You can also paste an absolute path.",
+        },
+        {
+          title: "Make it active",
+          text: "The first workspace you add becomes active automatically. Click any workspace to activate it; click the active one again to work with no context.",
+        },
+      ],
+    },
+    { type: "heading", id: "context", title: "How it reaches the model" },
+    {
+      type: "paragraph",
+      text: "The active workspace is attached to your latest message as a short context block — name, path and notes — right before the request goes out. It is never stored in the transcript, so switching workspaces mid-conversation always reflects the one active right now.",
+    },
+    {
+      type: "code",
+      language: "text",
+      filename: "what the model receives",
+      code: `[active workspace]
+Name: Smeeware Chat
+Path: /Users/you/dev/smeeware-chat
+Notes: Next.js frontend, FastAPI backend. Keep the two independent.
+Treat this as the working context for the request.`,
+    },
+    {
+      type: "callout",
+      variant: "info",
+      title: "Where they live",
+      text: "Your list of workspaces lives in your browser, next to your other preferences — the context travels as text with each message. The folder browser reads the agent's host over an authenticated endpoint (GET /fs), listing directories only, never file contents.",
+    },
+  ],
   "": [
     {
       type: "lead",
@@ -209,6 +310,12 @@ SMEEWARE_BASE_URL=https://api.smeeware.dev/v1`,
     {
       type: "lead",
       text: "Locally the backend trusts localhost and needs no key. The moment you expose it, an API key becomes the ticket in — sent as a bearer token in the Authorization header.",
+    },
+    {
+      type: "auth-link",
+      text: "Your account is ready for external access.",
+      label: "Manage API keys",
+      href: "/settings?section=keys",
     },
     { type: "heading", id: "wann", title: "When keys are required" },
     {
@@ -1230,8 +1337,14 @@ Use the analyze_image tool with that path to look at it.`,
       type: "responses",
       rows: [
         { status: "201", text: "Stored." },
-        { status: "422", text: "Unsupported type, empty file, too large, or too many files." },
-        { status: "500", text: "Uploads are disabled (UPLOADS_ENABLED=false)." },
+        {
+          status: "422",
+          text: "Unsupported type, empty file, too large, or too many files.",
+        },
+        {
+          status: "500",
+          text: "Uploads are disabled (UPLOADS_ENABLED=false).",
+        },
       ],
     },
   ],
@@ -1324,14 +1437,26 @@ Use the analyze_image tool with that path to look at it.`,
     {
       type: "params",
       rows: [
-        { name: "text", type: "string", text: "The transcript as one flowing string." },
+        {
+          name: "text",
+          type: "string",
+          text: "The transcript as one flowing string.",
+        },
         {
           name: "language",
           type: "string | null",
           text: "What the model heard, not what you asked for. null when the model does not report it — whisper-1 in plain JSON, for instance.",
         },
-        { name: "duration_ms", type: "integer", text: "Length of the recording in milliseconds, where the model reports it." },
-        { name: "model", type: "string", text: "Which entry actually did the work." },
+        {
+          name: "duration_ms",
+          type: "integer",
+          text: "Length of the recording in milliseconds, where the model reports it.",
+        },
+        {
+          name: "model",
+          type: "string",
+          text: "Which entry actually did the work.",
+        },
       ],
     },
     { type: "heading", id: "status", title: "Availability" },
@@ -1343,8 +1468,14 @@ Use the analyze_image tool with that path to look at it.`,
       type: "responses",
       rows: [
         { status: "200", text: "Transcribed successfully." },
-        { status: "422", text: "The recording was empty, too large, or could not be decoded." },
-        { status: "503", text: "Transcription is disabled (TRANSCRIBE_ENABLED=false)." },
+        {
+          status: "422",
+          text: "The recording was empty, too large, or could not be decoded.",
+        },
+        {
+          status: "503",
+          text: "Transcription is disabled (TRANSCRIBE_ENABLED=false).",
+        },
       ],
     },
   ],
@@ -1384,8 +1515,16 @@ Use the analyze_image tool with that path to look at it.`,
     {
       type: "params",
       rows: [
-        { name: "default", type: "string", text: "What /transcribe uses when no model is given." },
-        { name: "groups", type: "string[]", text: "The headings, in the order the settings should show them." },
+        {
+          name: "default",
+          type: "string",
+          text: "What /transcribe uses when no model is given.",
+        },
+        {
+          name: "groups",
+          type: "string[]",
+          text: "The headings, in the order the settings should show them.",
+        },
         {
           name: "models[].runtime",
           type: "string",
@@ -1418,7 +1557,7 @@ Use the analyze_image tool with that path to look at it.`,
     },
     {
       type: "paragraph",
-      text: "With an ELEVENLABS_API_KEY, provider is \"elevenlabs\" and voice_id is the default voice. Without one, provider is \"free\" — read-aloud still works through a keyless fallback voice, and reason says so. available is only false when TTS_ENABLED=false.",
+      text: 'With an ELEVENLABS_API_KEY, provider is "elevenlabs" and voice_id is the default voice. Without one, provider is "free" — read-aloud still works through a keyless fallback voice, and reason says so. available is only false when TTS_ENABLED=false.',
     },
     {
       type: "responses",
@@ -1462,8 +1601,16 @@ Use the analyze_image tool with that path to look at it.`,
     {
       type: "params",
       rows: [
-        { name: "default", type: "string", text: "The model read_aloud uses when the request names none." },
-        { name: "default_voice", type: "string", text: "The ElevenLabs voice used when the request sets no voice_id." },
+        {
+          name: "default",
+          type: "string",
+          text: "The model read_aloud uses when the request names none.",
+        },
+        {
+          name: "default_voice",
+          type: "string",
+          text: "The ElevenLabs voice used when the request sets no voice_id.",
+        },
         {
           name: "models[].runtime",
           type: "string",
@@ -1582,7 +1729,8 @@ Use the analyze_image tool with that path to look at it.`,
 /** Ueberschriften einer Seite -- speist das Inhaltsverzeichnis. */
 export const tocForSlug = (slug: string) =>
   (docsContent[slug] ?? [])
-    .filter((block): block is Extract<DocBlock, { type: "heading" }> =>
-      block.type === "heading",
+    .filter(
+      (block): block is Extract<DocBlock, { type: "heading" }> =>
+        block.type === "heading",
     )
     .map(({ id, title }) => ({ id, title }));

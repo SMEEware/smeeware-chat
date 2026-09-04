@@ -13,6 +13,8 @@ import type {
   MessagePart,
   WireMessage,
 } from "@/lib/chat/types";
+import { workspaceBlock } from "@/lib/workspaces/store";
+import type { Workspace } from "@/lib/workspaces/store";
 
 /**
  * Laufende Turns -- ausserhalb von React.
@@ -86,15 +88,27 @@ const neueId = () =>
  * im Verlauf. So steht in der Blase weiter die Frage, die getippt wurde,
  * und das Backend braucht trotzdem kein Feld ausser ``content``.
  */
-function toWire(messages: ChatMessage[]): WireMessage[] {
-  return messages.map(({ role, content, attachments }) => {
+function toWire(
+  messages: ChatMessage[],
+  workspace: Workspace | null = null,
+): WireMessage[] {
+  // Der Workspace-Block reist nur an der LETZTEN Nutzernachricht mit -- so
+  // sieht das Modell immer den gerade aktiven Kontext, ohne ihn in jeder
+  // Zeile zu wiederholen. Der Index wird vorab gesucht, damit die Karte
+  // ihn beim Durchlaufen wiedererkennt.
+  const letzterNutzer = messages.map((m) => m.role).lastIndexOf("user");
+  const wsBlock = workspaceBlock(workspace);
+
+  return messages.map(({ role, content, attachments }, index) => {
     // Nur Assistenz-Antworten saeubern -- Nutzertext bleibt unangetastet,
     // damit ein bewusst getippter Aufruf nicht aus dem Verlauf faellt.
     if (role === "assistant") {
       return { role, content: stripToolScaffolding(content) };
     }
-    const block = anhangBlock(attachments ?? []);
-    return { role, content: block ? `${content}\n\n${block}` : content };
+    const bloecke = [anhangBlock(attachments ?? [])];
+    if (index === letzterNutzer && wsBlock) bloecke.push(wsBlock);
+    const anhang = bloecke.filter(Boolean).join("\n\n");
+    return { role, content: anhang ? `${content}\n\n${anhang}` : content };
   });
 }
 
@@ -216,6 +230,102 @@ export function setzeVerlauf(chatId: string, messages: ChatMessage[]): void {
   const l = lauf(chatId, messages);
   if (l.schnapp.streaming || l.schnapp.messages.length > 0) return;
   aendere(l, { messages });
+}
+
+/**
+ * Attach a note to a message.
+ *
+ * Goes through ``aendere`` and ``sichern`` -- the same path as a turn, so
+ * the store stays consistent and a reload finds the comments again. Empty
+ * text is discarded.
+ */
+export function addComment(
+  chatId: string,
+  messageId: string,
+  text: string,
+  client: QueryClient,
+): void {
+  const l = laeufe.get(chatId);
+  if (!l) return;
+  const trimmed = text.trim();
+  if (!trimmed) return;
+
+  aendere(l, {
+    messages: l.schnapp.messages.map((message) =>
+      message.id === messageId
+        ? {
+            ...message,
+            comments: [
+              ...(message.comments ?? []),
+              {
+                id: neueId(),
+                text: trimmed,
+                createdAt: new Date().toISOString(),
+              },
+            ],
+          }
+        : message,
+    ),
+  });
+  sichern(chatId, l, client);
+}
+
+/** Edit the text of a note in place. Empty text removes it instead. */
+export function updateComment(
+  chatId: string,
+  messageId: string,
+  commentId: string,
+  text: string,
+  client: QueryClient,
+): void {
+  const l = laeufe.get(chatId);
+  if (!l) return;
+  const trimmed = text.trim();
+  if (!trimmed) {
+    removeComment(chatId, messageId, commentId, client);
+    return;
+  }
+
+  aendere(l, {
+    messages: l.schnapp.messages.map((message) =>
+      message.id === messageId
+        ? {
+            ...message,
+            comments: (message.comments ?? []).map((comment) =>
+              comment.id === commentId
+                ? { ...comment, text: trimmed }
+                : comment,
+            ),
+          }
+        : message,
+    ),
+  });
+  sichern(chatId, l, client);
+}
+
+/** Remove a single note again. */
+export function removeComment(
+  chatId: string,
+  messageId: string,
+  commentId: string,
+  client: QueryClient,
+): void {
+  const l = laeufe.get(chatId);
+  if (!l) return;
+
+  aendere(l, {
+    messages: l.schnapp.messages.map((message) =>
+      message.id === messageId
+        ? {
+            ...message,
+            comments: (message.comments ?? []).filter(
+              (comment) => comment.id !== commentId,
+            ),
+          }
+        : message,
+    ),
+  });
+  sichern(chatId, l, client);
 }
 
 /**
@@ -373,6 +483,8 @@ type TurnArgs = {
   tools: boolean;
   voiceId: string;
   ttsModel: string | null;
+  /** Der aktive Workspace -- reist als Kontext an der letzten Frage mit. */
+  workspace: Workspace | null;
   client: QueryClient;
 };
 
@@ -385,6 +497,7 @@ export function starte({
   tools,
   voiceId,
   ttsModel,
+  workspace,
   client,
 }: TurnArgs): void {
   const l = lauf(chatId);
@@ -430,7 +543,7 @@ export function starte({
     l,
     history,
     controller,
-    { model, prompt, tools, voiceId, ttsModel },
+    { model, prompt, tools, voiceId, ttsModel, workspace },
     client,
   );
 }
@@ -446,6 +559,7 @@ async function durchlauf(
     tools: boolean;
     voiceId: string;
     ttsModel: string | null;
+    workspace: Workspace | null;
   },
   client: QueryClient,
 ): Promise<void> {
@@ -457,7 +571,7 @@ async function durchlauf(
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        messages: toWire(history),
+        messages: toWire(history, optionen.workspace),
         model: optionen.model ?? undefined,
         // Der Prompt bestimmt die Persona, der Schalter, ob das Modell
         // ueberhaupt Werkzeuge angeboten bekommt.
@@ -476,7 +590,10 @@ async function durchlauf(
       throw new Error(await readErrorMessage(response));
     }
 
-    for await (const frame of parseSseStream(response.body, controller.signal)) {
+    for await (const frame of parseSseStream(
+      response.body,
+      controller.signal,
+    )) {
       // Fehler NACH dem ersten Byte -> kommt als Frame rein.
       if (frame.type === "error") throw new Error(frame.error.message);
 
@@ -532,7 +649,10 @@ async function durchlauf(
           (part) => part.type === "tool" && part.callId === frame.call_id,
         );
         if (index !== -1) {
-          const vorher = l.parts[index] as Extract<MessagePart, { type: "tool" }>;
+          const vorher = l.parts[index] as Extract<
+            MessagePart,
+            { type: "tool" }
+          >;
           l.parts[index] = {
             ...vorher,
             status: frame.ok ? "ok" : "error",

@@ -1,10 +1,18 @@
+"use client";
+
 import Link from "next/link";
-import { ArrowRightIcon, InfoIcon, TriangleAlertIcon } from "lucide-react";
+import {
+  ArrowRightIcon,
+  InfoIcon,
+  KeyRoundIcon,
+  TriangleAlertIcon,
+} from "lucide-react";
 
 import { CodeBlock } from "@/components/code-block";
 import { CodeTabs } from "@/components/docs/code-tabs";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
+import { useAccount } from "@/hooks/use-account";
 import { cn } from "@/lib/utils";
 import type { DocBlock } from "@/lib/docs/content";
 import type { HttpMethod } from "@/lib/docs/navigation";
@@ -46,6 +54,9 @@ function DocsBlock({ block }: { block: DocBlock }) {
         </p>
       );
 
+    case "auth-link":
+      return <AuthenticatedDocsLink block={block} />;
+
     case "heading":
       return (
         // scroll-mt haelt die Ueberschrift unter der klebenden Kopfzeile,
@@ -84,7 +95,9 @@ function DocsBlock({ block }: { block: DocBlock }) {
     case "callout": {
       const Icon = block.variant === "warning" ? TriangleAlertIcon : InfoIcon;
       return (
-        <Alert variant={block.variant === "warning" ? "destructive" : "default"}>
+        <Alert
+          variant={block.variant === "warning" ? "destructive" : "default"}
+        >
           <Icon />
           <AlertTitle>{block.title}</AlertTitle>
           <AlertDescription>{block.text}</AlertDescription>
@@ -115,13 +128,12 @@ function DocsBlock({ block }: { block: DocBlock }) {
           {block.rows.map((row, index) => (
             <div
               key={row.name}
-              className={cn(
-                "flex flex-col gap-1 p-4",
-                index > 0 && "border-t",
-              )}
+              className={cn("flex flex-col gap-1 p-4", index > 0 && "border-t")}
             >
               <div className="flex flex-wrap items-center gap-2">
-                <code className="font-mono text-sm font-medium">{row.name}</code>
+                <code className="font-mono text-sm font-medium">
+                  {row.name}
+                </code>
                 <span className="font-mono text-xs text-muted-foreground">
                   {row.type}
                 </span>
@@ -204,6 +216,32 @@ function DocsBlock({ block }: { block: DocBlock }) {
         </div>
       );
   }
+}
+
+function AuthenticatedDocsLink({
+  block,
+}: {
+  block: Extract<DocBlock, { type: "auth-link" }>;
+}) {
+  const account = useAccount();
+
+  if (!account.data?.authenticated) return null;
+
+  return (
+    <Link
+      href={block.href}
+      className="group/auth-link flex items-center gap-3 rounded-2xl border border-primary/20 bg-primary/[0.04] p-4 ring-1 ring-primary/5 transition-colors hover:bg-primary/[0.08] hover:ring-primary/20"
+    >
+      <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+        <KeyRoundIcon className="size-4" />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-sm font-medium">{block.text}</span>
+        <span className="mt-0.5 block text-sm text-primary">{block.label}</span>
+      </span>
+      <ArrowRightIcon className="size-4 shrink-0 text-muted-foreground transition-transform group-hover/auth-link:translate-x-0.5 group-hover/auth-link:text-primary" />
+    </Link>
+  );
 }
 
 export function DocsBlocks({ blocks }: { blocks: DocBlock[] }) {

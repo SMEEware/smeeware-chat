@@ -15,6 +15,7 @@ import {
 } from "@/lib/chat/turn-runner";
 import type { Attachment, ChatMessage } from "@/lib/chat/types";
 import { useSettings } from "@/lib/settings/store";
+import { aktiverWorkspace, useWorkspaces } from "@/lib/workspaces/store";
 
 type UseChatOptions = {
   /** Unter dieser id liegt der Chat in der Ablage -- immer die aus der
@@ -45,6 +46,7 @@ const neueId = () =>
 export function useChat({ chatId, initialMessages }: UseChatOptions) {
   const queryClient = useQueryClient();
   const einstellungen = useSettings();
+  const workspace = useWorkspaces(aktiverWorkspace);
 
   const [input, setInput] = React.useState("");
   // Neben dem Eingabefeld und aus demselben Grund: bricht man den Turn ab,
@@ -117,6 +119,7 @@ export function useChat({ chatId, initialMessages }: UseChatOptions) {
         tools: einstellungen.tools,
         voiceId: einstellungen.voiceId,
         ttsModel: einstellungen.ttsModel,
+        workspace,
         client: queryClient,
       });
     },
@@ -127,6 +130,7 @@ export function useChat({ chatId, initialMessages }: UseChatOptions) {
       einstellungen.tools,
       einstellungen.voiceId,
       einstellungen.ttsModel,
+      workspace,
       queryClient,
       stand.messages,
       stand.streaming,
@@ -150,6 +154,7 @@ export function useChat({ chatId, initialMessages }: UseChatOptions) {
         tools: einstellungen.tools,
         voiceId: einstellungen.voiceId,
         ttsModel: einstellungen.ttsModel,
+        workspace,
         client: queryClient,
       });
     },
@@ -159,6 +164,7 @@ export function useChat({ chatId, initialMessages }: UseChatOptions) {
       einstellungen.tools,
       einstellungen.voiceId,
       einstellungen.ttsModel,
+      workspace,
       queryClient,
       stand.messages,
       stand.streaming,

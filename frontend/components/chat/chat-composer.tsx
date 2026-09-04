@@ -6,6 +6,7 @@ import {
   ArrowUpIcon,
   CheckIcon,
   CornerDownLeftIcon,
+  FolderGit2Icon,
   Loader2Icon,
   MicIcon,
   PaperclipIcon,
@@ -23,9 +24,23 @@ import { Kbd, KbdGroup } from "@/components/ui/kbd";
 import { AttachmentChips } from "@/components/chat/attachment-chips";
 import { VoiceLevel } from "@/components/chat/voice-level";
 import { ModelSelector } from "@/components/chat/model-selector";
+import { SlashMenu } from "@/components/chat/slash-menu";
 import { useSound } from "@/hooks/use-sound";
 import { useTranscribe } from "@/hooks/use-transcribe";
-import { BEFEHL, istKuerzel, onBefehl } from "@/lib/chat/commands";
+import {
+  BEFEHL,
+  dispatchCommand,
+  istKuerzel,
+  onBefehl,
+  onInsert,
+} from "@/lib/chat/commands";
+import {
+  buildGeneratorTemplate,
+  filterCommands,
+  runCommand,
+} from "@/lib/chat/command-registry";
+import type { CommandEntry } from "@/lib/chat/command-registry";
+import { aktiverWorkspace, useWorkspaces } from "@/lib/workspaces/store";
 import {
   DATEI_ACCEPT,
   IMAGE_MAX_BYTES,
@@ -93,6 +108,51 @@ export function ChatComposer({
     valueRef.current = value;
   }, [value]);
 
+  // Slash commands: typing "/" opens a menu built from the existing
+  // commands (new chat, attach, record, comment, docs). The text after the
+  // slash filters the list; navigation lives in the textarea's onKeyDown.
+  const [slashQuery, setSlashQuery] = React.useState<string | null>(null);
+  const [slashIndex, setSlashIndex] = React.useState(0);
+
+  const closeSlash = React.useCallback(() => {
+    setSlashQuery(null);
+    setSlashIndex(0);
+  }, []);
+
+  const runSlash = React.useCallback(
+    (command: CommandEntry) => {
+      // Das abschliessende "/wort" faellt weg -- danach entweder eine
+      // Vorlage einsetzen (generate) oder das Kommando ueber den
+      // einheitlichen Weg ausfuehren.
+      const base = valueRef.current.replace(/\/\S*$/, "").trimEnd();
+
+      if (command.kind === "generate") {
+        const template = buildGeneratorTemplate(command);
+        onValueChange(base ? `${base}\n\n${template}` : template);
+        closeSlash();
+        textareaRef.current?.focus();
+        return;
+      }
+
+      onValueChange(base);
+      closeSlash();
+      runCommand(command);
+    },
+    [onValueChange, closeSlash],
+  );
+
+  // Vorlagen aus der Palette landen hier: sie feuert nur "leg diesen Text
+  // ins Feld", eingesetzt wird an genau dieser Stelle -- so wie das Tippen.
+  React.useEffect(
+    () =>
+      onInsert((text) => {
+        const vorher = valueRef.current;
+        onValueChange(vorher ? `${vorher}\n\n${text}` : text);
+        textareaRef.current?.focus();
+      }),
+    [onValueChange],
+  );
+
   /** Das Transkript hinten anhaengen, nicht ersetzen. */
   const textEinfuegen = React.useCallback(
     (text: string) => {
@@ -106,6 +166,11 @@ export function ChatComposer({
 
   const stimme = useTranscribe(textEinfuegen);
   const nimmtAuf = stimme.zustand !== "idle";
+
+  // Der aktive Workspace -- reist als Kontext mit jeder Frage. Hier nur zur
+  // Anzeige: die Pille zeigt, worauf gerade gearbeitet wird, und oeffnet die
+  // Verwaltung.
+  const workspace = useWorkspaces(aktiverWorkspace);
 
   // Waechst mit dem Text mit, bis MAX_HEIGHT -- danach scrollt das Feld.
   React.useLayoutEffect(() => {
@@ -144,8 +209,14 @@ export function ChatComposer({
     };
 
     window.addEventListener("keydown", aufTaste);
-    const abDatei = onBefehl(BEFEHL.anhaenge, dateiwahl);
-    const abAufnahme = onBefehl(BEFEHL.aufnahme, () => void stimme.starten());
+    const abDatei = onBefehl(BEFEHL.attachments, dateiwahl);
+    // Aufnahme haengt an ihrem eigenen Signal -- frueher lag sie mit dem
+    // Anhaengen auf demselben Ereignis, dann startete "Anhaengen" die
+    // Aufnahme gleich mit.
+    const abAufnahme = onBefehl(
+      BEFEHL.recordVoice,
+      () => void stimme.starten(),
+    );
     return () => {
       window.removeEventListener("keydown", aufTaste);
       abDatei();
@@ -267,6 +338,10 @@ export function ChatComposer({
   const meldung = fehler ?? stimme.fehler;
   const zeigtEtwas = attachments.length > 0 || laedt || meldung !== null;
 
+  const slashMatches =
+    slashQuery !== null ? filterCommands(slashQuery, "slash") : [];
+  const slashOpen = slashQuery !== null && !nimmtAuf;
+
   return (
     <form
       data-tour="composer"
@@ -334,7 +409,7 @@ export function ChatComposer({
           "composer-rahmen isolate overflow-hidden rounded-3xl",
           // Glas statt Karte: der Verlauf scrollt sichtbar darunter durch,
           // statt an einer harten Kante zu verschwinden.
-          "bg-card/75 backdrop-blur-xl supports-[backdrop-filter]:bg-card/60",
+          "bg-card/75 backdrop-blur-xl supports-backdrop-filter:bg-card/60",
           "shadow-xl shadow-black/5 ring-1 ring-border/70 dark:shadow-black/30",
           "transition-[box-shadow,background-color] duration-300",
           "group-focus-within/composer:shadow-2xl group-focus-within/composer:shadow-primary/10",
@@ -385,7 +460,12 @@ export function ChatComposer({
             "placeholder:text-muted-foreground/45 placeholder:transition-colors",
             "group-focus-within/composer:placeholder:text-muted-foreground/60",
           )}
-          onChange={(event) => onValueChange(event.target.value)}
+          onChange={(event) => {
+            const next = event.target.value;
+            onValueChange(next);
+            setSlashQuery(nimmtAuf ? null : slashQueryOf(next));
+            setSlashIndex(0);
+          }}
           onPaste={(event) => {
             // Ein Screenshot aus der Zwischenablage ist der haeufigste
             // Anhang ueberhaupt -- er soll nicht den Umweg ueber den
@@ -399,6 +479,44 @@ export function ChatComposer({
             // Waehrend der Aufnahme gehoert Enter dem Abschliessen -- der
             // Listener am Fenster erledigt das, hier nur nicht senden.
             if (nimmtAuf) return;
+
+            // Slash-Menue: solange es offen ist, gehoeren Pfeiltasten,
+            // Enter und Escape ihm -- nicht dem Absenden.
+            if (slashOpen) {
+              if (slashMatches.length === 0) {
+                if (event.key === "Enter" || event.key === "Escape") {
+                  event.preventDefault();
+                  closeSlash();
+                }
+                return;
+              }
+              if (event.key === "ArrowDown") {
+                event.preventDefault();
+                setSlashIndex((i) => (i + 1) % slashMatches.length);
+                return;
+              }
+              if (event.key === "ArrowUp") {
+                event.preventDefault();
+                setSlashIndex(
+                  (i) => (i - 1 + slashMatches.length) % slashMatches.length,
+                );
+                return;
+              }
+              if (event.key === "Enter") {
+                event.preventDefault();
+                runSlash(
+                  slashMatches[Math.min(slashIndex, slashMatches.length - 1)],
+                );
+                return;
+              }
+              if (event.key === "Escape") {
+                event.preventDefault();
+                closeSlash();
+                return;
+              }
+              return;
+            }
+
             // Enter schickt ab, Shift+Enter macht eine neue Zeile.
             if (event.key !== "Enter" || event.shiftKey) return;
             // Waehrend einer IME-Komposition ist Enter das Bestaetigen
@@ -407,6 +525,7 @@ export function ChatComposer({
             event.preventDefault();
             submit();
           }}
+          onBlur={closeSlash}
         />
 
         <InputGroupAddon align="block-end" className="gap-1.5 px-3 pb-3">
@@ -500,6 +619,41 @@ export function ChatComposer({
                 </InputGroupButton>
               ) : null}
 
+              {/* Der aktive Workspace. Traegt er einen Namen, steht er in
+                  der Markenfarbe und mit Text -- so sieht man auf einen Blick,
+                  worauf gearbeitet wird. Ohne aktiven Workspace bleibt nur das
+                  Symbol. Ein Klick oeffnet die Verwaltung. */}
+              <InputGroupButton
+                type="button"
+                size={workspace ? "sm" : "icon-sm"}
+                variant="ghost"
+                data-tour="workspace"
+                aria-label={
+                  workspace
+                    ? `Workspace: ${workspace.name}`
+                    : "Choose a workspace"
+                }
+                title={
+                  workspace
+                    ? `Workspace: ${workspace.name}`
+                    : "Choose a workspace"
+                }
+                className={cn(
+                  "cursor-pointer rounded-full transition-all active:scale-90",
+                  workspace
+                    ? "max-w-40 gap-1.5 bg-primary/10 px-2.5 text-primary hover:bg-primary/15"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                )}
+                onClick={() => dispatchCommand(BEFEHL.manageWorkspaces)}
+              >
+                <FolderGit2Icon />
+                {workspace ? (
+                  <span className="truncate text-[11px] font-medium">
+                    {workspace.name}
+                  </span>
+                ) : null}
+              </InputGroupButton>
+
               {/* Nur diese beiden: sie gelten fuer das Feld, an dem die Hand
                   gerade liegt. Alles Uebrige -- Palette, Anhaengen -- steht
                   gesammelt in der Fusszeile der Sidebar und muss hier nicht
@@ -581,6 +735,18 @@ export function ChatComposer({
         </InputGroupAddon>
       </InputGroup>
 
+      {slashOpen ? (
+        <SlashMenu
+          items={slashMatches}
+          selectedIndex={Math.min(
+            slashIndex,
+            Math.max(0, slashMatches.length - 1),
+          )}
+          onSelect={runSlash}
+          onHover={setSlashIndex}
+        />
+      ) : null}
+
       {/* Erscheint erst, wenn wirklich etwas ueber dem Feld haengt --
           eine dauerhafte Ablagezone waere Moebel fuer den Ausnahmefall. */}
       {ueberzogen ? (
@@ -593,6 +759,12 @@ export function ChatComposer({
       ) : null}
     </form>
   );
+}
+
+/** The active slash token -- the trailing "/word" -- or null. */
+function slashQueryOf(value: string): string | null {
+  const last = value.split(/\s+/).pop() ?? "";
+  return last.startsWith("/") ? last.slice(1) : null;
 }
 
 /** 0:07 -- Minuten ohne fuehrende Null, Sekunden mit. */

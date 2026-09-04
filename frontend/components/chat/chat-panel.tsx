@@ -14,8 +14,28 @@ import {
   SparklesIcon,
 } from "lucide-react";
 
+import { toast } from "sonner";
+
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   Empty,
   EmptyContent,
@@ -24,6 +44,7 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty";
+import { Input } from "@/components/ui/input";
 import {
   MessageScroller,
   MessageScrollerButton,
@@ -34,11 +55,24 @@ import {
 } from "@/components/ui/message-scroller";
 import { SidebarTrigger, useSidebar } from "@/components/ui/sidebar";
 import { BackendStatus } from "@/components/chat/backend-status";
-import { openChatCommand } from "@/lib/chat/commands";
+import {
+  BEFEHL,
+  dispatchInsert,
+  onBefehl,
+  openChatCommand,
+} from "@/lib/chat/commands";
 import { ChatComposer } from "@/components/chat/chat-composer";
 import { ChatMessage } from "@/components/chat/chat-message";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { useChat } from "@/hooks/use-chat";
+import {
+  useChats,
+  useDeleteChat,
+  useNewChat,
+  useRenameChat,
+} from "@/hooks/use-chats";
+import { useModelOverride } from "@/lib/chat/model-store";
+import { stripToolScaffolding } from "@/lib/chat/sanitize";
 import type { ChatMessage as ChatMessageTyp } from "@/lib/chat/types";
 import { useModels } from "@/hooks/use-models";
 import { useSuggestions } from "@/hooks/use-suggestions";
@@ -75,11 +109,26 @@ export function ChatPanel({ chatId, initialMessages }: ChatPanelProps) {
 
   const hasMessages = messages.length > 0;
 
+  // Comment signal: the palette (or later a shortcut) triggers a note on
+  // the last message. The value counts up so the same trigger arriving
+  // twice in a row still works -- a boolean flag would not "change" the
+  // second time.
+  const [commentSignal, setCommentSignal] = React.useState(0);
+  React.useEffect(
+    () => onBefehl(BEFEHL.comment, () => setCommentSignal((z) => z + 1)),
+    [],
+  );
+  const lastMessageId =
+    messages.length > 0 ? messages[messages.length - 1].id : null;
+
   // Modellauswahl: das Backend nennt das Standardmodell, der Nutzer kann
   // es ueberschreiben. Das effektive Modell = Auswahl, sonst Default --
   // ohne Sync-Effekt, damit vor der ersten Wahl schon eins gesetzt ist.
   const models = useModels();
-  const [modelOverride, setModelOverride] = React.useState<string | null>(null);
+  // Das gewaehlte Modell liegt im geteilten Store, damit auch die Palette es
+  // umschalten kann -- nicht mehr im lokalen Zustand dieser Ansicht.
+  const modelOverride = useModelOverride((z) => z.model);
+  const setModelOverride = useModelOverride((z) => z.setModel);
   const modelList = models.data?.models ?? [];
   // Reihenfolge der Ueberschriften -- kommt vom Backend, nicht aus
   // der Reihenfolge der Modelle selbst.
@@ -90,6 +139,145 @@ export function ChatPanel({ chatId, initialMessages }: ChatPanelProps) {
   // Nur auf der leeren Startseite gebraucht.
   const suggestions = useSuggestions(!hasMessages);
   const suggestionItems = suggestions.data ?? [];
+
+  // Chat-bezogene Kommandos aus Palette und Slash-Menue. Sie brauchen den
+  // laufenden Verlauf, das aktive Modell und die id -- Dinge, die es nur in
+  // dieser Ansicht gibt. Ueber Refs gehalten, damit der Hoerer beim Einhaengen
+  // einmal steht und nicht bei jedem Zeichen neu abonniert.
+  const { data: chatListe } = useChats();
+  const umbenennenMut = useRenameChat();
+  const loeschenMut = useDeleteChat();
+  const neuerChat = useNewChat();
+
+  const [umbenennenOffen, setUmbenennenOffen] = React.useState(false);
+  const [umbenennenWert, setUmbenennenWert] = React.useState("");
+  const [loeschenOffen, setLoeschenOffen] = React.useState(false);
+
+  const speichereUmbenennen = () => {
+    const titel = umbenennenWert.trim();
+    if (!titel) return;
+    umbenennenMut.mutate(
+      { id: chatId, title: titel },
+      {
+        onSuccess: () => toast.success("Chat renamed."),
+        onError: () => toast.error("Couldn't rename the chat."),
+      },
+    );
+    setUmbenennenOffen(false);
+  };
+
+  const refs = React.useRef({
+    messages,
+    send,
+    model: activeModel,
+    chats: chatListe,
+  });
+  // Nach dem Rendern nachziehen -- nicht mittendrin: der Hoerer unten liest
+  // ``refs.current`` erst beim Ereignis, also nach dem Render, und sieht so
+  // stets den frischen Stand.
+  React.useEffect(() => {
+    refs.current = { messages, send, model: activeModel, chats: chatListe };
+  });
+
+  React.useEffect(() => {
+    /** Text als Zitat (Blockzitat) ins Feld legen. */
+    const alsZitat = (text: string) => {
+      const zitat = text
+        .trim()
+        .split("\n")
+        .map((zeile) => `> ${zeile}`)
+        .join("\n");
+      dispatchInsert(`${zitat}\n\n`);
+    };
+
+    const letzteAntwort = (): string => {
+      const treffer = [...refs.current.messages]
+        .reverse()
+        .find((m) => m.role === "assistant");
+      return treffer ? stripToolScaffolding(treffer.content).trim() : "";
+    };
+
+    const kopiere = async (text: string, erfolg: string) => {
+      try {
+        await navigator.clipboard.writeText(text);
+        toast.success(erfolg);
+      } catch {
+        toast.error("Couldn't copy — the clipboard is blocked here.");
+      }
+    };
+
+    const abSummary = onBefehl(BEFEHL.summarizeChat, () => {
+      if (refs.current.messages.length === 0) {
+        toast.info("Nothing to summarize yet.");
+        return;
+      }
+      refs.current.send(
+        "Summarize our conversation so far — the key points, decisions, and any open questions.",
+        refs.current.model || null,
+      );
+    });
+
+    const abTranscript = onBefehl(BEFEHL.shareChatHistory, () => {
+      const md = transcriptToMarkdown(refs.current.messages);
+      if (!md) {
+        toast.info("Nothing to copy yet.");
+        return;
+      }
+      void kopiere(md, "Transcript copied as Markdown.");
+    });
+
+    const abLink = onBefehl(BEFEHL.shareLiveChat, () => {
+      void kopiere(window.location.href, "Chat link copied.");
+    });
+
+    const abQuoteMsg = onBefehl(BEFEHL.referenceMessage, () => {
+      const text = letzteAntwort();
+      if (!text) {
+        toast.info("No answer to quote yet.");
+        return;
+      }
+      alsZitat(text);
+    });
+
+    const abQuoteSel = onBefehl(BEFEHL.referenceContent, () => {
+      const auswahl = window.getSelection?.()?.toString().trim() ?? "";
+      const text = auswahl || letzteAntwort();
+      if (!text) {
+        toast.info("Select some text first, then quote it.");
+        return;
+      }
+      alsZitat(text);
+    });
+
+    const abRename = onBefehl(BEFEHL.renameChat, () => {
+      const aktuell = refs.current.chats?.find((c) => c.id === chatId);
+      if (!aktuell) {
+        toast.info("Send a message first — then the chat can be renamed.");
+        return;
+      }
+      setUmbenennenWert(aktuell.title);
+      setUmbenennenOffen(true);
+    });
+
+    const abDelete = onBefehl(BEFEHL.deleteChat, () => {
+      const gibtEs = refs.current.chats?.some((c) => c.id === chatId);
+      if (!gibtEs) {
+        toast.info("Nothing saved to delete yet.");
+        return;
+      }
+      setLoeschenOffen(true);
+    });
+
+    return () => {
+      abSummary();
+      abTranscript();
+      abLink();
+      abQuoteMsg();
+      abQuoteSel();
+      abRename();
+      abDelete();
+    };
+  }, [chatId]);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col select-text">
@@ -157,7 +345,13 @@ export function ChatPanel({ chatId, initialMessages }: ChatPanelProps) {
                     // Die Frage bleibt oben stehen, waehrend die Antwort waechst.
                     scrollAnchor={message.role === "user"}
                   >
-                    <ChatMessage message={message} />
+                    <ChatMessage
+                      message={message}
+                      chatId={chatId}
+                      commentSignal={
+                        message.id === lastMessageId ? commentSignal : 0
+                      }
+                    />
                   </MessageScrollerItem>
                 ))}
 
@@ -281,8 +475,95 @@ export function ChatPanel({ chatId, initialMessages }: ChatPanelProps) {
       </div>
 
       {!hasMessages ? <div aria-hidden className="flex-[0.8] shrink" /> : null}
+
+      {/* Umbenennen des aktuellen Chats -- ausgeloest aus Palette oder
+          Slash-Menue. Enter speichert, damit man die Hand nicht von der
+          Tastatur nehmen muss. */}
+      <Dialog open={umbenennenOffen} onOpenChange={setUmbenennenOffen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Rename chat</DialogTitle>
+            <DialogDescription>
+              Give this conversation a title you&apos;ll recognize later.
+            </DialogDescription>
+          </DialogHeader>
+          <Input
+            autoFocus
+            value={umbenennenWert}
+            onChange={(event) => setUmbenennenWert(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                speichereUmbenennen();
+              }
+            }}
+            placeholder="Chat title"
+          />
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setUmbenennenOffen(false)}>
+              Cancel
+            </Button>
+            <Button
+              disabled={
+                umbenennenWert.trim().length === 0 || umbenennenMut.isPending
+              }
+              onClick={speichereUmbenennen}
+            >
+              Save
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Loeschen des aktuellen Chats -- danach in einen frischen springen,
+          sonst zeigte die Ansicht auf einen Verlauf, den es nicht mehr gibt. */}
+      <AlertDialog open={loeschenOffen} onOpenChange={setLoeschenOffen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this chat?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This conversation will be removed for good. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-white hover:bg-destructive/90"
+              onClick={() => {
+                loeschenMut.mutate(chatId, {
+                  onSuccess: () => {
+                    toast.success("Chat deleted.");
+                    neuerChat();
+                  },
+                  onError: () => toast.error("Couldn't delete the chat."),
+                });
+                setLoeschenOffen(false);
+              }}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
+}
+
+/**
+ * Der Verlauf als Markdown -- fuer "Copy transcript". Der Gedankengang und
+ * das Werkzeug-Geruest bleiben draussen; kopiert wird, was auch in den
+ * Blasen steht.
+ */
+function transcriptToMarkdown(messages: ChatMessageTyp[]): string {
+  const teile = messages
+    .filter((m) => m.content.trim().length > 0)
+    .map((m) => {
+      const wer = m.role === "user" ? "**You**" : "**Assistant**";
+      const text =
+        m.role === "assistant" ? stripToolScaffolding(m.content) : m.content;
+      return `${wer}:\n\n${text.trim()}`;
+    });
+  return teile.join("\n\n---\n\n");
 }
 
 /**

@@ -20,6 +20,7 @@ import { Markdown } from "@/components/chat/markdown";
 import { Reasoning } from "@/components/chat/reasoning";
 import { ToolEvent } from "@/components/chat/tool-event";
 import { AttachmentChips } from "@/components/chat/attachment-chips";
+import { MessageComments } from "@/components/chat/message-comments";
 import { useAccount } from "@/hooks/use-account";
 import { useSettings } from "@/lib/settings/store";
 import { UserMessage } from "@/components/chat/user-message";
@@ -70,7 +71,16 @@ function CopyButton({
   );
 }
 
-export function ChatMessage({ message }: { message: ChatMessageType }) {
+export function ChatMessage({
+  message,
+  chatId,
+  commentSignal = 0,
+}: {
+  message: ChatMessageType;
+  chatId: string;
+  /** Counts up when the palette wants a note on this message. */
+  commentSignal?: number;
+}) {
   const konto = useAccount();
   const zeigeDenken = useSettings((zustand) => zustand.thinking);
 
@@ -111,6 +121,13 @@ export function ChatMessage({ message }: { message: ChatMessageType }) {
                 className="hover:text-foreground"
               />
             }
+          />
+          <MessageComments
+            chatId={chatId}
+            messageId={message.id}
+            comments={message.comments}
+            openSignal={commentSignal}
+            align="end"
           />
         </MessageContent>
       </Message>
@@ -220,6 +237,13 @@ export function ChatMessage({ message }: { message: ChatMessageType }) {
             ) : null}
           </MessageFooter>
         ) : null}
+
+        <MessageComments
+          chatId={chatId}
+          messageId={message.id}
+          comments={message.comments}
+          openSignal={commentSignal}
+        />
       </MessageContent>
     </Message>
   );

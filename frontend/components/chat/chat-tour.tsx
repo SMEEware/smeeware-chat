@@ -7,6 +7,7 @@ import {
   CheckIcon,
   CommandIcon,
   CompassIcon,
+  FolderGit2Icon,
   FolderPlusIcon,
   MessageSquareIcon,
   MicIcon,
@@ -104,6 +105,21 @@ const SCHRITTE: Schritt[] = [
     radius: 999,
   },
   {
+    id: "workspace",
+    ziele: ["workspace"],
+    icon: FolderGit2Icon,
+    titel: "Work from a project",
+    text: (
+      <>
+        Point a workspace at a folder and it rides along with every message, so
+        the model knows which project and path you mean. Switch or clear it here
+        anytime.
+      </>
+    ),
+    seite: "oben",
+    radius: 999,
+  },
+  {
     id: "neu",
     ziele: ["neu"],
     icon: FolderPlusIcon,
@@ -126,7 +142,8 @@ const SCHRITTE: Schritt[] = [
     text: (
       <>
         Search your chats by name here — or press <Kbd>⌘</Kbd>
-        <Kbd>K</Kbd> anywhere for the command palette.
+        <Kbd>K</Kbd> anywhere for the command palette. Every command lives there;
+        type <Kbd>/</Kbd> in the message box to reach them inline.
       </>
     ),
     seite: "unten",

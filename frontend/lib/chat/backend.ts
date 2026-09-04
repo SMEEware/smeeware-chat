@@ -64,3 +64,8 @@ export const KEYS_ENDPOINT =
 export const TTS_ENDPOINT =
   process.env.LLM_TTS_URL ??
   CHAT_STREAM_ENDPOINT.replace(/\/chat\/stream\/?$/, "/tts");
+
+/** Verzeichnis-Browser des Agenten-Hosts -- dieselbe Ableitung wie oben. */
+export const FS_ENDPOINT =
+  process.env.LLM_FS_URL ??
+  CHAT_STREAM_ENDPOINT.replace(/\/chat\/stream\/?$/, "/fs");

@@ -45,9 +45,11 @@ import {
 } from "@/components/ui/sidebar";
 import { NotificationsModal } from "@/components/chat/notifications-modal";
 import { SettingsDialog } from "@/components/chat/settings-dialog";
+import { WorkspaceModal } from "@/components/chat/workspace-modal";
 import { tourStarten } from "@/components/chat/chat-tour";
 import { useNotifications } from "@/hooks/use-notifications";
-import { KUERZEL, openChatCommand } from "@/lib/chat/commands";
+import { BEFEHL, onBefehl, openChatCommand } from "@/lib/chat/commands";
+import { KUERZEL } from "@/lib/chat/command-registry";
 import {
   oeffneNeuenChat,
   useChats,
@@ -116,6 +118,32 @@ export function ChatSidebar() {
   const [entleerenOffen, setEntleerenOffen] = React.useState(false);
   const [einstellungen, setEinstellungen] = React.useState(false);
   const [hinweiseOffen, setHinweiseOffen] = React.useState(false);
+  const [workspacesOffen, setWorkspacesOffen] = React.useState(false);
+
+  // Kommandos aus Palette und Slash-Menue, die hier ihre Heimat haben: der
+  // Einstellungsdialog und die Workspace-Verwaltung liegen ohnehin an dieser
+  // Stelle, die Tour setzt nur einen Merker. So bleibt der ganze
+  // Zustands-Kram an einem Ort statt ueber die Oberflaeche verstreut.
+  React.useEffect(() => {
+    const abEinst = onBefehl(BEFEHL.openSettingsDialog, () =>
+      setEinstellungen(true),
+    );
+    const abWs = onBefehl(BEFEHL.manageWorkspaces, () =>
+      setWorkspacesOffen(true),
+    );
+    const abTour = onBefehl(BEFEHL.startTour, () => tourStarten());
+    // "Neue Persona" fuehrt in die Einstellungen -- dort werden Personas
+    // geschrieben.
+    const abPersona = onBefehl(BEFEHL.newSystemPrompt, () =>
+      setEinstellungen(true),
+    );
+    return () => {
+      abEinst();
+      abWs();
+      abTour();
+      abPersona();
+    };
+  }, []);
   const hinweise = useNotifications();
 
   const aktiv = activeChatId(pathname);
@@ -414,6 +442,8 @@ export function ChatSidebar() {
       </Sidebar>
 
       <SettingsDialog open={einstellungen} onOpenChange={setEinstellungen} />
+
+      <WorkspaceModal open={workspacesOffen} onOpenChange={setWorkspacesOffen} />
 
       <NotificationsModal
         open={hinweiseOffen}

@@ -1,0 +1,10 @@
+{
+  "workbench.colorTheme": "Neon Green — Liquid Glass",
+  "codesnap.transparentBackground": false,
+  "vscode_vibrancy.refreshInterval": 1,
+  "colorHelper.disableTransparent": false
+  // Diese Datei enthielt nur Reste einer Settings-Suche nach "transparent"
+  // (codesnap.transparentBackground, FSharp.fcs.transparentCompiler.enabled)
+  // plus ein workbench.colorTheme, das die User-Settings in diesem Workspace
+  // ueberschrieben hat. Alles entfernt - Projekt erbt jetzt die User-Settings.
+}

@@ -1,6 +1,20 @@
 /** Argumente eines Werkzeugaufrufs -- beliebiges JSON-Objekt. */
 export type ToolArguments = Record<string, unknown>;
 
+/**
+ * A user note attached to a message -- pure client-side metadata.
+ *
+ * It is not part of ``WireMessage``: comments never reach the model, but
+ * they are persisted with the chat because the backend passes extra fields
+ * through unchanged (like ``parts`` or ``model``).
+ */
+export type ChatComment = {
+  id: string;
+  text: string;
+  /** ISO timestamp -- display only, never used for sorting. */
+  createdAt: string;
+};
+
 /** Was das Backend pro SSE-Frame schickt. */
 export type StreamFrame =
   | { type: "reasoning"; delta: string }
@@ -99,8 +113,10 @@ export type ChatMessage = WireMessage & {
   interrupted?: boolean;
   /** Dauer des Turns in ms, sobald er fertig ist. */
   durationMs?: number;
-  /** Dateien, die an dieser Frage hingen (nur bei Nutzer-Nachrichten). */
+  /** Files attached to this question (user messages only). */
   attachments?: Attachment[];
+  /** Private user notes on this message. */
+  comments?: ChatComment[];
 };
 
 export type ChatRequestBody = {
