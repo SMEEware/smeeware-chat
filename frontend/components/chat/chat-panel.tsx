@@ -384,7 +384,7 @@ export function ChatPanel({ chatId, initialMessages }: ChatPanelProps) {
           </MessageScroller>
         </MessageScrollerProvider>
       ) : (
-        <div className="flex min-h-0 flex-1 flex-col px-4 md:px-6">
+        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-4 md:px-6">
           <Empty className="p-6 select-none">
             <EmptyHeader>
               <EmptyMedia variant="default">
@@ -465,8 +465,6 @@ export function ChatPanel({ chatId, initialMessages }: ChatPanelProps) {
           ) : null}
         </div>
       </div>
-
-      {!hasMessages ? <div aria-hidden className="flex-[0.8] shrink" /> : null}
 
       <Dialog open={umbenennenOffen} onOpenChange={setUmbenennenOffen}>
         <DialogContent className="sm:max-w-md">

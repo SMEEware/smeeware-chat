@@ -11,6 +11,8 @@ export LLM_STREAM_URL="${LLM_STREAM_URL:-http://127.0.0.1:8000/api/v1/chat/strea
 SKIP_DEPS="${SKIP_DEPS:-0}"
 
 SHELL_TOOL=0
+OLLAMA=0
+OLLAMA_MODELL=""
 
 usage() {
   cat <<'EOF'
@@ -20,6 +22,11 @@ Usage: start.sh [-dev|-build]
   -build   Backend + "next build && next start"
   -shell   SHELL_ENABLED=true fuer diesen Lauf -- das Modell darf Befehle
            ausfuehren. Kombinierbar, z.B.: ./start.sh -build -shell
+  -ollama [MODELL]
+           OLLAMA_ENABLED=true fuer diesen Lauf. Ein Modell dahinter setzt
+           zugleich OLLAMA_MODEL, z.B.: ./start.sh -build -ollama qwen3:8b
+           Ohne Angabe gilt OLLAMA_MODEL aus backend/.env; steht dort nichts,
+           bricht der Start ab -- angeschaltet ohne Modell zeigt Ollama nicht.
 
 Fuer den Server immer -dev NICHT benutzen: der Dev-Server liefert seine
 Chunks nur an localhost aus und antwortet hinter einer Domain mit 403.
@@ -35,6 +42,14 @@ while [[ $# -gt 0 ]]; do
     -dev|--dev)     MODE="dev";   shift ;;
     -build|--build) MODE="build"; shift ;;
     -shell|--shell) SHELL_TOOL=1;  shift ;;
+    -ollama|--ollama)
+      OLLAMA=1
+      shift
+      if [[ $# -gt 0 && "$1" != -* ]]; then
+        OLLAMA_MODELL="$1"
+        shift
+      fi
+      ;;
     -h|--help)      usage; exit 0 ;;
     *) echo "Unbekannte Option: $1" >&2; usage; exit 1 ;;
   esac
@@ -120,6 +135,39 @@ if [[ "$SHELL_TOOL" == "1" ]]; then
   export SHELL_ENABLED=true
   echo ">> SHELL_ENABLED=true -- run_shell ist aktiv (laeuft mit den Rechten"
   echo ">>   des Backend-Prozesses; jeder angemeldete Nutzer erreicht es)"
+fi
+
+env_wert() {
+  local roh
+  roh=$(sed -n "s/^$1=//p" "$BACKEND_DIR/.env" 2>/dev/null | head -1)
+  roh=${roh%%#*}
+  roh=$(printf '%s' "$roh" | tr -d "\"'")
+  roh="${roh#"${roh%%[![:space:]]*}"}"
+  roh="${roh%"${roh##*[![:space:]]}"}"
+  printf '%s' "$roh"
+}
+
+if [[ "$OLLAMA" == "1" ]]; then
+  export OLLAMA_ENABLED=true
+  if [[ -n "$OLLAMA_MODELL" ]]; then
+    export OLLAMA_MODEL="$OLLAMA_MODELL"
+  fi
+
+  wirksames_modell="${OLLAMA_MODEL:-$(env_wert OLLAMA_MODEL)}"
+  if [[ -z "$wirksames_modell" ]]; then
+    echo "FEHLER: -ollama ohne Modell." >&2
+    echo "        OLLAMA_ENABLED=true allein zeigt nichts an -- das Backend" >&2
+    echo "        verlangt zusaetzlich OLLAMA_MODEL." >&2
+    echo "        Entweder:  ./start.sh -ollama qwen3:8b" >&2
+    echo "        oder OLLAMA_MODEL in $BACKEND_DIR/.env eintragen." >&2
+    if command -v ollama >/dev/null 2>&1; then
+      echo "        Lokal verfuegbar:" >&2
+      ollama list 2>/dev/null | tail -n +2 | awk '{print "          " $1}' >&2
+    fi
+    exit 1
+  fi
+
+  echo ">> OLLAMA_ENABLED=true, Modell: $wirksames_modell"
 fi
 
 echo ">> Backend: $BACKEND_DIR"
