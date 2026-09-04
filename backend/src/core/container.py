@@ -43,7 +43,12 @@ from src.services.apikeys import ApiKeyStore
 from src.services.chats.encrypted import EncryptedChatStore
 from src.services.chats.public import PublicChatStore
 from src.services.plugins import FilteredToolBox, PluginStore
-from src.services.plugins.service import erlaubte_werkzeuge, fingerabdruck
+from src.services.plugins.service import (
+    erlaubte_werkzeuge,
+    fingerabdruck,
+    prompt_block,
+    zustand,
+)
 from src.services.skills import SkillLibrary
 from src.services.tools.base import ToolBox
 from src.services.tools.composite import CompositeToolBox
@@ -148,6 +153,7 @@ class ServiceProvider:
         prompt: str | None = None,
         tools: bool = True,
         erlaubt: frozenset[str] | None = None,
+        lage: str | None = None,
     ) -> Agent:
         """Ein Agent je Laufzeit, ebenfalls gehalten.
 
@@ -165,7 +171,7 @@ class ServiceProvider:
         return self._singleton(
             f"agent:{name}:{runtime}:{'t' if tools else '-'}:{marke}",
             lambda: self.create_agent(
-                name, runtime=runtime, tools=tools, erlaubt=erlaubt
+                name, runtime=runtime, tools=tools, erlaubt=erlaubt, lage=lage
             ),
         )
 
@@ -335,6 +341,20 @@ class ServiceProvider:
         vorhanden = [spec.name for spec in await self.toolbox.specs()]
         return erlaubte_werkzeuge(vorhanden, await self.plugins.installiert())
 
+    async def werkzeug_lage(self) -> tuple[frozenset[str], str]:
+        """Was erlaubt ist -- und was das Modell darueber lesen soll.
+
+        Beides zusammen, weil beides aus derselben Abfrage faellt und
+        auseinanderlaufen wuerde, wenn es zwei Wege gaebe.
+        """
+        vorhanden = [spec.name for spec in await self.toolbox.specs()]
+        installiert = await self.plugins.installiert()
+        zustaende = zustand(vorhanden, installiert)
+        return (
+            erlaubte_werkzeuge(vorhanden, installiert),
+            prompt_block(zustaende),
+        )
+
     @property
     def public_chats(self) -> PublicChatStore | None:
         """Geteilte Chats -- ohne Sitzung lesbar, deshalb eigener Schluessel.
@@ -450,6 +470,7 @@ class ServiceProvider:
         runtime: str = "hosted",
         tools: bool = True,
         erlaubt: frozenset[str] | None = None,
+        lage: str | None = None,
     ) -> Agent:
         """Baut einen Agenten mit einem beliebigen Prompt aus der Sammlung.
 
@@ -464,6 +485,8 @@ class ServiceProvider:
         if tools:
             if self._skills_block:
                 system_prompt = f"{system_prompt}\n\n{self._skills_block}"
+            if lage:
+                system_prompt = f"{system_prompt}\n\n{lage}"
         else:
             system_prompt = f"{system_prompt}\n\n{WERKZEUGE_AUS}"
         return Agent(

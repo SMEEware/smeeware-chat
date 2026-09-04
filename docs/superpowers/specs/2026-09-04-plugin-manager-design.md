@@ -144,6 +144,23 @@ class FilteredToolBox(ToolBox):
 Das Singleton bleibt, wie es ist: HTTP-Client und MCP-Verbindungen werden
 weiter genau einmal aufgebaut. Gefiltert wird nur die Sicht darauf.
 
+### Der System-Prompt (beim Bauen dazugekommen)
+
+Das Filtern der Werkzeugliste allein reicht nicht. Der Prompt in
+`prompts/default.md` beschreibt Websuche, Seiten abrufen, Shell, Speicher und
+Skills in festen Abschnitten -- unabhaengig davon, was geladen ist. Ein Modell
+liest diese Prosa und kuendigt eine Suche an, die es gar nicht ausfuehren kann.
+
+Deshalb erzeugt `prompt_block` aus dem tatsaechlichen Zustand einen Abschnitt
+"Deine Werkzeuge in diesem Gespräch" und haengt ihn an. Er nennt **beide**
+Seiten: was installiert ist mitsamt Werkzeugnamen, und was nicht installiert
+ist mitsamt slug. Nur die installierten zu nennen liesse offen, ob der Rest
+fehlt oder vergessen wurde; die slugs machen die Antwort an den Nutzer
+brauchbar ("nicht installiert -- `/install web-search`").
+
+Der bestehende `WERKZEUGE_AUS`-Block bleibt fuer `tools=false` -- das ist ein
+anderer Fall als "nichts installiert".
+
 ### Der Agenten-Cache
 
 `agent_for` cacht unter `(runtime, prompt, tools)` und verdrahtet die Toolbox

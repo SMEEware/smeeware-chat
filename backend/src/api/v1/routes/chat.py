@@ -45,11 +45,13 @@ async def _fuer(
     setze_wahl(model=payload.tts_model, voice=payload.voice_id)
 
     eintrag = resolve(payload.model, lokal=provider.lokale_modelle)
+    erlaubt, lage = await provider.werkzeug_lage()
     agent = provider.agent_for(
         eintrag.runtime,
         prompt=payload.prompt,
         tools=payload.tools,
-        erlaubt=await provider.werkzeug_auswahl(),
+        erlaubt=erlaubt,
+        lage=lage,
     )
     optionen = payload.to_options().merged(model=eintrag.upstream)
 

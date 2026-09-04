@@ -133,6 +133,65 @@ def erlaubte_werkzeuge(
     )
 
 
+def prompt_block(zustaende: Sequence[PluginZustand]) -> str:
+    """Was das Modell ueber seine eigene Ausstattung wissen muss.
+
+    Ohne diesen Abschnitt glaubt es, alles zu koennen: der System-Prompt
+    beschreibt Websuche, Shell, Speicher und Skills in festen Abschnitten,
+    unabhaengig davon, was tatsaechlich geladen ist. Die Werkzeugliste allein
+    korrigiert das nicht -- ein Modell liest die Prosa und kuendigt eine Suche
+    an, die es nicht ausfuehren kann.
+
+    Der Abschnitt nennt beide Seiten. Nur die installierten zu nennen liesse
+    offen, ob der Rest fehlt oder nur vergessen wurde; die fehlenden mit ihrem
+    slug zu nennen macht die Antwort an den Nutzer brauchbar ("nicht
+    installiert -- /install web-search").
+    """
+    an = [z for z in zustaende if z.installed and z.available]
+    aus = [z for z in zustaende if not (z.installed and z.available)]
+
+    zeilen = ["## Deine Werkzeuge in diesem Gespräch"]
+
+    if an:
+        zeilen.append("")
+        zeilen.append("Installiert und benutzbar:")
+        zeilen.append("")
+        for z in an:
+            werkzeuge = ", ".join(f"`{w}`" for w in z.available_tools)
+            zeilen.append(f"- **{z.manifest.title}** — {werkzeuge}")
+    else:
+        zeilen.append("")
+        zeilen.append(
+            "**Es ist kein einziges Werkzeug installiert.** Du hast in diesem "
+            "Gespräch keine Werkzeuge zur Verfügung."
+        )
+
+    if aus:
+        zeilen.append("")
+        zeilen.append(
+            "Nicht installiert — alles, was oben im Prompt darüber steht, gilt "
+            "hier **nicht**:"
+        )
+        zeilen.append("")
+        for z in aus:
+            grund = (
+                f" (nicht verfügbar: {', '.join(z.missing_requirements)})"
+                if not z.available and z.missing_requirements
+                else ""
+            )
+            zeilen.append(f"- {z.manifest.title} — `{z.manifest.slug}`{grund}")
+
+    zeilen.append("")
+    zeilen.append(
+        "Tu nicht so, als hättest du ein nicht installiertes Werkzeug: kein "
+        "Aufruf, keine aufruf-ähnliche Schreibweise, kein „ich schaue kurz "
+        "nach\". Sag stattdessen klar, dass es nicht installiert ist, und nenne "
+        "den Weg dahin: `/install <slug>` im Chat oder der "
+        "Schraubenschlüssel neben dem Eingabefeld."
+    )
+    return "\n".join(zeilen)
+
+
 def fingerabdruck(erlaubt: frozenset[str]) -> str:
     """Stabiler Kurzschluessel fuer den Agenten-Cache.
 
