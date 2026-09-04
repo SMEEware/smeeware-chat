@@ -34,7 +34,6 @@ const STIL: Record<Hinweis["level"], { icon: React.ReactNode; ton: string }> = {
   },
 };
 
-/** "vor 3 Min", "vor 2 Std", sonst das Datum. */
 function wann(iso: string): string {
   const dann = new Date(iso).getTime();
   if (Number.isNaN(dann)) return "";
@@ -45,13 +44,6 @@ function wann(iso: string): string {
   return new Date(iso).toLocaleDateString();
 }
 
-/**
- * Was der Toast hinterlassen hat.
- *
- * Ein Toast ist nach Sekunden weg -- wer in dem Moment woanders hinsah, hat
- * ihn verpasst. Hier stehen sie alle, neueste zuerst, und bleiben liegen,
- * bis jemand sie wegraeumt.
- */
 export function NotificationsModal({
   open,
   onOpenChange,
@@ -62,14 +54,9 @@ export function NotificationsModal({
   const liste = useNotifications();
   const { gelesen, loeschen, alleLoeschen } = useNotificationActions();
 
-  // Beim Oeffnen als gelesen markieren -- das Abzeichen hat seinen Zweck
-  // erfuellt, sobald man hingesehen hat.
   const ungelesen = liste.data?.unread ?? 0;
   React.useEffect(() => {
     if (open && ungelesen > 0) gelesen.mutate();
-    // gelesen absichtlich nicht in den Abhaengigkeiten: die Mutation
-    // wechselt bei jedem Render die Identitaet und wuerde eine Schleife
-    // ausloesen.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, ungelesen]);
 
@@ -88,12 +75,6 @@ export function NotificationsModal({
 
   return (
     <div
-      // z-50 wie beim Systemcheck, und das ist hier kein Geschmack: der
-      // Kasten haengt in der Sidebar, der Chat daneben ist ein
-      // ``relative`` Element mit deckendem Hintergrund und steht spaeter
-      // im Dokument. Mit ``z-auto`` entscheidet die Reihenfolge -- und die
-      // verliert der Kasten. Er ging also auf und wurde vom Chat
-      // uebermalt, was von aussen aussieht, als taete der Knopf nichts.
       className="fixed inset-0 z-50 flex items-center justify-center bg-background/60 p-4 backdrop-blur-md animate-in fade-in duration-200"
       onClick={() => onOpenChange(false)}
     >
@@ -168,8 +149,6 @@ export function NotificationsModal({
                     key={hinweis.id}
                     className="group/hinweis relative flex items-start gap-3 border-b border-border/40 px-5 py-3 transition-colors last:border-b-0 hover:bg-muted/30"
                   >
-                    {/* Ungelesen: ein Punkt an der Kante, kein zweiter Ton
-                        auf der Flaeche. */}
                     {hinweis.read_at === null ? (
                       <span
                         aria-hidden

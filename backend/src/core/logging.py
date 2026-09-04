@@ -19,7 +19,6 @@ def configure_logging(*, debug: bool = False) -> None:
     root.addHandler(handler)
     root.setLevel(level)
 
-    # Der Access-Log von uvicorn dupliziert unsere Request-Logs nur.
     logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
     logging.getLogger("httpx").setLevel(logging.WARNING)
 

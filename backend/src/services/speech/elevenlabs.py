@@ -36,8 +36,6 @@ class ElevenLabsTTS(TextToSpeechService):
         self._default_voice = default_voice
         self._format = output_format
         self._timeout = timeout if timeout > 0 else None
-        # Ein eigener Client, falls keiner geteilt wird -- dann muss er auch
-        # wieder geschlossen werden (siehe aclose).
         self._http = http
         self._eigen = http is None
 

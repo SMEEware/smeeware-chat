@@ -24,17 +24,11 @@ class ChatMessage(BaseModel):
 class ChatRequest(BaseModel):
     messages: Annotated[list[ChatMessage], Field(min_length=1, max_length=100)]
     model: str | None = None
-    # Dateiname ohne Endung aus ``prompts/``. Fehlt er, gilt DEFAULT_PROMPT.
     prompt: Annotated[str | None, Field(max_length=64)] = None
-    # False haengt dem Modell keine Werkzeuge an. Fuer Fragen, die keine
-    # brauchen, spart das eine Runde und einen Haufen Prompt-Tokens.
     tools: bool = True
     temperature: Annotated[float | None, Field(ge=0.0, le=2.0)] = None
     max_tokens: Annotated[int | None, Field(ge=1, le=32_000)] = None
     top_p: Annotated[float | None, Field(gt=0.0, le=1.0)] = None
-    # Fuers Vorlesen (read_aloud): welche Stimme, welches Sprach-Modell.
-    # Vorliebe des Nutzers, nicht des Modells -- das Modell liefert nur
-    # den Text. Leer = die Vorgaben aus der .env.
     voice_id: Annotated[str | None, Field(max_length=128)] = None
     tts_model: Annotated[str | None, Field(max_length=64)] = None
 
@@ -73,5 +67,4 @@ class ChatResponse(BaseModel):
     model: str
     finish_reason: str | None = None
     usage: UsageResponse | None = None
-    # Nur bei Reasoning-Modellen gefuellt (z. B. deepseek-v4-flash).
     reasoning: str | None = None

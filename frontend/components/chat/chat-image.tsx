@@ -1,7 +1,5 @@
 "use client";
 
-// Absichtlich natives <img>: die Quellen sind beliebige fremde Hosts,
-// die next/image nicht ohne Freigabe in next.config laden darf.
 /* eslint-disable @next/next/no-img-element */
 
 import * as React from "react";
@@ -25,16 +23,12 @@ type ChatImageProps = {
 type Status = "loading" | "loaded" | "error";
 type Box = { width: number; height: number };
 
-/** Grenzen der Vorschau im Verlauf. */
 const MAX_WIDTH = 448;
 const MAX_HEIGHT = 320;
 
-/** Obergrenze der Lightbox: größer wird nie skaliert. */
-const LIGHTBOX_MAX_WIDTH = 896; // 56rem
-/** Reserve für die Infoleiste unter dem Bild + Rand. */
+const LIGHTBOX_MAX_WIDTH = 896;
 const LIGHTBOX_VERTICAL_RESERVE = 160;
 
-/** Skaliert einen Kasten so, dass er in maxW × maxH passt — nur verkleinern. */
 function fit(natural: Box, maxW: number, maxH: number): Box {
   const scale = Math.min(1, maxW / natural.width, maxH / natural.height);
   return {
@@ -43,11 +37,6 @@ function fit(natural: Box, maxW: number, maxH: number): Box {
   };
 }
 
-/**
- * Kasten fuer die Vorschau. Ohne gemessene Maße ein 16:10-Feld -- das ist
- * der Fall bei SVGs, die nur ein viewBox mitbringen und deshalb gar keine
- * eigene Groesse haben.
- */
 function boxFor(natural: Box | null): Box {
   if (!natural) {
     return { width: MAX_WIDTH, height: Math.round((MAX_WIDTH * 10) / 16) };
@@ -55,7 +44,6 @@ function boxFor(natural: Box | null): Box {
   return fit(natural, MAX_WIDTH, MAX_HEIGHT);
 }
 
-/** Viewport-Maße mitlesen — die Lightbox braucht sie zum Einpassen. */
 function useViewport(): Box {
   const [viewport, setViewport] = React.useState<Box>({ width: 0, height: 0 });
 
@@ -70,11 +58,6 @@ function useViewport(): Box {
   return viewport;
 }
 
-/**
- * Kasten der Lightbox: natürliche Maße, eingepasst in den Viewport.
- * Liefert null, solange keine Maße bekannt sind — dann greift der
- * CSS-Fallback mit 16:10.
- */
 function lightboxBox(natural: Box | null, viewport: Box): Box | null {
   if (!natural || viewport.width === 0 || viewport.height === 0) return null;
   const maxW = Math.min(LIGHTBOX_MAX_WIDTH, viewport.width - 32);
@@ -82,17 +65,6 @@ function lightboxBox(natural: Box | null, viewport: Box): Box | null {
   return fit(natural, maxW, maxH);
 }
 
-/**
- * Bilder aus Modellantworten.
- *
- * Die Groesse steht am Container, nicht am Bild. Sonst leitet der
- * Container seine Breite vom Bild ab und das Bild seine von "100% des
- * Containers" -- bei Quellen ohne eigene Maße, also praktisch jedem SVG
- * mit blossem viewBox, faellt das auf null zusammen.
- *
- * Der Aufbau kommt ausserdem ohne <div> und <figure> aus: Markdown setzt
- * ein Bild in einen Absatz, und in <p> ist nur Phrasing Content erlaubt.
- */
 export function ChatImage({ src, alt }: ChatImageProps) {
   const [status, setStatus] = React.useState<Status>("loading");
   const [natural, setNatural] = React.useState<Box | null>(null);
@@ -106,8 +78,6 @@ export function ChatImage({ src, alt }: ChatImageProps) {
 
   const onLoad = (event: React.SyntheticEvent<HTMLImageElement>) => {
     const { naturalWidth, naturalHeight } = event.currentTarget;
-    // Bei Quellen ohne eigene Maße meldet der Browser 0 -- dann bleibt es
-    // beim Ersatzkasten.
     setNatural(
       naturalWidth > 0 && naturalHeight > 0
         ? { width: naturalWidth, height: naturalHeight }
@@ -134,7 +104,6 @@ export function ChatImage({ src, alt }: ChatImageProps) {
           type="button"
           onClick={() => setOpen(true)}
           aria-label={caption ? `Enlarge ${caption}` : "Enlarge image"}
-          // Feste Maße am Kasten, das Bild fuellt ihn nur noch aus.
           style={{
             width: box.width,
             aspectRatio: `${box.width} / ${box.height}`,
@@ -172,9 +141,6 @@ export function ChatImage({ src, alt }: ChatImageProps) {
       </span>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        {/* DialogContent ist auf Formulare gemuenzt -- fuer eine Lightbox
-            faellt der Kasten drumherum weg. Die Breite kommt explizit vom
-            eingepassten Bild, die Höhe wächst mit der Infoleiste. */}
         <DialogContent
           className="w-auto max-w-none gap-0 border-0 bg-transparent p-0 shadow-none ring-0 sm:max-w-none"
           style={lightbox ? { width: lightbox.width } : undefined}
@@ -184,8 +150,6 @@ export function ChatImage({ src, alt }: ChatImageProps) {
           </DialogTitle>
 
           <div
-            // Auch hier braucht eine Quelle ohne eigene Maße einen Kasten,
-            // sonst kollabiert sie im schrumpfenden Dialog genauso.
             style={
               lightbox
                 ? {
@@ -203,7 +167,6 @@ export function ChatImage({ src, alt }: ChatImageProps) {
             />
           </div>
 
-          {/* Infoleiste: Dateiname, Typ, Beschriftung, Original. */}
           <span className="mt-3 w-full flex flex-wrap items-center gap-x-3 gap-y-2 rounded-2xl border bg-background/80 px-4 py-2.5 backdrop-blur-md">
             <span className="min-w-0 flex-1 truncate text-sm font-medium">
               {info?.name}

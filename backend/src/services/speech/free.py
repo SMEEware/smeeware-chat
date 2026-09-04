@@ -30,7 +30,6 @@ from src.services.speech.base import SpeechError, Sprachausgabe, TextToSpeechSer
 logger = get_logger(__name__)
 
 ENDPOINT = "https://translate.google.com/translate_tts"
-# Etwas Reserve unter der harten Grenze des Dienstes.
 CHUNK = 190
 UA = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
@@ -50,8 +49,6 @@ class FreeTTS(TextToSpeechService):
 
     @property
     def available(self) -> bool:
-        # Schluessellos -- erreichbar ist er, oder er ist es im Moment nicht;
-        # das zeigt sich erst beim Aufruf.
         return True
 
     def _client(self) -> httpx.AsyncClient:
@@ -105,7 +102,6 @@ class FreeTTS(TextToSpeechService):
                 f"{antwort.status_code}). Add an ELEVENLABS_API_KEY for reliable "
                 f"speech."
             )
-        # Kleine Pause zwischen den Stuecken -- der Dienst mag keine Salven.
         await asyncio.sleep(0.05)
         return antwort.content
 

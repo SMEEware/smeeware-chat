@@ -25,15 +25,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { accountKey, useAccount } from "@/hooks/use-account";
 
-/**
- * Das Konto im Kopf der Seite.
- *
- * Solange niemand angemeldet ist, ist es schlicht der "Open chat"-Knopf wie
- * bisher -- ein Avatar ohne Konto dahinter waere eine leere Geste. Ist
- * jemand angemeldet, wird daraus sein Bild mit einem Menue: der eine Ort,
- * von dem aus man in die Einstellungen, in die Doku und wieder hinaus
- * kommt.
- */
 export function AccountMenu() {
   const konto = useAccount();
   const router = useRouter();
@@ -41,8 +32,6 @@ export function AccountMenu() {
 
   const abmelden = async () => {
     await fetch("/api/auth", { method: "DELETE" });
-    // Der Cache haelt sonst den alten "angemeldet"-Zustand fest und die
-    // Anmeldeseite schickt einen gerade Abgemeldeten sofort weiter.
     client.setQueryData(accountKey, (alt: unknown) =>
       alt && typeof alt === "object"
         ? { ...(alt as object), authenticated: false }
@@ -51,7 +40,6 @@ export function AccountMenu() {
     router.push("/login");
   };
 
-  // Noch nicht geladen oder nicht angemeldet: der gewohnte CTA.
   if (!konto.data?.authenticated) {
     return (
       <Button

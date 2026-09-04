@@ -2,17 +2,6 @@ import type { NextRequest } from "next/server";
 
 import { UPLOADS_ENDPOINT } from "@/lib/chat/backend";
 
-/**
- * Anhaenge ans Backend durchreichen.
- *
- * Das Formular wird als FormData gelesen und neu aufgebaut statt roh
- * weitergeleitet: so setzt fetch die Grenzmarkierung selbst, und wir muessen
- * den Content-Type des Originals nicht von Hand mitschleppen -- eine falsche
- * boundary waere der haeufigste Weg, sich das hier kaputtzumachen.
- *
- * Was erlaubt ist und wie gross es sein darf, entscheidet das Backend. Die
- * Regeln hier zu wiederholen hiesse, sie zweimal zu pflegen.
- */
 export async function POST(request: NextRequest) {
   let form: FormData;
   try {

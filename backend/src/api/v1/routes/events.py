@@ -34,13 +34,8 @@ SSE_HEADERS = {
     "X-Accel-Buffering": "no",
 }
 
-# Ohne Verkehr schliessen Proxies eine Verbindung irgendwann. Ein Doppelpunkt
-# am Zeilenanfang ist ein SSE-Kommentar: kommt an, loest nichts aus.
 HERZSCHLAG = 25.0
 
-# So oft schaut der Strom nach, ob es ihn noch braucht. Feiner als der
-# Herzschlag: sonst merkt er ein Herunterfahren oder einen verschwundenen
-# Browser erst eine halbe Minute spaeter.
 TAKT = 1.0
 
 
@@ -60,8 +55,6 @@ async def _strom(request: Request, provider: ProviderDep) -> AsyncIterator[str]:
     bus = provider.events
 
     async with bus.subscribe() as schlange:
-        # Ein erstes Frame sofort: so weiss der Client, dass die Verbindung
-        # wirklich steht, statt auf das erste Ereignis zu warten.
         yield 'data: {"type":"ready"}\n\n'
         logger.info("Ereignis-Strom offen (%d Zuhoerer)", bus.listeners)
 
@@ -82,9 +75,6 @@ async def _strom(request: Request, provider: ProviderDep) -> AsyncIterator[str]:
 
                 seit_herzschlag = 0.0
 
-                # Weckruf beim Herunterfahren -- kein Ereignis fuer den
-                # Client, nur das Zeichen zu gehen. Ohne diesen Ausgang
-                # wartet uvicorn beim Neustart ewig auf diese Verbindung.
                 if ereignis.get("type") == "__ende__":
                     break
 

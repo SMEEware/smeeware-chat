@@ -51,7 +51,6 @@ class SessionStore:
         if sitzung.laeuft_ab <= time.time():
             del self._sitzungen[kennung]
             return None
-        # Wer arbeitet, soll nicht mitten im Satz abgemeldet werden.
         sitzung.laeuft_ab = time.time() + self._ttl
         return sitzung
 

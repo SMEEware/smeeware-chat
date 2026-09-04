@@ -39,7 +39,6 @@ class Agent:
         self._provider = provider
         self._system_prompt = system_prompt
         self._default_options = default_options or CompletionOptions()
-        # NullToolBox statt None: der Ablauf unten braucht keine Sonderfaelle.
         self._toolbox = toolbox or NullToolBox()
         self._max_tool_rounds = max_tool_rounds
 
@@ -77,8 +76,6 @@ class Agent:
             for call in completion.tool_calls:
                 working.append(Message.from_tool_result(await self._run(call)))
 
-        # Budget aufgebraucht -- letzter Versuch ohne Werkzeuge, damit am Ende
-        # eine Antwort steht statt einer weiteren Aufrufrunde.
         logger.warning("Werkzeug-Budget erschoepft, erzwinge Antwort")
         return await self._provider.complete(
             working, replace(merged, tools=())
@@ -109,8 +106,6 @@ class Agent:
                     calls.append(_call_of(chunk))
                 elif chunk.kind == "content":
                     answer.append(chunk.text)
-                # Auch Werkzeugaufrufe gehen ans Frontend -- der Nutzer soll
-                # sehen, dass gearbeitet wird, statt in eine Pause zu starren.
                 yield chunk
 
             if not calls:

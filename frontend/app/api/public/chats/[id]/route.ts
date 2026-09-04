@@ -4,14 +4,6 @@ import { PUBLIC_CHATS_ENDPOINT } from "@/lib/chat/backend";
 
 type Context = { params: Promise<{ id: string }> };
 
-/**
- * Ein geteilter Chat -- ohne Anmeldung lesbar.
- *
- * Hier wird bewusst KEIN Sitzungs-Cookie weitergereicht. Nicht aus
- * Bequemlichkeit: der Endpunkt dahinter kennt nur die Tabelle der geteilten
- * Kopien, und eine mitgeschickte Kennung koennte nur den Eindruck erwecken,
- * sie spiele eine Rolle. Was hier herauskommt, sieht jeder gleich.
- */
 export async function GET(request: NextRequest, context: Context) {
   const { id } = await context.params;
 

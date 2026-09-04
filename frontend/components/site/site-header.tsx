@@ -41,8 +41,6 @@ export function SiteHeader() {
 
         <div className="ml-auto flex items-center gap-2">
           <ThemeToggle />
-          {/* Wird zum Avatar-Menue, sobald jemand angemeldet ist -- sonst
-              bleibt es der gewohnte "Open chat"-Knopf. */}
           <AccountMenu />
         </div>
       </div>

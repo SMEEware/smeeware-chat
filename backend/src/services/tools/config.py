@@ -25,7 +25,6 @@ def load_mcp_servers(path: Path) -> list[McpServerConfig]:
     try:
         raw = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
-        # Eine kaputte Werkzeugdatei darf die App nicht am Start hindern.
         logger.warning("MCP-Konfiguration %s unlesbar: %s", path, exc)
         return []
 

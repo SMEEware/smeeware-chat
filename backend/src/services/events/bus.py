@@ -25,14 +25,11 @@ from src.core.logging import get_logger
 
 logger = get_logger(__name__)
 
-# Genug fuer einen Schwall, klein genug, dass nichts Altes lange liegt.
 WARTESCHLANGE = 32
 
 Ereignis = dict[str, Any]
 
 
-# Wird beim Herunterfahren in jede Warteschlange gelegt. Kein echtes
-# Ereignis -- es geht nie an einen Client, es beendet nur dessen Strom.
 ENDE: Ereignis = {"type": "__ende__"}
 
 
@@ -66,8 +63,6 @@ class EventBus:
             try:
                 schlange.put_nowait(ENDE)
             except asyncio.QueueFull:
-                # Voll heisst: der Strom hat ohnehin gleich etwas zu tun und
-                # sieht dabei ``beendet``.
                 pass
 
     @asynccontextmanager
@@ -87,8 +82,6 @@ class EventBus:
                 schlange.put_nowait(ereignis)
                 zugestellt += 1
             except asyncio.QueueFull:
-                # Aeltestes wegwerfen und neu versuchen -- ein Hinweis von
-                # jetzt ist mehr wert als einer von vor einer Minute.
                 try:
                     schlange.get_nowait()
                     schlange.put_nowait(ereignis)

@@ -16,7 +16,6 @@ from src.services.tools.local.context import LocationService
 
 logger = get_logger(__name__)
 
-# WMO-Wettercodes, wie Open-Meteo sie liefert.
 WETTER = {
     0: "clear", 1: "mostly clear", 2: "partly cloudy", 3: "overcast",
     45: "fog", 48: "rime fog", 51: "light drizzle", 53: "drizzle",

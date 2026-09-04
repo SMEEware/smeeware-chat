@@ -55,7 +55,6 @@ class LocationService:
     ohne Ortsangabe nicht erst eine zweite Werkzeugrunde braucht.
     """
 
-    # Beide liefern ueber HTTPS und ohne Schluessel.
     ENDPOINTS = ("https://ipwho.is/", "https://ipapi.co/json/")
 
     def __init__(self, client: httpx.AsyncClient) -> None:
@@ -80,7 +79,6 @@ class LocationService:
             if location.country or location.timezone:
                 self._cached = location
                 self._fetched_at = time.monotonic()
-                # Nur die Ableitung loggen, nie die IP.
                 logger.info(
                     "Standort ermittelt: %s, %s (%s)",
                     location.city or "?",
@@ -96,7 +94,7 @@ class LocationService:
 def _parse(data: dict) -> Location:
     """Vereint die Feldnamen von ipwho.is und ipapi.co."""
     zeitzone = data.get("timezone")
-    if isinstance(zeitzone, dict):  # ipwho.is verschachtelt
+    if isinstance(zeitzone, dict):
         zeitzone = zeitzone.get("id")
 
     return Location(

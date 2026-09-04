@@ -20,13 +20,6 @@ import {
 import { cn } from "@/lib/utils";
 import { SectionCard, SectionHeader } from "@/components/settings/section-parts";
 
-/**
- * Das Konto -- Bild, Name, Passwort, Abmelden, Loeschen.
- *
- * Frueher ein Reiter im Chat-Dialog. Hierher gezogen, weil es nichts mit dem
- * Chat zu tun hat: was man am Konto tut, tut man selten und woanders als
- * beim Tippen einer Frage.
- */
 export function AccountSection() {
   const router = useRouter();
   const konto = useAccount();
@@ -43,8 +36,6 @@ export function AccountSection() {
   const [abmelden, setAbmelden] = React.useState(false);
 
   const benutzer = konto.data?.username ?? "";
-  // Abgeleitet: solange niemand getippt hat, zeigt das Feld den Namen aus
-  // dem Konto -- ohne Effekt, der ihn hineinkopiert.
   const name = nameEntwurf ?? benutzer;
 
   const melde = (text: string) => {
@@ -116,7 +107,6 @@ export function AccountSection() {
         text="Your profile, sign-in, and the switch that ends it all."
       />
 
-      {/* -- Bild und Abmelden -------------------------------------- */}
       <SectionCard className="flex items-center gap-4">
         <button
           type="button"
@@ -179,7 +169,6 @@ export function AccountSection() {
         />
       </SectionCard>
 
-      {/* -- Name ---------------------------------------------------- */}
       <SectionCard>
         <form onSubmit={nameSpeichern} className="flex flex-col gap-3">
           <h3 className="text-[10px] font-medium tracking-[0.09em] text-muted-foreground/45 uppercase">
@@ -200,7 +189,6 @@ export function AccountSection() {
         </form>
       </SectionCard>
 
-      {/* -- Passwort ------------------------------------------------ */}
       <SectionCard>
         <form onSubmit={passwortSpeichern} className="flex flex-col gap-3">
           <h3 className="text-[10px] font-medium tracking-[0.09em] text-muted-foreground/45 uppercase">
@@ -250,7 +238,6 @@ export function AccountSection() {
         </p>
       ) : null}
 
-      {/* -- Gefahrenzone ------------------------------------------- */}
       <div className="relative overflow-hidden rounded-2xl border border-destructive/25 bg-destructive/[0.04] p-5">
         <span
           aria-hidden

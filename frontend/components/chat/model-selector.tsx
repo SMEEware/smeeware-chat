@@ -24,24 +24,17 @@ import { cn } from "@/lib/utils";
 
 type ModelSelectorProps = {
   models: Model[];
-  /** Reihenfolge der Ueberschriften, wie das Backend sie vorgibt. */
   groups?: string[];
-  /** id des aktuell gewaehlten Modells. */
   value: string;
   onChange: (id: string) => void;
   disabled?: boolean;
 };
 
-/** Ein Zeichen je Anbieter -- schneller zu erfassen als der Gruppenname. */
 const GRUPPEN_ICON: Record<string, React.ElementType> = {
   OpenAI: SparklesIcon,
   Local: HardDriveIcon,
 };
 
-/**
- * Wie stark ein Modell denkt, als Wort statt als Balken. "none" faellt
- * weg -- ein Modell, das nicht denkt, traegt dafuer kein Abzeichen.
- */
 const AUFWAND: Record<string, string> = {
   low: "thinks briefly",
   medium: "thinks",
@@ -50,15 +43,6 @@ const AUFWAND: Record<string, string> = {
   max: "thinks longest",
 };
 
-/**
- * Modell-Auswahl in der Composer-Leiste. Der Wechsel gilt ab der naechsten
- * Nachricht -- auch mitten im laufenden Chat.
- *
- * Gruppiert nach Anbieter, und zwar in der Reihenfolge, die das Backend
- * schickt. Bei drei Anbietern und neun Modellen ist eine flache Liste nicht
- * mehr zu ueberfliegen: man sucht "das von OpenAI", nicht den vierten
- * Eintrag von oben.
- */
 export function ModelSelector({
   models,
   groups,
@@ -68,8 +52,6 @@ export function ModelSelector({
 }: ModelSelectorProps) {
   const current = models.find((model) => model.id === value) ?? models[0];
 
-  // Nach Ueberschrift buendeln. Die Reihenfolge kommt vom Backend; was
-  // dort fehlt, haengen wir hinten an, statt es zu verschlucken.
   const gebuendelt = React.useMemo(() => {
     const nach = new Map<string, Model[]>();
     for (const model of models) {
@@ -111,8 +93,6 @@ export function ModelSelector({
         align="end"
         className="max-h-[min(28rem,70vh)] w-80 overflow-y-auto"
       >
-        {/* Das Label ist ein GroupLabel und muss innerhalb der RadioGroup
-            stehen -- sonst fehlt der Group-Kontext. */}
         <DropdownMenuRadioGroup value={current.id} onValueChange={onChange}>
           {gebuendelt.map((gruppe, index) => {
             const Icon = GRUPPEN_ICON[gruppe.name];
@@ -150,11 +130,6 @@ export function ModelSelector({
   );
 }
 
-/**
- * Die zwei Dinge, die man vor dem Klicken wissen will: denkt es mit, und
- * kommt man ueberhaupt dran. Beides als Wort -- ein Symbol allein muesste
- * man erst lernen.
- */
 function Abzeichen({ model }: { model: Model }) {
   const aufwand = model.reasoning_effort
     ? AUFWAND[model.reasoning_effort]

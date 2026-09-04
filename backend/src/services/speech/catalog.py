@@ -25,7 +25,6 @@ class TtsEntry:
     name: str
     description: str
     runtime: Runtime
-    # Was der Anbieter im Aufruf sehen will. Beim gratis Dienst egal.
     upstream: str
     group: str
 
@@ -74,7 +73,6 @@ CATALOG: tuple[TtsEntry, ...] = (
 )
 
 DEFAULT_TTS = "eleven_multilingual_v2"
-# Wenn kein Schluessel da ist, ist das die Vorgabe.
 DEFAULT_FREE = "free-google"
 
 GROUPS: tuple[str, ...] = tuple(dict.fromkeys(entry.group for entry in CATALOG))

@@ -2,18 +2,8 @@
 
 import { motion } from "motion/react";
 
-// Unterschiedliche Breiten, damit die Platzhalter nach echten
-// Vorschlaegen aussehen und nicht nach drei gleichen Bloecken.
 const PILLS = ["7rem", "9rem", "6rem"];
 
-/**
- * Ladezustand der Startvorschlaege. Drei Pillen wandern nacheinander
- * herein, ein heller Streifen zieht ueber jede -- so ist sichtbar, dass
- * hier gleich etwas erscheint, ohne die alten Standardtexte zu zeigen.
- *
- * Die Bewegung liegt bei motion; der Streifen selbst kommt aus der
- * Klasse .suggestion-shimmer in globals.css.
- */
 export function SuggestionSkeleton() {
   return (
     <motion.div

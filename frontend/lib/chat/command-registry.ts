@@ -41,30 +41,6 @@ import {
 import type { BefehlName } from "@/lib/chat/commands";
 import { useSettings } from "@/lib/settings/store";
 
-/**
- * Der Katalog -- die eine Stelle, an der jedes Kommando beschrieben ist.
- *
- * Zwei Oberflaechen lesen ihn: die Schnellwahl (``⌘K``) und das
- * Slash-Menue ueber dem Eingabefeld. Beide zeigen dieselben Eintraege,
- * gruppiert und mit Symbol, Kurztext und -- wo es einen gibt -- Kuerzel.
- * Ein Eintrag traegt alles, was die Oberflaeche zum Darstellen und
- * Ausfuehren braucht; keine Zeile Darstellung liegt doppelt vor.
- *
- * Ausgefuehrt wird ueber ``runCommand``. Der Eintrag sagt nur, WAS er ist
- * (feuere ein Signal, geh dorthin, dreh einen Schalter, leg eine Vorlage
- * ins Feld) -- die Verkabelung dahinter kennt er nicht. Jeder Eintrag hier
- * tut etwas Echtes; die eigentliche Arbeit sitzt in den Hoerern (Chat-Panel,
- * Sidebar, Palette, Composer), die auf die Signale reagieren.
- *
- * Modellwechsel und "einen anderen Chat referenzieren" stehen NICHT hier:
- * sie brauchen Live-Daten und erscheinen als dynamische Gruppen in der
- * Palette.
- */
-
-// ------------------------------------------------------------------ //
-// Gruppen                                                             //
-// ------------------------------------------------------------------ //
-
 export type CommandGroupId =
   | "chat"
   | "compose"
@@ -80,12 +56,10 @@ export type CommandGroupId =
 export type CommandGroup = {
   id: CommandGroupId;
   label: string;
-  /** Ein Satz, der sagt, wozu die Gruppe da ist. */
   description: string;
   icon: LucideIcon;
 };
 
-/** Reihenfolge der statischen Gruppen -- treibt die Ueberschriften. */
 export const COMMAND_GROUPS: CommandGroup[] = [
   {
     id: "chat",
@@ -152,12 +126,6 @@ export const COMMAND_GROUPS: CommandGroup[] = [
 export const groupById = (id: CommandGroupId): CommandGroup =>
   COMMAND_GROUPS.find((g) => g.id === id)!;
 
-/**
- * Dynamische Gruppen: ihre Eintraege stehen nicht im Katalog, sondern
- * entstehen erst zur Laufzeit -- die offenen Chats, die Workspaces, die
- * Personas, die Modelle. Die Palette fuellt sie mit lebenden Daten; hier
- * steht nur, wie sie heissen.
- */
 export type DynamicGroupId =
   | "chats"
   | "workspaces"
@@ -183,17 +151,10 @@ export const DYNAMIC_GROUPS: Record<DynamicGroupId, DynamicGroup> = {
   chats: { id: "chats", label: "Chats", icon: HistoryIcon },
 };
 
-// ------------------------------------------------------------------ //
-// Eintraege                                                           //
-// ------------------------------------------------------------------ //
-
-/** Wo ein Eintrag erscheint. */
 export type Surface = "palette" | "slash";
 
-/** Alle Eintraege sind ``ready`` -- der Wert bleibt fuer kuenftige Werkzeuge. */
 export type CommandStatus = "ready" | "soon" | "beta";
 
-/** Ein Feld einer Vorlage, das der Nutzer ausfuellt. */
 export type SlashFlag = {
   name: string;
   label: string;
@@ -203,44 +164,33 @@ export type SlashFlag = {
 type CommandBase = {
   id: string;
   label: string;
-  /** Einzeiler in den Menues. */
   description: string;
-  /** Laengerer Nutzen -- fuer den Merker, die ausfuehrliche Zeile. */
   hint?: string;
   icon: LucideIcon;
   group: CommandGroupId;
-  /** Zusaetzliche Begriffe, die beim Suchen greifen. */
   keywords?: string[];
-  /** Tastenkappen, falls es ein Kuerzel gibt. */
   shortcut?: string[];
-  /** Fehlt = ``ready``. */
   status?: CommandStatus;
-  /** Wo der Eintrag auftaucht. Fehlt = beide. */
   surfaces?: Surface[];
-  /** Das Wort nach dem Slash. Nur mit ihm erscheint der Eintrag im Slash-Menue. */
   trigger?: string;
 };
 
-/** Feuert ein signalfreies Kommando. */
 export type ActionCommand = CommandBase & {
   kind: "action";
   befehl: BefehlName;
 };
 
-/** Springt an eine Adresse. */
 export type NavigateCommand = CommandBase & {
   kind: "navigate";
   href: string;
 };
 
-/** Legt einen Schalter aus den Einstellungen um. */
 export type ToggleKey = "thinking" | "tools" | "notifications";
 export type ToggleCommand = CommandBase & {
   kind: "toggle";
   setting: ToggleKey;
 };
 
-/** Legt eine Ausfuell-Vorlage ins Eingabefeld. */
 export type GenerateCommand = CommandBase & {
   kind: "generate";
   title: string;
@@ -255,7 +205,6 @@ export type CommandEntry =
   | GenerateCommand;
 
 export const COMMANDS: CommandEntry[] = [
-  // --- Chat ------------------------------------------------------------
   {
     id: "new-chat",
     kind: "action",
@@ -328,7 +277,6 @@ export const COMMANDS: CommandEntry[] = [
     keywords: ["remove", "trash"],
   },
 
-  // --- Compose ---------------------------------------------------------
   {
     id: "prompt",
     kind: "generate",
@@ -413,7 +361,6 @@ export const COMMANDS: CommandEntry[] = [
     ],
   },
 
-  // --- Context ---------------------------------------------------------
   {
     id: "workspaces",
     kind: "action",
@@ -438,19 +385,7 @@ export const COMMANDS: CommandEntry[] = [
     group: "context",
     keywords: ["reference", "cite", "refer", "message", "selection", "snippet"],
   },
-  // "Quote selection" stand hier und ist bewusst weg.
-  //
-  // Der Eintrag konnte nie funktionieren: Palette wie Slash-Menue ziehen den
-  // Fokus in ein Eingabefeld, und der Browser verwirft dabei die Markierung.
-  // Bis der Befehl lief, war nichts mehr ausgewaehlt -- er quotete dann die
-  // ganze letzte Antwort und sah dabei aus wie Absicht.
-  //
-  // Das Ereignis (BEFEHL.referenceContent) gibt es weiter, und der Hoerer im
-  // Chat-Panel auch: ueber ein Tastenkuerzel bliebe der Fokus stehen und die
-  // Auswahl erhalten. Der Weg fuer Menschen ist der Rechtsklick auf die
-  // Markierung in einer Nachricht.
 
-  // --- Input -----------------------------------------------------------
   {
     id: "attach",
     kind: "action",
@@ -490,9 +425,6 @@ export const COMMANDS: CommandEntry[] = [
     keywords: ["note", "annotate"],
   },
 
-  // --- Models ----------------------------------------------------------
-  // Umschalten passiert ueber die dynamischen Gruppen der Palette (mit
-  // Live-Modell-Listen); hier steht der Verweis auf die volle Uebersicht.
   {
     id: "list-models",
     kind: "navigate",
@@ -505,7 +437,6 @@ export const COMMANDS: CommandEntry[] = [
     keywords: ["catalog", "available", "model"],
   },
 
-  // --- Personas --------------------------------------------------------
   {
     id: "new-persona",
     kind: "action",
@@ -519,7 +450,6 @@ export const COMMANDS: CommandEntry[] = [
     keywords: ["system prompt", "persona", "character", "role"],
   },
 
-  // --- Preferences -----------------------------------------------------
   {
     id: "toggle-thinking",
     kind: "toggle",
@@ -566,7 +496,6 @@ export const COMMANDS: CommandEntry[] = [
     keywords: ["dark", "light", "appearance", "colour"],
   },
 
-  // --- Go to -----------------------------------------------------------
   {
     id: "open-docs",
     kind: "action",
@@ -612,7 +541,6 @@ export const COMMANDS: CommandEntry[] = [
     keywords: ["preferences", "options", "gear"],
   },
 
-  // --- Access ----------------------------------------------------------
   {
     id: "open-api-keys",
     kind: "navigate",
@@ -625,7 +553,6 @@ export const COMMANDS: CommandEntry[] = [
     keywords: ["token", "secret", "bearer"],
   },
 
-  // --- Help ------------------------------------------------------------
   {
     id: "start-tour",
     kind: "action",
@@ -639,18 +566,12 @@ export const COMMANDS: CommandEntry[] = [
   },
 ];
 
-// ------------------------------------------------------------------ //
-// Kuerzel -- aus dem Katalog abgeleitet, nie doppelt gepflegt         //
-// ------------------------------------------------------------------ //
-
 export type Kuerzel = {
   id: string;
   label: string;
   tasten: string[];
 };
 
-/** Die Kuerzel, wie beide Oberflaechen sie zeigen. Palette zuerst, dann
- *  alles aus dem Katalog, das eins traegt -- in Katalogreihenfolge. */
 export const KUERZEL: Kuerzel[] = [
   { id: "palette", label: "Command palette", tasten: ["⌘", "K"] },
   ...COMMANDS.filter((c) => c.shortcut).map((c) => ({
@@ -660,19 +581,13 @@ export const KUERZEL: Kuerzel[] = [
   })),
 ];
 
-// ------------------------------------------------------------------ //
-// Auswahl und Ausfuehrung                                             //
-// ------------------------------------------------------------------ //
-
 const zeigtAuf = (command: CommandEntry, surface: Surface): boolean => {
   const surfaces = command.surfaces ?? ["palette", "slash"];
   if (!surfaces.includes(surface)) return false;
-  // Im Slash-Menue nur Eintraege mit Ausloese-Wort.
   if (surface === "slash" && !command.trigger) return false;
   return true;
 };
 
-/** Alle Eintraege einer Oberflaeche, in Katalogreihenfolge. */
 export function commandsFor(surface: Surface): CommandEntry[] {
   return COMMANDS.filter((c) => zeigtAuf(c, surface));
 }
@@ -689,7 +604,6 @@ const suchtext = (command: CommandEntry): string =>
     .join(" ")
     .toLowerCase();
 
-/** Eintraege einer Oberflaeche gegen die Sucheingabe filtern. */
 export function filterCommands(query: string, surface: Surface): CommandEntry[] {
   const items = commandsFor(surface);
   const q = query.trim().toLowerCase();
@@ -697,7 +611,6 @@ export function filterCommands(query: string, surface: Surface): CommandEntry[] 
   return items.filter((c) => suchtext(c).includes(q));
 }
 
-/** Eine (gefilterte) Liste nach den statischen Gruppen ordnen. */
 export function groupCommands(
   commands: CommandEntry[],
 ): { group: CommandGroup; commands: CommandEntry[] }[] {
@@ -707,12 +620,6 @@ export function groupCommands(
   })).filter((entry) => entry.commands.length > 0);
 }
 
-/**
- * Eine Vorlage als Ausfuell-Text rendern.
- *
- * Landet im Eingabefeld, der Nutzer ersetzt die Platzhalter und schickt es
- * ab -- die eigentliche Arbeit macht das Modell.
- */
 export function buildGeneratorTemplate(command: GenerateCommand): string {
   const flags = command.flags
     .map((flag) => `• ${flag.label}: ${flag.placeholder}`)
@@ -720,10 +627,6 @@ export function buildGeneratorTemplate(command: GenerateCommand): string {
   return `${command.title}\n\n${command.instructions}\n\n${flags}`;
 }
 
-/**
- * Ein Kommando ausfuehren. Die eine Stelle, die weiss, was jede Sorte
- * bedeutet -- beide Oberflaechen rufen sie.
- */
 export function runCommand(command: CommandEntry): void {
   if (command.status === "soon") return;
 

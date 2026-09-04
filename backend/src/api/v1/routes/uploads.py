@@ -33,8 +33,6 @@ logger = get_logger(__name__)
 
 router = APIRouter(prefix="/uploads", tags=["uploads"])
 
-# Was das Vision-Modell tatsaechlich ansehen kann. Alles andere abzulehnen ist
-# ehrlicher, als es anzunehmen und spaeter stumm nichts damit zu tun.
 ERLAUBT: dict[str, str] = {
     "image/png": ".png",
     "image/jpeg": ".jpg",
@@ -42,8 +40,6 @@ ERLAUBT: dict[str, str] = {
     "image/gif": ".gif",
 }
 
-# In Stuecken lesen, damit eine zu grosse Datei am Limit abbricht und nicht
-# erst komplett im Speicher landet.
 STUECK = 1024 * 1024
 
 ID_MUSTER = re.compile(r"^[0-9a-f]{32}$")
@@ -86,8 +82,6 @@ async def hochladen(
 )
 async def abholen(file_id: str, settings: SettingsDep) -> FileResponse:
     """Damit das Frontend eine Vorschau zeigen kann, ohne die Datei zu halten."""
-    # Die id ist erzeugt, nicht vom Nutzer benannt -- wer hier etwas anderes
-    # schickt, meint es nicht gut.
     if not ID_MUSTER.match(file_id):
         raise ValidationError("Invalid file id.")
 
@@ -123,8 +117,6 @@ async def _ablegen(datei: UploadFile, ziel: Path, max_bytes: int) -> UploadedFil
         if groesse == 0:
             raise ValidationError(f"{datei.filename or 'File'} is empty.")
     except Exception:
-        # Ein Torso auf der Platte waere schlimmer als gar nichts: er wuerde
-        # spaeter als gueltiges Bild abgeholt und waere doch keins.
         pfad.unlink(missing_ok=True)
         raise
 

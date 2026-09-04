@@ -23,7 +23,6 @@ class SpeechError(Exception):
 class Sprachausgabe:
     audio: bytes
     mime: str
-    # Wer gesprochen hat -- fuer die Anzeige und das Log.
     provider: str
     voice: str | None = None
 

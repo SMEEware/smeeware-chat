@@ -25,8 +25,6 @@ from src.schemas.chats import (
 )
 from src.services.chats import ChatInfo, StoredChat
 
-# Die ID kommt vom Client und landet in der Datenbank -- eine enge Form
-# schliesst Ueberraschungen aus, UUIDs passen problemlos hinein.
 CHAT_ID = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
 
 router = APIRouter(prefix="/chats", tags=["chats"])
@@ -41,7 +39,6 @@ async def list_chats(
 ) -> ChatListResponse:
     """Most recently updated first -- without the messages."""
     infos = await store.list(limit=limit, offset=offset)
-    # Eine Abfrage fuer die ganze Seite statt einer je Zeile.
     geteilt = await oeffentlich.geteilte_ids()
     return ChatListResponse(
         count=len(infos),
@@ -64,8 +61,6 @@ async def delete_all_chats(
     einzelnen Chats gibt es hier etwas zu berichten -- deshalb 200 mit Zahl
     statt eines stummen 204.
     """
-    # Zuerst die oeffentlichen Kopien: bliebe eine stehen, waere sie ein
-    # Verlauf, den niemand mehr sieht, loeschen oder zuruecknehmen kann.
     await oeffentlich.alle_zuruecknehmen()
     return {"deleted": await store.delete_all()}
 
@@ -90,17 +85,11 @@ async def upsert_chat(
     """Stores the history verbatim -- unknown message fields survive."""
     chat = await store.upsert(
         _geprueft(chat_id),
-        # model_dump ohne Filter: parts[], id, durationMs und alles weitere,
-        # was das Frontend mitschickt, muss unveraendert in die Datei.
         [message.model_dump() for message in payload.messages],
         title=payload.title,
         model=payload.model,
     )
 
-    # Der Live-Spiegel: ist der Chat geteilt, zieht die oeffentliche Kopie
-    # mit. Hier und nicht im Speicher darunter -- ``EncryptedChatStore``
-    # kennt nur seinen eigenen Schluessel, und ihm einen zweiten mitzugeben
-    # wuerde seine Aufgabe verwaessern.
     geteilt = await oeffentlich.ist_geteilt(chat.info.id)
     if geteilt:
         await oeffentlich.veroeffentliche(chat)
@@ -118,7 +107,6 @@ async def rename_chat(
     chat = await store.rename(_geprueft(chat_id), payload.title)
     geteilt = await oeffentlich.ist_geteilt(chat.info.id)
     if geteilt:
-        # Sonst traegt die oeffentliche Seite weiter den alten Titel.
         await oeffentlich.veroeffentliche(chat)
     return _detail(chat, geteilt)
 
@@ -135,8 +123,6 @@ async def delete_chat(
     geprueft = _geprueft(chat_id)
     if not await store.delete(geprueft):
         raise NotFoundError(f"Chat {chat_id!r} does not exist.")
-    # Die Kopie haengt an keiner Fremdschluessel-Beziehung, also raeumt sie
-    # niemand ausser dieser Zeile.
     await oeffentlich.zuruecknehmen(geprueft)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 

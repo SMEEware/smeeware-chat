@@ -144,10 +144,6 @@ class ReadAloudTool(LocalTool):
                 "run": lauf,
                 "url": url,
                 "provider": ausgabe.provider,
-                # Der ganze gesprochene Text: die Anzeige laesst ihn aufklappen
-                # und mitlesen. Er steht nicht im Chat-Verlauf (das Modell soll
-                # ihn dort nicht wiederholen), also ist das seine einzige
-                # sichtbare Fassung.
                 "text": sauber,
             }
         )
@@ -180,13 +176,9 @@ def _saeubern(text: str) -> str:
     """
     if not text:
         return ""
-    # Ganze Code-Bloecke raus.
     text = re.sub(r"```.*?```", " ", text, flags=re.DOTALL)
     text = re.sub(r"`([^`]*)`", r"\1", text)
-    # Rohe URLs raus -- niemand hoert sich ein "h-t-t-p-s-doppelpunkt" an.
     text = re.sub(r"https?://\S+", " ", text)
-    # Fuehrende Aufzaehlungszeichen zeilenweise entfernen.
     text = re.sub(r"(?m)^\s*[-*•]\s+", "", text)
-    # Markdown-Betonung ohne die Sternchen/Unterstriche.
     text = re.sub(r"[*_]{1,3}([^*_]+)[*_]{1,3}", r"\1", text)
     return " ".join(text.split()).strip()

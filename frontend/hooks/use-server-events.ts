@@ -2,7 +2,6 @@
 
 import * as React from "react";
 
-/** Was das Backend ueber den Rueckkanal schicken kann. */
 export type ServerEvent =
   | { type: "ready" }
   | {
@@ -12,8 +11,6 @@ export type ServerEvent =
       body?: string | null;
     }
   | { type: "system"; daten: unknown }
-  // Eine Bilderzeugung meldet sich: erst "start", dann je Zwischenstand
-  // ein "partial", zuletzt "done". Siehe lib/chat/image-runs.ts.
   | {
       type: "image";
       phase: "start" | "partial" | "done" | "error";
@@ -24,8 +21,6 @@ export type ServerEvent =
       index?: number;
       references?: number;
     }
-  // Vorlesen: "start" wenn die Synthese beginnt, "done" mit der fertigen
-  // Audio-Adresse, "error" wenn es schiefging. Siehe lib/chat/speech-runs.ts.
   | {
       type: "speech";
       phase: "start" | "done" | "error";
@@ -35,19 +30,6 @@ export type ServerEvent =
       text?: string;
     };
 
-/**
- * Der Rueckkanal vom Backend.
- *
- * Kein ``EventSource``, obwohl es fuer SSE gemacht ist: das kann man nicht
- * abbrechen lassen, ohne die Instanz wegzuwerfen, und es reicht Fehler nur
- * als Ereignis ohne Status weiter -- eine abgelaufene Sitzung waere von
- * einem Netzwerkfehler nicht zu unterscheiden. Mit ``fetch`` sieht man den
- * 401 und kann aufhoeren, statt endlos neu zu verbinden.
- *
- * Wiederverbinden mit wachsender Pause: ein neu gestartetes Backend ist
- * nach ein paar Sekunden wieder da, ein abgeschaltetes nie -- und dann soll
- * der Browser nicht jede Sekunde anklopfen.
- */
 export function useServerEvents(
   aktiv: boolean,
   onEvent: (ereignis: ServerEvent) => void,
@@ -72,8 +54,6 @@ export function useServerEvents(
           cache: "no-store",
         });
 
-        // Nicht angemeldet: es hat keinen Sinn, es weiter zu versuchen.
-        // Um die Weiterleitung kuemmert sich der QueryClient.
         if (antwort.status === 401 || !antwort.ok || !antwort.body) return;
 
         pause = 1000;
@@ -87,7 +67,6 @@ export function useServerEvents(
           if (done) break;
 
           rest += value;
-          // SSE trennt Nachrichten durch eine Leerzeile.
           const bloecke = rest.split("\n\n");
           rest = bloecke.pop() ?? "";
 
@@ -97,13 +76,11 @@ export function useServerEvents(
               try {
                 handlerRef.current(JSON.parse(zeile.slice(5).trim()));
               } catch {
-                // Ein kaputtes Frame ist kein Grund, den Strom aufzugeben.
               }
             }
           }
         }
       } catch {
-        // Verbindung weg -- unten wird neu versucht.
       }
 
       if (abgebrochen) return;

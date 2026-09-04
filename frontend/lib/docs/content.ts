@@ -1,10 +1,5 @@
 import type { HttpMethod } from "@/lib/docs/navigation";
 
-/**
- * Bloecke statt fertigem Markup: die Seiten beschreiben nur, WAS drin
- * steht, das Rendern passiert an einer Stelle. Dadurch kann das
- * Inhaltsverzeichnis die Ueberschriften direkt aus den Daten ziehen.
- */
 export type DocBlock =
   | { type: "lead"; text: string }
   | { type: "auth-link"; text: string; label: string; href: string }
@@ -1726,7 +1721,6 @@ Use the analyze_image tool with that path to look at it.`,
   ],
 };
 
-/** Ueberschriften einer Seite -- speist das Inhaltsverzeichnis. */
 export const tocForSlug = (slug: string) =>
   (docsContent[slug] ?? [])
     .filter(

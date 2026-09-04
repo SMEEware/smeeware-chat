@@ -37,12 +37,12 @@ class FetchError(ToolError):
 class Page:
     """Eine abgerufene Seite, bereits dekodiert."""
 
-    url: str  # Endgueltige URL nach Weiterleitungen
+    url: str
     status: int
     content_type: str
     text: str
     bytes_read: int
-    clipped: bool  # Download beim Groessenlimit abgeschnitten
+    clipped: bool
     from_cache: bool = False
 
     @property
@@ -141,7 +141,6 @@ class PageFetcher:
             for e in ergebnisse
         ]
 
-    # ------------------------------------------------------------------ #
 
     async def _read(self, response: httpx.Response) -> tuple[bytes, bool]:
         stuecke: list[bytes] = []
@@ -158,7 +157,6 @@ class PageFetcher:
         if self._host_delay <= 0:
             return
         lock = self._host_locks.setdefault(host, asyncio.Lock())
-        # Nur der Start wird serialisiert, nicht der ganze Abruf.
         async with lock:
             wartezeit = self._host_delay - (time.monotonic() - self._last_seen.get(host, 0.0))
             if wartezeit > 0:
@@ -185,7 +183,7 @@ def _normalise(url: str) -> str:
     """Prueft das Schema und wirft den Fragmentteil weg (der geht nie ans Netz)."""
     url = url.strip()
     if "://" not in url and not url.startswith("//"):
-        url = f"https://{url}"  # "example.com/x" ist gemeint, nicht getippt
+        url = f"https://{url}"
     parsed = urlparse(url)
     if parsed.scheme not in ("http", "https"):
         raise FetchError(

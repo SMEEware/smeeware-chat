@@ -79,8 +79,6 @@ class NotifyUserTool(LocalTool):
 
     def __init__(self, bus: EventBus, hinweise: HinweisQuelle | None = None) -> None:
         self._bus = bus
-        # Eine Funktion, kein Speicher: welcher Schluessel gilt, entscheidet
-        # sich erst beim Aufruf -- je nachdem, wer gerade angemeldet ist.
         self._hinweise = hinweise
 
     async def run(self, **kwargs: Any) -> str:
@@ -97,8 +95,6 @@ class NotifyUserTool(LocalTool):
         titel = titel[:120]
         text = text[:280] if text else None
 
-        # Erst wegschreiben, dann zeigen: ein Toast ist nach Sekunden weg,
-        # und wer gerade woanders hinsah, soll ihn spaeter noch finden.
         gespeichert = None
         if self._hinweise is not None and (speicher := self._hinweise()):
             try:
@@ -118,8 +114,6 @@ class NotifyUserTool(LocalTool):
 
         logger.info("notify_user(%s): %s -> %d Client(s)", stufe, titel[:60], erreicht)
 
-        # Ehrlich bleiben: erreicht der Hinweis niemanden, soll das Modell
-        # das wissen und die Information in seine Antwort nehmen.
         if erreicht == 0:
             return (
                 "No client was connected, so the notification was not shown. "

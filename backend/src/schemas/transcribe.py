@@ -7,11 +7,8 @@ from pydantic import BaseModel
 
 class TranscriptionResponse(BaseModel):
     text: str
-    # Was der Dienst selbst erkannt hat -- niemand musste sie vorher waehlen.
     language: str | None = None
     duration_ms: int = 0
-    # Welches Modell den Text gemacht hat. Steht in der Antwort, damit die
-    # Anzeige sie nicht aus den Einstellungen erraten muss.
     model: str | None = None
 
 
@@ -28,7 +25,6 @@ class SttModelInfo(BaseModel):
     name: str
     description: str
     group: str
-    # "openai" | "local" -- ob die Aufnahme die Maschine verlaesst.
     runtime: str
 
 

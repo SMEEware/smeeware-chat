@@ -21,8 +21,6 @@ class ApiKeyListResponse(BaseModel):
 
 
 class ApiKeyCreate(BaseModel):
-    # Ein Name, damit man Schluessel auseinanderhalten kann ("Laptop",
-    # "CI"). Kurz gehalten -- er steht in einer Liste, nicht in einem Absatz.
     name: str = Field(min_length=1, max_length=60)
 
 

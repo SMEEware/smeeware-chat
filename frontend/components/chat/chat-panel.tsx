@@ -82,10 +82,7 @@ import Image from "next/image";
 import Link from "next/link";
 
 type ChatPanelProps = {
-  /** id aus der Route. Ein noch nicht gespeicherter Chat hat sie auch --
-   *  sie entsteht beim Klick auf "New chat", nicht beim Senden. */
   chatId: string;
-  /** Verlauf aus der Ablage. Leer bei einem neuen Chat. */
   initialMessages?: ChatMessageTyp[];
 };
 
@@ -111,14 +108,8 @@ export function ChatPanel({ chatId, initialMessages }: ChatPanelProps) {
 
   const hasMessages = messages.length > 0;
 
-  // Versteckte Nachrichten werden zu Bloecken zusammengefasst: zehn einzelne
-  // Platzhalterzeilen waeren lauter als das, was sie ersetzen.
   const eintraege = React.useMemo(() => gruppiereVersteckte(messages), [messages]);
 
-  // Comment signal: the palette (or later a shortcut) triggers a note on
-  // the last message. The value counts up so the same trigger arriving
-  // twice in a row still works -- a boolean flag would not "change" the
-  // second time.
   const [commentSignal, setCommentSignal] = React.useState(0);
   React.useEffect(
     () => onBefehl(BEFEHL.comment, () => setCommentSignal((z) => z + 1)),
@@ -127,29 +118,17 @@ export function ChatPanel({ chatId, initialMessages }: ChatPanelProps) {
   const lastMessageId =
     messages.length > 0 ? messages[messages.length - 1].id : null;
 
-  // Modellauswahl: das Backend nennt das Standardmodell, der Nutzer kann
-  // es ueberschreiben. Das effektive Modell = Auswahl, sonst Default --
-  // ohne Sync-Effekt, damit vor der ersten Wahl schon eins gesetzt ist.
   const models = useModels();
-  // Das gewaehlte Modell liegt im geteilten Store, damit auch die Palette es
-  // umschalten kann -- nicht mehr im lokalen Zustand dieser Ansicht.
   const modelOverride = useModelOverride((z) => z.model);
   const setModelOverride = useModelOverride((z) => z.setModel);
   const modelList = models.data?.models ?? [];
-  // Reihenfolge der Ueberschriften -- kommt vom Backend, nicht aus
-  // der Reihenfolge der Modelle selbst.
   const modelGroups = models.data?.groups;
   const defaultModel = models.data?.default ?? "";
   const activeModel = modelOverride ?? defaultModel;
 
-  // Nur auf der leeren Startseite gebraucht.
   const suggestions = useSuggestions(!hasMessages);
   const suggestionItems = suggestions.data ?? [];
 
-  // Chat-bezogene Kommandos aus Palette und Slash-Menue. Sie brauchen den
-  // laufenden Verlauf, das aktive Modell und die id -- Dinge, die es nur in
-  // dieser Ansicht gibt. Ueber Refs gehalten, damit der Hoerer beim Einhaengen
-  // einmal steht und nicht bei jedem Zeichen neu abonniert.
   const { data: chatListe } = useChats();
   const umbenennenMut = useRenameChat();
   const loeschenMut = useDeleteChat();
@@ -178,20 +157,11 @@ export function ChatPanel({ chatId, initialMessages }: ChatPanelProps) {
     model: activeModel,
     chats: chatListe,
   });
-  // Nach dem Rendern nachziehen -- nicht mittendrin: der Hoerer unten liest
-  // ``refs.current`` erst beim Ereignis, also nach dem Render, und sieht so
-  // stets den frischen Stand.
   React.useEffect(() => {
     refs.current = { messages, send, model: activeModel, chats: chatListe };
   });
 
   React.useEffect(() => {
-    /**
-     * Die letzte sichtbare Antwort.
-     *
-     * Versteckte fallen heraus: was aus dem Verlauf genommen wurde, soll
-     * nicht ueber den Umweg eines Zitats zurueckkommen.
-     */
     const letzteAntwort = () =>
       [...refs.current.messages]
         .reverse()
@@ -240,27 +210,12 @@ export function ChatPanel({ chatId, initialMessages }: ChatPanelProps) {
       dispatchQuote({ text, role: "assistant", messageId: antwort.id });
     });
 
-    // Kein Rueckfall mehr auf die letzte Antwort.
-    //
-    // Der stand hier mal und war die Ursache dafuer, dass "Quote selection"
-    // die komplette letzte Antwort ins Feld legte: die Auswahl ist beim
-    // Ausloesen ueber Palette oder Slash-Menue immer leer -- beide ziehen den
-    // Fokus in ein Eingabefeld, und der Browser verwirft dabei die Markierung.
-    // Der Rueckfall hat den Fehler dann als Ergebnis getarnt.
-    //
-    // Ueber das Kontextmenue an der Nachricht (Rechtsklick) lebt die Auswahl
-    // noch; als Tastenkuerzel funktioniert es ebenfalls, weil dabei kein
-    // Fokuswechsel stattfindet.
     const abQuoteSel = onBefehl(BEFEHL.referenceContent, () => {
       const auswahl = window.getSelection?.()?.toString().trim() ?? "";
       if (!auswahl) {
         toast.info("Select some text in a message first, then quote it.");
         return;
       }
-      // Aus welcher Nachricht die Auswahl stammt, weiss hier niemand -- das
-      // Kontextmenue schon, und darum ist es der bessere Weg. Fuers Kuerzel
-      // nehmen wir "Antwort" als Naeherung: markiert wird fast immer in
-      // einer Antwort, und die Rolle steuert nur die Beschriftung.
       const antwort = letzteAntwort();
       dispatchQuote({
         text: auswahl,
@@ -305,16 +260,12 @@ export function ChatPanel({ chatId, initialMessages }: ChatPanelProps) {
         <div className="mx-auto flex h-14 w-full max-w-3xl items-center gap-3 px-4 md:h-18 md:px-6">
           <SidebarTrigger className="-ml-1 cursor-pointer text-muted-foreground hover:text-foreground" />
 
-          {/* Nur bei zugeklappter Sidebar: steht sie offen, traegt ihr Kopf
-              schon Logo und Namen -- zweimal dasselbe nebeneinander waere
-              Verdopplung. Klappt sie zu, ruecken beide hierher nach. */}
           {eingeklappt ? (
             <div className="hidden animate-in items-center gap-3 duration-300 fade-in slide-in-from-left-2 md:flex">
               <Link
                 href="/"
                 className="group flex size-12 shrink-0 items-center justify-center rounded-full text-primary-foreground"
               >
-                {/* <SparklesIcon className="size-3.5" /> */}
                 <Image
                   src="/assets/img/icon.svg"
                   height={100}
@@ -383,7 +334,6 @@ export function ChatPanel({ chatId, initialMessages }: ChatPanelProps) {
                     <MessageScrollerItem
                       key={eintrag.message.id}
                       messageId={eintrag.message.id}
-                      // Die Frage bleibt oben stehen, waehrend die Antwort waechst.
                       scrollAnchor={eintrag.message.role === "user"}
                     >
                       <ChatMessage
@@ -437,9 +387,6 @@ export function ChatPanel({ chatId, initialMessages }: ChatPanelProps) {
         <div className="flex min-h-0 flex-1 flex-col px-4 md:px-6">
           <Empty className="p-6 select-none">
             <EmptyHeader>
-              {/* <EmptyMedia variant="icon">
-                <SparklesIcon />
-              </EmptyMedia> */}
               <EmptyMedia variant="default">
                 <Image
                   src="/assets/img/clip.gif"
@@ -521,9 +468,6 @@ export function ChatPanel({ chatId, initialMessages }: ChatPanelProps) {
 
       {!hasMessages ? <div aria-hidden className="flex-[0.8] shrink" /> : null}
 
-      {/* Umbenennen des aktuellen Chats -- ausgeloest aus Palette oder
-          Slash-Menue. Enter speichert, damit man die Hand nicht von der
-          Tastatur nehmen muss. */}
       <Dialog open={umbenennenOffen} onOpenChange={setUmbenennenOffen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -560,8 +504,6 @@ export function ChatPanel({ chatId, initialMessages }: ChatPanelProps) {
         </DialogContent>
       </Dialog>
 
-      {/* Loeschen des aktuellen Chats -- danach in einen frischen springen,
-          sonst zeigte die Ansicht auf einen Verlauf, den es nicht mehr gibt. */}
       <AlertDialog open={loeschenOffen} onOpenChange={setLoeschenOffen}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -594,23 +536,10 @@ export function ChatPanel({ chatId, initialMessages }: ChatPanelProps) {
   );
 }
 
-/**
- * Der Verlauf als Markdown -- fuer "Copy transcript". Der Gedankengang und
- * das Werkzeug-Geruest bleiben draussen; kopiert wird, was auch in den
- * Blasen steht.
- */
-/** Eine sichtbare Nachricht -- oder ein Block, der zusammen ausgeblendet ist. */
 type Eintrag =
   | { art: "nachricht"; message: ChatMessageTyp }
   | { art: "versteckt"; ids: string[] };
 
-/**
- * Aufeinanderfolgende versteckte Nachrichten zu je einem Block zusammenziehen.
- *
- * Die Reihenfolge bleibt dabei erhalten -- ein Block steht genau dort, wo die
- * Nachrichten standen, damit man sieht, an welcher Stelle des Gespraechs etwas
- * fehlt, statt nur dass etwas fehlt.
- */
 function gruppiereVersteckte(messages: ChatMessageTyp[]): Eintrag[] {
   const eintraege: Eintrag[] = [];
 
@@ -631,7 +560,6 @@ function gruppiereVersteckte(messages: ChatMessageTyp[]): Eintrag[] {
   return eintraege;
 }
 
-/** Der Verlauf als Markdown -- ohne die Nachrichten, die ausgeblendet sind. */
 function transcriptToMarkdown(alle: ChatMessageTyp[]): string {
   const messages = alle.filter((m) => !m.hidden);
   const teile = messages
@@ -645,13 +573,6 @@ function transcriptToMarkdown(alle: ChatMessageTyp[]): string {
   return teile.join("\n\n---\n\n");
 }
 
-/**
- * Zwei Einstiege unter der Begruessung, in derselben Sprache wie der
- * "New chat"-Knopf in der Sidebar: eine Haarlinie, die beim Hover die
- * Primaerfarbe annimmt, ein Schimmer, der einmal durchlaeuft, ein Pfeil,
- * der von rechts hereinkommt. Im Ruhezustand bleibt die Flaeche leer --
- * das Feld darunter soll die Aufmerksamkeit bekommen, nicht diese Zeile.
- */
 function Einstieg({
   href,
   icon: Icon,

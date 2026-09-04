@@ -31,7 +31,7 @@ async def status_(provider: ProviderDep) -> TtsStatus:
 
     hat_key = cfg.api_key is not None
     return TtsStatus(
-        available=True,  # der gratis Rueckfall spricht immer
+        available=True,
         provider="elevenlabs" if hat_key else "free",
         voice_id=cfg.voice_id if hat_key else None,
         reason=None

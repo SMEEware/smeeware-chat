@@ -2,10 +2,6 @@
 
 import * as React from "react";
 
-/**
- * Kurzer UI-Sound. Die Datei wird einmal vorgeladen, damit der erste
- * Klick nicht auf das Netz wartet.
- */
 export function useSound(src: string) {
   const audioRef = React.useRef<HTMLAudioElement | null>(null);
 
@@ -25,13 +21,8 @@ export function useSound(src: string) {
     const audio = audioRef.current;
     if (!audio) return;
 
-    // Zurueckspulen, damit schnelles Hintereinander-Senden jedes Mal
-    // hoerbar ist und nicht in den noch laufenden Ton faellt.
     audio.currentTime = 0;
 
-    // Der Browser darf das Abspielen verweigern (Autoplay-Policy oder
-    // stummgeschalteter Tab) -- das ist kein Fehler, den der Chat
-    // ausbaden muesste.
     void audio.play().catch(() => {});
   }, []);
 }

@@ -48,23 +48,13 @@ class ModelEntry:
     description: str
     runtime: Runtime
     upstream: str
-    # Ueberschrift im Auswahlfeld ("OpenAI", "DeepSeek", "Local").
     group: str
-    # Wie viel das Modell denken soll. Nur fuer runtime="openai" -- die
-    # anderen kennen keinen Schalter dafuer.
     reasoning_effort: str | None = None
-    # Kann das Modell Werkzeuge aufrufen? Steuert nur die Anzeige; wer
-    # trotzdem Werkzeuge schickt, bekommt sie vom Anbieter abgelehnt.
     tools: bool = True
-    # Braucht eine Freischaltung beim Anbieter. Diese Modelle stehen in der
-    # Liste, weil sie gewollt sind -- ohne Freigabe antwortet die API aber
-    # mit "model does not exist". Das Feld macht daraus einen Hinweis im
-    # Auswahlfeld statt einer raetselhaften Fehlermeldung im Chat.
     gated: bool = False
 
 
 CATALOG: tuple[ModelEntry, ...] = (
-    # -- OpenAI ------------------------------------------------------- #
     ModelEntry(
         id="gpt-5.6-sol",
         name="GPT-5.6 Sol",
@@ -131,7 +121,6 @@ CATALOG: tuple[ModelEntry, ...] = (
         reasoning_effort="high",
         gated=True,
     ),
-    # -- DeepSeek ----------------------------------------------------- #
     ModelEntry(
         id="deepseek-v4-flash",
         name="DeepSeek V4 Flash",
@@ -148,23 +137,12 @@ CATALOG: tuple[ModelEntry, ...] = (
         upstream="deepseek-v4-pro",
         group="DeepSeek",
     ),
-    # Lokale Modelle stehen bewusst NICHT hier: sie entstehen zur Laufzeit aus
-    # ``OLLAMA_MODEL`` (siehe ``lokale_modelle`` weiter unten). Welcher Tag
-    # gemeint ist, weiss erst die ``.env`` -- ihn hier fest einzutragen hiesse,
-    # jedem Betreiber dasselbe Modell vorzuschreiben.
 )
 
-# Was ``/chat`` ohne explizite Angabe verwendet.
 DEFAULT_MODEL = "deepseek-v4-flash"
 
-# Die Reihenfolge der Ueberschriften im Auswahlfeld. Aus dem Katalog
-# abgeleitet statt fest verdrahtet: eine neue Gruppe taucht damit von
-# selbst auf, und zwar dort, wo ihr erster Eintrag steht.
 GROUPS: tuple[str, ...] = tuple(dict.fromkeys(entry.group for entry in CATALOG))
 
-# Beide Namen zeigen auf denselben Eintrag. Ein Client, der den vollen Tag
-# schickt -- ein aelteres Frontend, ein curl aus der Doku -- soll nicht an
-# einem Namen scheitern, den wir selbst vergeben haben.
 _BY_ID: dict[str, ModelEntry] = {}
 for _entry in CATALOG:
     _BY_ID[_entry.id] = _entry

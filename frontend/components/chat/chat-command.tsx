@@ -52,14 +52,6 @@ import { promptLabel, useSettings } from "@/lib/settings/store";
 import { aktiverWorkspace, useWorkspaces } from "@/lib/workspaces/store";
 import { cn } from "@/lib/utils";
 
-/**
- * Die Schnellwahl ueber ``⌘K`` -- ein Fenster auf den ganzen Katalog.
- *
- * Sie liest denselben Katalog wie das Slash-Menue und zeigt zusaetzlich die
- * dynamischen Gruppen: die offenen Chats, die Workspaces, die Personas.
- * Ausgefuehrt wird ueber ``runCommand`` -- die Palette weiss nicht, was ein
- * Kommando tut, nur dass sie es weiterreicht und sich dann schliesst.
- */
 export function ChatCommand() {
   const router = useRouter();
   const pathname = usePathname();
@@ -77,9 +69,6 @@ export function ChatCommand() {
   const workspaceAktivSetzen = useWorkspaces((z) => z.aktivSetzen);
   const promptSetzen = settings.setPrompt;
 
-  // Modelle -- fuer die drei dynamischen Wechsel-Gruppen. Das Antwort-Modell
-  // liegt im geteilten Store (Composer liest denselben), die beiden anderen
-  // in den Einstellungen.
   const { data: modelList } = useModels();
   const { data: sttList } = useSttModels();
   const { data: ttsList } = useTtsModels();
@@ -104,7 +93,6 @@ export function ChatCommand() {
 
     window.addEventListener("keydown", aufTaste);
     const ab = onBefehl(BEFEHL.palette, () => setOffen(true));
-    // "Neuer Chat" und "Doku" haben keine Composer-Seite -- sie landen hier.
     const abNeu = onBefehl(BEFEHL.newChat, () => {
       setOffen(false);
       neuerChat();
@@ -113,13 +101,9 @@ export function ChatCommand() {
       setOffen(false);
       router.push("/docs");
     });
-    // Das Thema kennt nur diese Komponente (sie haelt ``next-themes``), also
-    // schaltet sie es auch -- die Palette feuert nur das Signal.
     const abTheme = onBefehl(BEFEHL.themeToggle, () => {
       setTheme(resolvedTheme === "dark" ? "light" : "dark");
     });
-    // "Geh dorthin" -- egal ob aus Palette oder Slash-Menue: hier ist der
-    // Router.
     const abNav = onNavigate((href) => {
       setOffen(false);
       router.push(href);
@@ -139,7 +123,6 @@ export function ChatCommand() {
     router.push(href);
   };
 
-  /** Ein Katalog-Kommando ausfuehren -- erst schliessen, dann handeln. */
   const ausfuehren = (command: CommandEntry) => {
     if (command.status === "soon") return;
     setOffen(false);
@@ -152,7 +135,6 @@ export function ChatCommand() {
   const sttAktiv = settings.transcribeModel ?? sttList?.default ?? "";
   const ttsAktiv = settings.ttsModel ?? ttsList?.default ?? "";
 
-  /** Einen anderen Chat als Kontext ins Feld holen -- Verlauf gekuerzt. */
   const referenziereChat = async (id: string, title: string) => {
     setOffen(false);
     try {
@@ -173,8 +155,6 @@ export function ChatCommand() {
           return `${wer}: ${text}`;
         })
         .join("\n\n");
-      // Auf ein handliches Mass kuerzen -- der Verlauf soll die Nachricht
-      // nicht sprengen.
       const block = `[referenced chat: ${title}]\n${zeilen}`.slice(0, 6000);
       dispatchInsert(block);
       toast.success(`Referenced “${title}”`);
@@ -191,16 +171,12 @@ export function ChatCommand() {
         aria-label="Command palette"
       >
         <Command
-          // Der Katalog bringt seine eigene Sucheordnung mit; cmdk filtert
-          // ueber den ``value``, in dem Beschriftung, Ausloese-Wort und
-          // Stichworte zusammenstehen.
           className="bg-transparent"
         >
           <CommandInput placeholder="Search commands and chats..." />
           <CommandList className="max-h-[60vh]">
             <CommandEmpty>Nothing matches.</CommandEmpty>
 
-            {/* --- Statische Gruppen aus dem Katalog ---------------------- */}
             {COMMAND_GROUPS.map((group) => {
               const items = paletteItems.filter((c) => c.group === group.id);
               if (items.length === 0) return null;
@@ -222,7 +198,6 @@ export function ChatCommand() {
               );
             })}
 
-            {/* --- Workspaces (dynamisch) -------------------------------- */}
             {workspaces.length > 0 ? (
               <>
                 <CommandSeparator />
@@ -259,7 +234,6 @@ export function ChatCommand() {
               </>
             ) : null}
 
-            {/* --- Personas (dynamisch) ---------------------------------- */}
             {prompts && prompts.prompts.length > 0 ? (
               <>
                 <CommandSeparator />
@@ -310,7 +284,6 @@ export function ChatCommand() {
               </>
             ) : null}
 
-            {/* --- Antwort-Modell (dynamisch) ---------------------------- */}
             {modelList && modelList.models.length > 0 ? (
               <>
                 <CommandSeparator />
@@ -335,7 +308,6 @@ export function ChatCommand() {
               </>
             ) : null}
 
-            {/* --- Transkription (dynamisch) ----------------------------- */}
             {sttList && sttList.models.length > 0 ? (
               <>
                 <CommandSeparator />
@@ -360,7 +332,6 @@ export function ChatCommand() {
               </>
             ) : null}
 
-            {/* --- Read-aloud (dynamisch) -------------------------------- */}
             {ttsList && ttsList.models.length > 0 ? (
               <>
                 <CommandSeparator />
@@ -385,7 +356,6 @@ export function ChatCommand() {
               </>
             ) : null}
 
-            {/* --- Referenz auf einen anderen Chat (dynamisch) ----------- */}
             {chats && chats.filter((c) => c.id !== aktuellerChat).length > 0 ? (
               <>
                 <CommandSeparator />
@@ -412,7 +382,6 @@ export function ChatCommand() {
               </>
             ) : null}
 
-            {/* --- Chats (dynamisch) ------------------------------------- */}
             {chats && chats.length > 0 ? (
               <>
                 <CommandSeparator />
@@ -443,18 +412,12 @@ export function ChatCommand() {
   );
 }
 
-/**
- * Eine Zeile fuer ein Katalog-Kommando -- Symbol, Beschriftung samt
- * Kurztext und rechts die passende Beigabe: Kuerzel, Schalterstand, ein
- * "Soon"-Merker oder das Vorlagen-Zeichen.
- */
 function KatalogZeile({
   command,
   istAn,
   onSelect,
 }: {
   command: CommandEntry;
-  /** Nur bei Schaltern gesetzt. */
   istAn?: boolean;
   onSelect: () => void;
 }) {
@@ -528,10 +491,6 @@ function KatalogZeile({
   );
 }
 
-/**
- * Eine Zeile fuer ein Modell in den dynamischen Wechsel-Gruppen -- Symbol,
- * Name samt Herkunft und rechts das Haekchen, wenn es gerade laeuft.
- */
 function ModellZeile({
   kind,
   id,
@@ -541,7 +500,6 @@ function ModellZeile({
   icon: Icon,
   onSelect,
 }: {
-  /** Fliesst in den Suchwert -- "answer" / "transcription" / "tts". */
   kind: string;
   id: string;
   name: string;

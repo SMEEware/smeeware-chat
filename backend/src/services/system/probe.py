@@ -34,7 +34,6 @@ logger = get_logger(__name__)
 
 GB = 1_000_000_000
 
-# Ab hier lohnt es sich, etwas zu sagen.
 SPEICHER_ENG = 85.0
 PLATTE_ENG_PROZENT = 90.0
 PLATTE_ENG_FREI_GB = 10.0
@@ -122,7 +121,6 @@ def _container() -> str | None:
     """
     if Path("/.dockerenv").exists():
         return "docker"
-    # Podman/systemd setzen diese Variable; ein Wert wie "podman" ist direkt gut.
     if wert := os.getenv("container"):
         return wert
     try:
@@ -156,14 +154,9 @@ class SystemProbe:
     def __init__(self, *, ollama_base_url: str | None = None) -> None:
         self._ollama = ollama_base_url
         self._start = time.time()
-        # Einmal anstossen: psutil misst die CPU zwischen zwei Aufrufen, der
-        # allererste liefert sonst immer 0.
         psutil.cpu_percent(interval=None)
 
     async def messen(self) -> Systemdaten:
-        # Die Messung selbst ist blockierend (sie wartet eine Zehntelsekunde
-        # auf das CPU-Fenster) -- deshalb in einen Thread, damit ein
-        # laufender Stream nicht ins Stocken geraet.
         daten = await asyncio.to_thread(self._messen)
         daten.dienste["ollama"] = await self._ollama_status()
         _bewerten(daten)
@@ -197,8 +190,6 @@ class SystemProbe:
                 "python": sys.version.split()[0],
                 "uptime": _dauer(time.time() - psutil.boot_time()),
                 "uptime_sekunden": int(time.time() - psutil.boot_time()),
-                # None ausserhalb eines Containers -- das Frontend zeigt den
-                # Hinweis dann gar nicht erst an.
                 "container": _container(),
             },
             cpu={

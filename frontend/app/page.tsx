@@ -145,9 +145,6 @@ Nothing to sign up for
       <section className="border-b">
         <div className="mx-auto w-full max-w-6xl px-6 py-20">
           <div className="relative overflow-hidden rounded-3xl border bg-card/40 p-8 sm:p-12">
-            {/* Ein roter Schein, wie ihn die Modale tragen -- er bindet den
-                Kasten an den Rest der Marke, statt ihn als Fremdkoerper
-                danebenzustellen. */}
             <span
               aria-hidden
               className="pointer-events-none absolute -top-24 -right-16 size-72 rounded-full bg-primary/20 opacity-40 blur-3xl"

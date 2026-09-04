@@ -42,8 +42,6 @@ async def list_notifications(
     return NotificationListResponse(
         count=len(eintraege),
         unread=sum(1 for e in eintraege if e.read_at is None),
-        # asdict statt vars: Hinweis ist ein slots-Dataclass und hat
-        # gar kein __dict__.
         notifications=[NotificationItem(**asdict(e)) for e in eintraege],
     )
 

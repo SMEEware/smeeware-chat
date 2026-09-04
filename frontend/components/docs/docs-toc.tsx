@@ -20,9 +20,6 @@ export function DocsToc({ headings }: DocsTocProps) {
 
     if (elements.length === 0) return;
 
-    // Das Fenster oben beschneiden, damit erst die Ueberschrift zaehlt,
-    // die tatsaechlich unter der Kopfzeile steht -- und unten, damit
-    // nicht schon der Rest der Seite mitzaehlt.
     const observer = new IntersectionObserver(
       (entries) => {
         const visible = entries

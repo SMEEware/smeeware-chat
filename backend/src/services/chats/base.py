@@ -23,7 +23,7 @@ class ChatInfo:
     title: str
     model: str | None
     message_count: int
-    created_at: str  # ISO 8601, UTC
+    created_at: str
     updated_at: str
 
 

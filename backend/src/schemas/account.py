@@ -13,14 +13,11 @@ class AccountStatus(BaseModel):
     configured: bool
     username: str | None = None
     has_avatar: bool = False
-    # Ist die Sitzung im Header noch gueltig?
     authenticated: bool = False
 
 
 class Credentials(BaseModel):
     username: Annotated[str, Field(min_length=1, max_length=64)]
-    # Kurze Passwoerter abzulehnen ist die einzige Qualitaetspruefung, die
-    # sich lohnt -- alles Weitere waere Gaengelei ohne Sicherheitsgewinn.
     password: Annotated[str, Field(min_length=8, max_length=256)]
 
 

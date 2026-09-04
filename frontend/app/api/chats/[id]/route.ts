@@ -5,14 +5,6 @@ import { CHATS_ENDPOINT } from "@/lib/chat/backend";
 
 type Context = { params: Promise<{ id: string }> };
 
-/**
- * Ein einzelner Chat: lesen, schreiben, umbenennen, loeschen.
- *
- * Alle vier Verben tun dasselbe -- die Anfrage ans Backend weiterreichen und
- * dessen Status unveraendert zurueckgeben. Die Regeln (404 bei unbekannter
- * id, 422 bei krummer id, 204 nach dem Loeschen) stehen im Backend; sie hier
- * noch einmal zu formulieren hiesse, sie zweimal zu pflegen.
- */
 async function forward(
   request: NextRequest,
   context: Context,
@@ -42,7 +34,6 @@ async function forward(
     );
   }
 
-  // 204 traegt keinen Rumpf -- ein body waere hier ein Fehler.
   if (upstream.status === 204) return new Response(null, { status: 204 });
 
   return new Response(upstream.body, {
@@ -63,7 +54,6 @@ export const PATCH = (request: NextRequest, context: Context) =>
 export const DELETE = (request: NextRequest, context: Context) =>
   forward(request, context, "DELETE");
 
-/** Kennung aus dem Cookie in den Header -- siehe ../route.ts. */
 function sitzung(request: NextRequest): Record<string, string> {
   const wert = request.cookies.get(SESSION_COOKIE)?.value;
   return wert ? { [SESSION_HEADER]: wert } : {};

@@ -57,9 +57,6 @@ class McpToolBox(ToolBox):
         self._specs: list[ToolSpec] = []
         self._started = False
 
-    # ------------------------------------------------------------------ #
-    # Lifecycle                                                           #
-    # ------------------------------------------------------------------ #
 
     async def start(self) -> None:
         """Verbindet alle Server. Ein Server, der nicht hochkommt, wird
@@ -119,9 +116,6 @@ class McpToolBox(ToolBox):
         self._specs.clear()
         self._started = False
 
-    # ------------------------------------------------------------------ #
-    # ToolBox                                                             #
-    # ------------------------------------------------------------------ #
 
     async def specs(self) -> Sequence[ToolSpec]:
         return tuple(self._specs)
@@ -140,7 +134,6 @@ class McpToolBox(ToolBox):
                     timeout=self._call_timeout,
                 )
             else:
-                # 0 = kein Zeitlimit: der Aufruf laeuft, bis er antwortet.
                 response = await session.call_tool(tool, call.arguments)
         except TimeoutError:
             return self._error(call, f"{call.name} did not respond in time.")
@@ -186,8 +179,6 @@ def _render(response: Any) -> str:
         if text:
             parts.append(text)
             continue
-        # Bilder und Ressourcen kann das Modell hier nicht sehen -- wir
-        # beschreiben sie, statt sie stillschweigend zu verschlucken.
         parts.append(f"[{getattr(item, 'type', 'unknown')}]")
 
     return "\n".join(parts) if parts else "(empty result)"

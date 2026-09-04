@@ -5,13 +5,6 @@ import { CHATS_ENDPOINT } from "@/lib/chat/backend";
 
 type Context = { params: Promise<{ id: string }> };
 
-/**
- * Einen Chat oeffentlich lesbar machen -- oder das wieder zuruecknehmen.
- *
- * Beides braucht die Sitzung: der Verlauf liegt mit dem Schluessel der
- * angemeldeten Person verschluesselt, und nur in diesem Moment kann das
- * Backend ihn lesen, um die oeffentliche Kopie zu schreiben.
- */
 async function forward(
   request: NextRequest,
   context: Context,

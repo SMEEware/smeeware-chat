@@ -23,14 +23,6 @@ import {
 } from "@/lib/chat/history";
 import type { ChatSummary } from "@/lib/chat/types";
 
-/**
- * Zwei getrennte Schluesselwurzeln, und das mit Absicht: nach jedem
- * gespeicherten Turn wird die *Liste* ungueltig, damit Titel und
- * Reihenfolge stimmen. Der geladene Verlauf darf davon nicht beruehrt
- * werden -- er wandert beim Einhaengen einmal in den lokalen Zustand des
- * Chats, ein Nachladen wuerde ihn dort nicht mehr erreichen, aber unnoetig
- * Last erzeugen.
- */
 export const chatKeys = {
   list: ["chats", "list"] as const,
   detail: (id: string) => ["chats", "detail", id] as const,
@@ -40,7 +32,6 @@ export function invalidateChatList(client: QueryClient) {
   return client.invalidateQueries({ queryKey: chatKeys.list });
 }
 
-/** Alle gespeicherten Chats, neueste zuerst (das sortiert das Backend). */
 export function useChats() {
   return useQuery({
     queryKey: chatKeys.list,
@@ -50,35 +41,19 @@ export function useChats() {
   });
 }
 
-/**
- * Ein Verlauf zum Einhaengen. ``enabled`` erst, wenn es eine id gibt --
- * auf /chat (neuer Chat) gibt es nichts zu laden.
- */
 export function useChatDetail(id: string | null) {
   return useQuery({
     queryKey: chatKeys.detail(id ?? "neu"),
     queryFn: ({ signal }) => fetchChat(id!, signal),
     enabled: Boolean(id),
-    // Der Verlauf wird genau einmal gebraucht: beim Einhaengen. Danach
-    // fuehrt ihn der Chat selbst weiter.
     staleTime: Infinity,
     gcTime: 5 * 60_000,
     refetchOnWindowFocus: false,
-    // Ein 404 ist bei einer frisch gezogenen id die Regel, kein Ausfall --
-    // darauf zu warten waere reine Verzoegerung vor dem leeren Chat.
     retry: (anzahl, fehler) =>
       !(fehler instanceof ChatNotFound) && anzahl < 1,
   });
 }
 
-/**
- * "New chat": eine id ziehen und hin navigieren.
- *
- * Die id entsteht *vor* der Navigation, nicht erst beim ersten Senden.
- * Damit ist jeder neue Chat eine eigene Adresse -- und ein Sprung dorthin
- * immer ein echter Wechsel. Solange nichts gesendet wurde, steht der Chat
- * nur im Cache; geschrieben wird er erst mit der ersten Frage.
- */
 export function useNewChat() {
   const router = useRouter();
   const client = useQueryClient();
@@ -90,12 +65,6 @@ export function useNewChat() {
   }, [client, router]);
 }
 
-/**
- * Klickbehandlung fuer einen "New chat"-Link. Der normale Klick oeffnet den
- * neuen Chat hier; Mittel- und Cmd-Klick bleiben ein Link auf /chat, damit
- * ein neuer Tab weiterhin funktioniert -- dort zieht die Route selbst eine
- * frische id.
- */
 export function oeffneNeuenChat(neuerChat: () => void) {
   return (event: React.MouseEvent) => {
     if (
@@ -112,13 +81,6 @@ export function oeffneNeuenChat(neuerChat: () => void) {
   };
 }
 
-/**
- * Ein geteilter Verlauf, gelesen ohne Anmeldung.
- *
- * Eigener Schluesselraum: dieselbe id kann privat (mit Sitzung, bearbeitbar)
- * und oeffentlich (ohne, nur lesbar) geladen werden, und die beiden duerfen
- * sich im Cache nicht ueberschreiben.
- */
 export function usePublicChat(id: string | null, enabled = true) {
   return useQuery({
     queryKey: ["chats", "public", id ?? "neu"] as const,
@@ -129,14 +91,6 @@ export function usePublicChat(id: string | null, enabled = true) {
   });
 }
 
-/**
- * Teilen und Zuruecknehmen.
- *
- * Der Zustand wird sofort in der Liste gesetzt, damit das Menue nicht erst
- * nach der Runde umspringt -- und bei einem Fehler zurueckgedreht. Das ist
- * hier wichtiger als bei einem Titel: "geteilt" ist eine Aussage darueber,
- * wer mitlesen kann, und die darf nie falsch dastehen.
- */
 export function useSetChatPublic() {
   const client = useQueryClient();
 
@@ -170,8 +124,6 @@ export function useRenameChat() {
     mutationFn: ({ id, title }: { id: string; title: string }) =>
       renameChat(id, title),
 
-    // Der neue Titel steht sofort in der Liste -- kein Flackern, waehrend
-    // die Runde laeuft.
     onMutate: async ({ id, title }) => {
       await client.cancelQueries({ queryKey: chatKeys.list });
       const vorher = client.getQueryData<ChatSummary[]>(chatKeys.list);
@@ -191,14 +143,6 @@ export function useRenameChat() {
   });
 }
 
-/**
- * Alles loeschen.
- *
- * Kein optimistisches Leeren wie beim einzelnen Chat: dort ist das Ergebnis
- * absehbar, hier faellt der ganze Verlauf weg, und ein Zuruecknehmen nach
- * einem Fehler waere ein Aufblitzen der Liste, das aussieht wie ein Fehler
- * fuer sich. Wir warten die Antwort ab und raeumen dann alles auf einmal.
- */
 export function useDeleteAllChats() {
   const client = useQueryClient();
 
@@ -207,8 +151,6 @@ export function useDeleteAllChats() {
 
     onSuccess: () => {
       client.setQueryData<ChatSummary[]>(chatKeys.list, []);
-      // Auch die einzelnen Verlaeufe raus -- sonst zeigte ein Zurueck im
-      // Browser einen Chat, den es nicht mehr gibt.
       client.removeQueries({ queryKey: ["chats", "detail"] });
       return invalidateChatList(client);
     },

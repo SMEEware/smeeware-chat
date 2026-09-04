@@ -49,46 +49,37 @@
 }
 
 :root {
-  /* ------------------------------------------------------------------ *
-   * Modernes Theme -- warme Neutraltoene statt totem Grau, dazu ein
-   * kraeftigeres Markenrot. Zum Zuruecksetzen: die Datei
-   * app/globals.css.bak zurueckkopieren.
-   * ------------------------------------------------------------------ */
-  /* Warmes Papierweiss statt reinweiss, damit weisse Karten eine Kante
-     bekommen; eine Spur Waerme (hue ~55) nimmt dem Grau das Sterile. */
+
   --background: oklch(0.985 0.004 60);
   --foreground: oklch(0.18 0.012 55);
-  /* Karten und Popover reinweiss -- sie heben sich als erhoehte Flaeche ab. */
+
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.18 0.012 55);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.18 0.012 55);
-  /* Das Markenrot, kraeftig -- nah am Icon (#d30d0d), damit es auf Weiss
-     nicht blass wirkt. */
+
   --primary: oklch(20.311% 0.00248 145.916);
   --primary-foreground: oklch(98.382% 0.00805 286.051);
   --secondary: oklch(0.955 0.006 60);
   --secondary-foreground: oklch(0.25 0.012 55);
   --muted: oklch(0.955 0.006 60);
-  /* Deutlich dunkler als das uebliche 0.556: die App nutzt ueberall
-     text-muted-foreground mit /45..60, das muss auch halbtransparent tragen. */
+
   --muted-foreground: oklch(0.47 0.014 55);
   --accent: oklch(0.95 0.008 55);
   --accent-foreground: oklch(0.24 0.012 55);
-  /* Loeschen leicht oranger als Primary, damit es sich vom Markenrot abhebt. */
+
   --destructive: oklch(0.55 0.235 22);
   --border: oklch(0.9 0.006 55);
   --input: oklch(0.882 0.007 55);
   --ring: oklch(0.62 0.03 45);
-  /* Diagramme: Markenrot, dann warme Abstufungen -- ein zusammenhaengender
-     Satz statt fuenf Grautoene. */
+
   --chart-1: oklch(0.53 0.224 27);
   --chart-2: oklch(0.62 0.15 45);
   --chart-3: oklch(0.7 0.1 65);
   --chart-4: oklch(0.55 0.02 55);
   --chart-5: oklch(0.38 0.015 55);
   --radius: 0.625rem;
-  /* Die Seitenleiste als eigenes, leicht abgesetztes Panel. */
+
   --sidebar: oklch(0.966 0.006 60);
   --sidebar-foreground: oklch(0.18 0.012 55);
   --sidebar-primary: oklch(0.53 0.224 27);
@@ -100,15 +91,14 @@
 }
 
 .dark {
-  /* Warmes Anthrazit statt neutralem Grau -- gibt dem Dunkelmodus Tiefe und
-     laesst das Rot waermer leuchten. */
+
   --background: oklch(0.165 0.008 55);
   --foreground: oklch(0.98 0.004 60);
   --card: oklch(0.212 0.009 55);
   --card-foreground: oklch(0.98 0.004 60);
   --popover: oklch(0.205 0.009 55);
   --popover-foreground: oklch(0.98 0.004 60);
-  /* Auf Dunkel darf das Rot heller und satter leuchten. */
+
   --primary: oklch(0.56 0.216 27);
   --primary-foreground: oklch(0.99 0.012 20);
   --secondary: oklch(0.272 0.009 55);
@@ -148,9 +138,6 @@
   }
 }
 
-/* Shiki schreibt mit defaultColor:false beide Themes als Variablen an
-   jedes Token. Umgeschaltet wird hier per Klasse -- kein Neuberechnen
-   beim Themewechsel, und der Serverausgabe ist das Theme egal. */
 .code-block-body {
   overflow-x: auto;
 }
@@ -161,7 +148,7 @@
   font-family: var(--font-mono);
   font-size: 13px;
   line-height: 1.625;
-  /* Der Rahmen der Karte traegt die Flaeche, nicht das Theme. */
+
   background-color: transparent !important;
 }
 
@@ -175,9 +162,6 @@
   color: var(--shiki-dark);
 }
 
-/* Ladeanimation der Startvorschlaege: ein heller Streifen wandert ueber
-   eine ruhige Pille. Farben ueber die Theme-Variablen, damit es in hell
-   wie dunkel sitzt. */
 @keyframes suggestion-shimmer {
   from {
     background-position: 200% 0;
@@ -206,9 +190,6 @@
   }
 }
 
-/* Der Schimmer und der Ablaufbalken der Hinweise. Als Keyframes und nicht
-   als Tailwind-Uebergang: beide laufen genau einmal beim Erscheinen, ohne
-   dass jemand einen Zustand umschalten muesste. */
 @keyframes toast-schimmer {
   from {
     transform: translateX(0);
@@ -227,11 +208,6 @@
   }
 }
 
-/* ------------------------------------------------------------------
-   Hero der Startseite
-   ------------------------------------------------------------------ */
-
-/* Feines Raster hinter der Ueberschrift, zum Rand hin ausgeblendet. */
 .hero-grid {
   background-image:
     linear-gradient(to right, var(--border) 1px, transparent 1px),
@@ -249,7 +225,6 @@
   );
 }
 
-/* Zwei Farbschleier, die langsam gegeneinander wandern. */
 @keyframes hero-drift {
   from {
     transform: translate3d(0, 0, 0) scale(1);
@@ -267,8 +242,6 @@
   animation: hero-drift 24s ease-in-out infinite alternate-reverse;
 }
 
-/* Die zweite Zeile der Ueberschrift: Verlauf in der Markenfarbe, ueber
-   den ein Glanz wandert. */
 @keyframes hero-sheen {
   from {
     background-position: 200% 0;
@@ -292,7 +265,6 @@
   animation: hero-sheen 7s linear infinite;
 }
 
-/* Schreibmarke der tippenden Antwort in der Vorschau. */
 @keyframes hero-caret {
   50% {
     opacity: 0;
@@ -303,7 +275,6 @@
   animation: hero-caret 1s step-end infinite;
 }
 
-/* "thinking" in der Vorschau -- heller Streifen ueber der Schrift. */
 .hero-shimmer {
   background-image: linear-gradient(
     100deg,
@@ -332,10 +303,6 @@
   }
 }
 
-/* Wanderndes Licht ueber einem Bild, das gerade entsteht. Es liegt ueber
-   dem Zwischenstand und ist der sichtbare Unterschied zwischen "wird
-   noch" und "ist fertig" -- ohne es saehe ein frueher Zwischenstand aus
-   wie ein schlechtes Endergebnis. */
 @keyframes image-sweep {
   from {
     transform: translateX(-100%);
@@ -362,18 +329,6 @@
   }
 }
 
-/* ------------------------------------------------------------------
-   Der Composer
-   ------------------------------------------------------------------ */
-
-/* Ein Rahmen, der beim Fokus aufleuchtet und dann langsam wandert.
-   Gemacht ist er aus einem Kegelverlauf, den eine Maske auf genau einen
-   Pixel am Rand beschneidet -- deshalb braucht es kein zweites Element
-   und keinen Rahmen, der die Innenmasse verschiebt.
-
-   Der Winkel ist eine registrierte Eigenschaft: nur so weiss der Browser,
-   dass er zwischen zwei Winkeln interpolieren soll. Ohne @property
-   springt der Verlauf, statt sich zu drehen. */
 @property --composer-winkel {
   syntax: "<angle>";
   initial-value: 0deg;
@@ -402,7 +357,7 @@
     transparent 220deg,
     transparent 360deg
   );
-  /* Zwei Masken, voneinander abgezogen: uebrig bleibt der Ring. */
+
   -webkit-mask:
     linear-gradient(#000 0 0) content-box,
     linear-gradient(#000 0 0);
@@ -421,8 +376,6 @@
   animation: composer-drehung 8s linear infinite;
 }
 
-/* Waehrend einer Aufnahme leuchtet er durchgehend -- da passiert etwas,
-   auch wenn der Cursor gerade woanders steht. */
 .composer-rahmen[data-aufnahme="true"]::before {
   opacity: 1;
   animation: composer-drehung 3s linear infinite;
@@ -434,14 +387,6 @@
   }
 }
 
-/* ------------------------------------------------------------------
-   Einfuehrung
-   ------------------------------------------------------------------ */
-
-/* Der Ring um das hervorgehobene Element. Zwei Schatten: der innere
-   zeichnet die Kante, der aeussere ist der Schein. Er atmet langsam --
-   schnell genug, dass man ihn bemerkt, langsam genug, dass er beim Lesen
-   des Textes daneben nicht zappelt. */
 @keyframes tour-atmen {
   0%,
   100% {

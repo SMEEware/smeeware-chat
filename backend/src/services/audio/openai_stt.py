@@ -30,13 +30,8 @@ from src.services.audio.base import (
 
 logger = get_logger(__name__)
 
-# Was die API annimmt -- und woran sie den Container erkennt: an der Endung
-# des Namens, den wir mitschicken. Steckt in einer .webm getauften Datei ein
-# mp3, antwortet sie mit "Audio file might be corrupted or unsupported",
-# obwohl die Bytes in Ordnung sind.
 ENDUNGEN = frozenset({"webm", "ogg", "oga", "mp4", "m4a", "mp3", "mpga", "mpeg", "wav", "flac"})
 
-# Der Rueckweg ueber den gemeldeten Medientyp, falls der Name nichts hergibt.
 AUS_TYP: dict[str, str] = {
     "audio/webm": "webm",
     "video/webm": "webm",
@@ -53,7 +48,6 @@ AUS_TYP: dict[str, str] = {
     "audio/x-flac": "flac",
 }
 
-# Was der Browser aufnimmt, wenn nichts anderes bekannt ist.
 STANDARD_ENDUNG = "webm"
 
 
@@ -82,8 +76,6 @@ class OpenAITranscribeService(TranscriptionService):
 
     @property
     def available(self) -> bool:
-        # Der Schluessel wurde beim Bauen geprueft -- mehr laesst sich ohne
-        # einen bezahlten Aufruf nicht feststellen.
         return True
 
     def why_unavailable(self) -> str | None:
@@ -113,8 +105,6 @@ class OpenAITranscribeService(TranscriptionService):
         try:
             antwort = await self._client.audio.transcriptions.create(**argumente)
         except openai.APIStatusError as exc:
-            # Der Nutzer sieht diese Meldung neben dem Mikrofon -- sie soll
-            # sagen, was zu tun ist, nicht bloss eine Nummer nennen.
             logger.warning("OpenAI-Transkription fehlgeschlagen: %s", exc)
             raise TranscriptionError(
                 f"{self._model} rejected the recording (HTTP {exc.status_code})."

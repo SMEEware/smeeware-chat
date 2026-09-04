@@ -55,9 +55,6 @@ export function DocsSearch() {
         title="Search the documentation"
         description="Pick a page and open it with Enter."
       >
-        {/* CommandDialog liefert hier nur den Dialog -- den cmdk-Store
-            stellt erst Command bereit, ohne das findet CommandInput
-            keinen Kontext. */}
         <Command>
           <CommandInput placeholder="Search a page or endpoint…" />
           <CommandList>
@@ -70,8 +67,6 @@ export function DocsSearch() {
                   return (
                     <CommandItem
                       key={href}
-                      // cmdk filtert ueber diesen Wert -- die Beschreibung
-                      // mit hineinzunehmen macht auch Volltexttreffer moeglich.
                       value={`${page.title} ${page.description} ${page.slug}`}
                       onSelect={() => go(href)}
                     >

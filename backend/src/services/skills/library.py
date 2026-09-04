@@ -48,7 +48,7 @@ class SkillError(ToolError):
 class SkillMeta:
     name: str
     description: str
-    source: str  # "repo" | "managed"
+    source: str
     enabled: bool = True
     why: str = ""
 
@@ -61,7 +61,7 @@ class SkillMeta:
 class Skill:
     meta: SkillMeta
     body: str
-    files: tuple[str, ...] = ()  # zusaetzliche Dateien im Skill-Ordner
+    files: tuple[str, ...] = ()
 
 
 @dataclass
@@ -86,7 +86,6 @@ class SkillLibrary:
         self._cache_zeit = 0.0
         self._lock = asyncio.Lock()
 
-    # -- Lesen ---------------------------------------------------------- #
 
     async def index(self, *, include_disabled: bool = False) -> list[SkillMeta]:
         eintraege = await self._laden()
@@ -103,7 +102,6 @@ class SkillLibrary:
             raise SkillError(f"Skill {name!r} does not exist. Available: {bekannt}")
         return Skill(meta=eintrag.meta, body=eintrag.body, files=eintrag.files)
 
-    # -- Schreiben ------------------------------------------------------ #
 
     async def save(
         self, name: str, content: str, *, enabled: bool = True, why: str = ""
@@ -114,10 +112,6 @@ class SkillLibrary:
                 "Move details into companion files."
             )
 
-        # Der Name, unter dem der Skill sich selbst fuehrt (Frontmatter), ist
-        # die Identitaet -- der uebergebene Name nur der Fallback. So landet ein
-        # importierter Skill unter seinem eigenen Namen, nicht unter dem aus der
-        # URL geratenen. Ordner UND Frontmatter tragen danach denselben Namen.
         meta, body = _parse(name, content, source="managed")
         schluessel = meta.name
         if not VALID_NAME.match(schluessel):
@@ -126,15 +120,11 @@ class SkillLibrary:
                 "letters, digits, - and _, no paths."
             )
 
-        # Ein Repo-Skill ist die Quelle der Wahrheit -- nicht ueberschreiben.
         if (self._local_dir / schluessel / SKILL_DATEI).is_file():
             raise SkillError(
                 f"{schluessel!r} is a repo skill and is not overwritten from "
                 "the managed store."
             )
-        # Frontmatter normalisieren: Name/enabled/why an das anheften, was das
-        # Modell mitgibt -- so bleibt die Datei ein gueltiger Skill, auch wenn
-        # das Modell das Frontmatter unvollstaendig geschrieben hat.
         normiert = _mit_frontmatter(
             name=schluessel,
             description=meta.description,
@@ -184,7 +174,6 @@ class SkillLibrary:
     def _invalidieren(self) -> None:
         self._cache = None
 
-    # -- intern --------------------------------------------------------- #
 
     async def _laden(self) -> dict[str, _Eintrag]:
         if self._cache is not None and time.monotonic() - self._cache_zeit < self._cache_ttl:
@@ -196,7 +185,7 @@ class SkillLibrary:
             for schluessel, eintrag in self._scan(
                 self._managed_dir, source="managed"
             ).items():
-                eintraege.setdefault(schluessel, eintrag)  # Repo gewinnt
+                eintraege.setdefault(schluessel, eintrag)
             self._cache = eintraege
             self._cache_zeit = time.monotonic()
             logger.info(
@@ -240,9 +229,6 @@ class SkillLibrary:
             datei.write(inhalt)
             temp = Path(datei.name)
         temp.replace(ziel / SKILL_DATEI)
-
-
-# ---------------------------------------------------------------------- #
 
 
 def _norm(name: str) -> str:

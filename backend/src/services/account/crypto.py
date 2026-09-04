@@ -29,8 +29,6 @@ import os
 
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
-# Interaktiv, nicht maximal: die Anmeldung soll sich nicht wie ein Ladebalken
-# anfuehlen. n=2^14 liegt bei wenigen hundert Millisekunden.
 SCRYPT_N = 2**14
 SCRYPT_R = 8
 SCRYPT_P = 1
@@ -60,8 +58,6 @@ def passwort_hash(passwort: str, salz: bytes) -> bytes:
 
 
 def passwort_stimmt(passwort: str, salz: bytes, erwartet: bytes) -> bool:
-    # compare_digest statt ==: die Laufzeit soll nicht verraten, wie weit
-    # ein Versuch gekommen ist.
     return hmac.compare_digest(_scrypt(passwort, salz), erwartet)
 
 
@@ -69,14 +65,6 @@ def neuer_datenschluessel() -> bytes:
     return AESGCM.generate_key(bit_length=256)
 
 
-# Fest, nicht zufaellig -- und das ist hier genau richtig.
-#
-# Ein Zufallssalz schuetzt davor, dass sich gleiche Passwoerter am gleichen
-# Hash erkennen lassen, und gegen vorberechnete Tabellen. Beides trifft auf
-# SECRET nicht zu: es gibt genau einen App-Schluessel, und SECRET ist
-# Konfiguration mit hoher Entropie, kein von Menschen gewaehltes Wort. Ein
-# Zufallssalz muesste dafuer selbst irgendwo liegen und beim Start gefunden
-# werden -- mehr bewegliche Teile ohne Gewinn.
 _APP_SALZ = b"smeeware:public-chats:v1"
 
 
@@ -127,14 +115,6 @@ def text_verschluesseln(text: str, schluessel: bytes) -> bytes:
 def text_entschluesseln(paket: bytes, schluessel: bytes) -> str:
     return entschluesseln_roh(paket, schluessel).decode("utf-8")
 
-
-# ------------------------------------------------------------------ #
-# Einzelne Felder                                                     #
-# ------------------------------------------------------------------ #
-#
-# Titel, Nachrichten und Hinweise liegen in TEXT-Spalten. Statt das Schema
-# auf BLOB zu ziehen -- was jede bestehende Datei migrieren muesste --
-# traegt der Wert seine Form vorne im Praefix.
 
 PRAEFIX = "enc:v1:"
 

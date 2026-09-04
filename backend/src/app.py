@@ -63,7 +63,6 @@ def _register_middleware(app: FastAPI, settings: Settings) -> None:
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origins,
-        # Credentials und Wildcard schliessen sich im CORS-Standard aus.
         allow_credentials=not wildcard,
         allow_methods=["*"],
         allow_headers=["*"],

@@ -51,9 +51,6 @@ class OpenAICompatibleProvider(LLMProvider):
         self._client = AsyncOpenAI(
             api_key=api_key,
             base_url=base_url or self.base_url,
-            # 0 = kein Zeitlimit: lange Antworten und langer Reasoning-Vorlauf
-            # brechen nicht mehr ab. None ist bei der OpenAI-Bibliothek das
-            # "unbegrenzt".
             timeout=timeout if timeout and timeout > 0 else None,
             max_retries=max_retries,
         )
@@ -99,10 +96,6 @@ class OpenAICompatibleProvider(LLMProvider):
                 stream=True,
                 **self._payload(messages, options),
             )
-            # ``async with`` schliesst die HTTP-Verbindung auch dann, wenn der
-            # Client mitten im Stream abbricht.
-            # Tool-Calls kommen zerstueckelt: id und name im ersten Delta,
-            # die Argumente danach zeichenweise. Sammeln nach index.
             partial: dict[int, _PartialCall] = {}
 
             async with stream:
@@ -113,9 +106,6 @@ class OpenAICompatibleProvider(LLMProvider):
                     if delta is None:
                         continue
 
-                    # DeepSeek nennt es reasoning_content, Ollama reasoning.
-                    # Beide lesen kostet nichts und spart einen Provider,
-                    # der nur wegen eines Feldnamens existiert.
                     reasoning = getattr(delta, "reasoning_content", None) or getattr(
                         delta, "reasoning", None
                     )

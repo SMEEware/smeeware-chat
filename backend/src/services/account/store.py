@@ -200,8 +200,6 @@ class AccountStore:
                 logger.exception("Datenschluessel liess sich nicht auspacken")
                 return False
 
-            # Frische Salze fuer beides: ein Passwortwechsel, der die alten
-            # behielte, waere nur halb einer.
             auth_salz = crypto.neues_salz()
             kek_salz = crypto.neues_salz()
 

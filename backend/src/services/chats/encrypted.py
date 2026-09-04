@@ -22,8 +22,6 @@ from src.services.chats.base import ChatInfo, ChatStore, StoredChat
 
 logger = get_logger(__name__)
 
-# Die Feld-Verschluesselung liegt bei der Krypto, nicht hier: die Hinweise
-# brauchen dieselbe, und zweimal dasselbe waere zweimal zu pflegen.
 _ein = crypto.feld_ein
 _aus = crypto.feld_aus
 
@@ -55,17 +53,6 @@ class EncryptedChatStore:
         title: str | None = None,
         model: str | None = None,
     ) -> StoredChat:
-        # Der Titel muss HIER entstehen, nicht in der Ablage darunter.
-        #
-        # Ohne Titel leitet die Ablage einen aus der ersten Nutzer-Nachricht
-        # ab und kuerzt ihn auf 60 Zeichen. Die Nachrichten sind zu dem
-        # Zeitpunkt aber schon verschluesselt -- sie schnitte also ein
-        # Chiffrat mittendrin durch, und das laesst sich nie wieder
-        # entschluesseln. Genau das hat vorher jeden neuen Chat als
-        # "[locked]" enden lassen.
-        #
-        # Nur beim ersten Speichern: danach traegt der Chat seinen Titel,
-        # und ein umbenannter soll nicht bei jedem Turn zurueckfallen.
         klartitel = title
         if klartitel is None and not await self._inner.exists(chat_id):
             klartitel = _titel_aus(messages)
@@ -88,7 +75,6 @@ class EncryptedChatStore:
     async def delete_all(self) -> int:
         return await self._inner.delete_all()
 
-    # -- Innereien ------------------------------------------------------- #
 
     def _nachricht_ein(self, nachricht: dict[str, Any]) -> dict[str, Any]:
         """Nur der Inhalt wandert ins Chiffrat, die Struktur bleibt.
@@ -144,8 +130,6 @@ class EncryptedChatStore:
         if not isinstance(anhang, dict):
             return anhang
         kopie = dict(anhang)
-        # Dateiname und eingebetteter Text verraten den Inhalt; Groesse und
-        # Sorte nicht.
         for feld in ("name", "text", "path"):
             wert = kopie.get(feld)
             if isinstance(wert, str) and wert:
@@ -166,8 +150,6 @@ class EncryptedChatStore:
         try:
             return replace(info, title=_aus(info.title, self._key))
         except Exception:  # noqa: BLE001
-            # Ein Chat aus einer anderen Passwort-Aera. Ihn stumm zu
-            # verschlucken waere schlimmer als ein sichtbarer Platzhalter.
             return replace(info, title="[locked]")
 
     def _chat_aus(self, chat: StoredChat) -> StoredChat:
@@ -178,7 +160,6 @@ class EncryptedChatStore:
         )
 
 
-# Dieselbe Regel wie in der Ablage -- nur eben auf dem Klartext.
 MAX_TITEL = 60
 FALLBACK_TITEL = "New chat"
 

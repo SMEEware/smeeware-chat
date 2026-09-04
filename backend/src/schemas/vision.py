@@ -32,8 +32,6 @@ class VisionImage(BaseModel):
     source: str
     media_type: str | None = None
     bytes: int = 0
-    # true = wir haben das Bild selbst geladen und eingebettet,
-    # false = die API hat es ueber die URL geholt.
     inlined: bool = False
 
 

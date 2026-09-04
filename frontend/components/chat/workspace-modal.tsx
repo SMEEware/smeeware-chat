@@ -32,23 +32,11 @@ import { useWorkspaces } from "@/lib/workspaces/store";
 import type { Workspace } from "@/lib/workspaces/store";
 import { cn } from "@/lib/utils";
 
-/** Der letzte Teil eines Pfads -- als Vorschlag fuer den Namen. */
 function basename(pfad: string): string {
   const teile = pfad.split(/[\\/]/).filter(Boolean);
   return teile[teile.length - 1] ?? pfad;
 }
 
-/**
- * Die Workspace-Verwaltung.
- *
- * Ein Workspace ist der Kontext, auf dem gearbeitet wird -- ein Ordner auf
- * dem Rechner des Backends und ein paar Notizen. Der aktive reist als Text
- * mit jeder Frage, damit das Modell weiss, worum es geht.
- *
- * Der Pfad wird ueber den Verzeichnis-Browser gewaehlt, der die Ordner des
- * Backend-Hosts liest -- dort, wo die Werkzeuge des Agenten laufen. So zeigt
- * ein Workspace immer auf ein Verzeichnis, das der Agent auch erreicht.
- */
 export function WorkspaceModal({
   open,
   onOpenChange,
@@ -105,7 +93,6 @@ export function WorkspaceModal({
   );
 }
 
-/** Eine Zeile der Liste -- Ansicht, bis man auf Bearbeiten geht. */
 function WorkspaceZeile({
   workspace,
   aktiv,
@@ -265,7 +252,6 @@ function WorkspaceZeile({
   );
 }
 
-/** Das Formular am Fuss -- klappt auf, wenn man "Add workspace" drueckt. */
 function WorkspaceFormular({
   onAnlegen,
 }: {
@@ -394,14 +380,6 @@ function WorkspaceFormular({
   );
 }
 
-/**
- * Der Verzeichnis-Browser -- liest die Ordner auf dem Rechner des Backends.
- *
- * ``null`` als Startpfad heisst "das Arbeitsverzeichnis des Agenten"; das
- * Backend waehlt den Startpunkt. Ein Klick auf einen Ordner steigt hinein,
- * der Pfeil nach oben geht eine Ebene hoeher, "Use this folder" uebernimmt
- * das gerade gezeigte Verzeichnis.
- */
 function DirectoryBrowser({
   startPath,
   onPick,
@@ -423,7 +401,6 @@ function DirectoryBrowser({
 
   return (
     <div className="flex flex-col gap-2">
-      {/* Kopf: Home, eine Ebene hoeher, und der aktuelle Pfad. */}
       <div className="flex items-center gap-1">
         <Button
           size="icon-sm"
@@ -460,7 +437,6 @@ function DirectoryBrowser({
         ) : null}
       </div>
 
-      {/* Der Inhalt: Ordnerliste, Ladezustand oder Fehler. */}
       <div className="h-52 overflow-y-auto rounded-lg border border-border/70 bg-background/50 p-1">
         {isLoading ? (
           <div className="flex h-full items-center justify-center text-[12px] text-muted-foreground/60">
@@ -509,7 +485,6 @@ function DirectoryBrowser({
         )}
       </div>
 
-      {/* Fuss: versteckte Ordner, abbrechen, uebernehmen. */}
       <div className="flex items-center justify-between gap-2">
         <label className="flex cursor-pointer items-center gap-1.5 text-[11px] text-muted-foreground/80 select-none">
           <input

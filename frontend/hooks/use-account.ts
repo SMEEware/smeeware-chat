@@ -11,7 +11,6 @@ export type Konto = {
 
 export const accountKey = ["account"] as const;
 
-/** Wer angemeldet ist -- und ob ein Profilbild hinterlegt ist. */
 export function useAccount() {
   return useQuery<Konto>({
     queryKey: accountKey,
@@ -25,13 +24,6 @@ export function useAccount() {
   });
 }
 
-/**
- * Profilbild setzen.
- *
- * Danach wird das Konto neu geladen, nicht nur der Cache umgeschrieben:
- * der Zeitstempel der Abfrage haengt als Parameter an der Bild-URL und
- * bringt den Browser dazu, das neue Bild wirklich zu holen.
- */
 export function useSetAvatar() {
   const client = useQueryClient();
 
@@ -51,7 +43,6 @@ export function useSetAvatar() {
           const nutzlast = await antwort.json();
           meldung = nutzlast?.error?.message ?? meldung;
         } catch {
-          // Kein JSON -- der Status muss reichen.
         }
         throw new Error(meldung);
       }
@@ -60,13 +51,6 @@ export function useSetAvatar() {
   });
 }
 
-/**
- * Konto und alle Daten loeschen.
- *
- * Kein ``invalidateQueries`` danach: der Aufrufer navigiert hart auf die
- * Anmeldeseite, wodurch der ganze Zustand ohnehin neu entsteht. Das Konto
- * gibt es dann nicht mehr, die Seite fuehrt durchs Einrichten.
- */
 export function useDeleteAccount() {
   return useMutation<void, Error, void>({
     mutationFn: async () => {
@@ -78,14 +62,12 @@ export function useDeleteAccount() {
         const nutzlast = await antwort.json();
         meldung = nutzlast?.error?.message ?? meldung;
       } catch {
-        // Kein JSON -- der Status muss reichen.
       }
       throw new Error(meldung);
     },
   });
 }
 
-/** Namen und/oder Passwort aendern. */
 export function useUpdateAccount() {
   const client = useQueryClient();
 
@@ -107,7 +89,6 @@ export function useUpdateAccount() {
         const nutzlast = await antwort.json();
         meldung = nutzlast?.error?.message ?? meldung;
       } catch {
-        // Kein JSON -- der Status muss reichen.
       }
       throw new Error(meldung);
     },

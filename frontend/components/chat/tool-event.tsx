@@ -20,7 +20,6 @@ import { cn } from "@/lib/utils";
 import { useAktuellerBildlauf } from "@/lib/chat/image-runs";
 import type { ToolArguments, ToolPart } from "@/lib/chat/types";
 
-/** Argumente zu einer knappen Zeile: key=value · key=value. */
 function summariseArgs(args?: ToolArguments): string {
   if (!args) return "";
   return Object.entries(args)
@@ -31,34 +30,19 @@ function summariseArgs(args?: ToolArguments): string {
     .join(" · ");
 }
 
-/**
- * Ein Werkzeugaufruf im Verlauf. Waehrend er laeuft ein Spinner, danach
- * gruener Haken oder rotes Kreuz -- das Ergebnis (preview) steht
- * aufklappbar darunter. Das volle Ergebnis kommt bewusst nicht ueber den
- * Stream, nur die Statuszeile plus Zeichenzahl.
- */
 export function ToolEvent({
   part,
   unterbrochen = false,
 }: {
   part: ToolPart;
-  /** Der Turn wurde unterbrochen -- ein "laeuft" ist dann eine Luege. */
   unterbrochen?: boolean;
 }) {
-  // Ein Werkzeug, das beim Unterbrechen noch lief, laeuft nicht mehr: der
-  // Strom, ueber den sein Ergebnis gekommen waere, ist weg. Es weiter
-  // drehen zu lassen waere ein Spinner, der nie endet.
   const running = part.status === "running" && !unterbrochen;
   const abgerissen = part.status === "running" && unterbrochen;
   const failed = part.status === "error";
   const argsLine = summariseArgs(part.arguments);
   const hasDetail = Boolean(part.preview);
 
-  // Bilderzeugung ist das eine Werkzeug, bei dem Zusehen mehr wert ist als
-  // eine Statuszeile: sie laeuft eine halbe Minute und meldet unterwegs
-  // Zwischenstaende. Sobald sie fertig ist, uebernimmt die Antwort des
-  // Modells das Bild -- dann faellt die Vorschau wieder weg, statt es
-  // doppelt zu zeigen.
   const bild = useAktuellerBildlauf(running && part.tool === "generate_image");
 
   const header = (
@@ -91,12 +75,8 @@ export function ToolEvent({
   const shell =
     "flex w-fit max-w-full items-center gap-2 rounded-2xl border bg-muted/40 px-3 py-2";
 
-  // Ohne Ergebnis (noch am Laufen, oder gar keine preview) bleibt es eine
-  // schlichte Zeile ohne Aufklapp-Mechanik.
   if (!hasDetail) {
     if (bild !== null) {
-      // Der Kasten pulsiert hier bewusst nicht: das Bild bewegt sich schon,
-      // und zwei Bewegungen uebereinander sind eine zu viel.
       return (
         <div className="flex w-fit max-w-full flex-col gap-2">
           <div className={cn(shell, "animate-pulse")}>{header}</div>

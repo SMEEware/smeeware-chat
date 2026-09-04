@@ -46,12 +46,7 @@ CREATE TABLE IF NOT EXISTS api_keys (
 CREATE INDEX IF NOT EXISTS api_keys_token ON api_keys (token_sha256);
 """
 
-# Die Marke vorne macht einen durchgesickerten Schluessel als solchen
-# erkennbar -- Scanner bei GitHub und Co. suchen nach genau solchen
-# Praefixen und koennen warnen, statt dass er unbemerkt gueltig bleibt.
 MARKE = "sk_smee_"
-# Wie viel vom Anfang in der Liste steht: die Marke plus ein paar Zeichen,
-# genug zum Auseinanderhalten, zu wenig zum Erraten.
 PRAEFIX_LEN = len(MARKE) + 6
 
 

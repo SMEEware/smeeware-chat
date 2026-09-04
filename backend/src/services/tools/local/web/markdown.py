@@ -16,13 +16,11 @@ from urllib.parse import urljoin
 
 from bs4 import BeautifulSoup, NavigableString, Tag
 
-# Trägt nie Inhalt -- fliegt immer raus.
 MUELL = {
     "script", "style", "noscript", "svg", "canvas", "template", "iframe",
     "form", "button", "input", "select", "textarea", "head", "meta", "link",
     "object", "embed", "map", "audio", "video", "source",
 }
-# Trägt nur im Modus "full" Inhalt.
 BEIWERK = {"nav", "aside", "footer", "header"}
 
 BLOCK = {
@@ -65,7 +63,6 @@ def hauptinhalt(suppe: BeautifulSoup) -> Tag:
     """Der Knoten mit dem eigentlichen Text -- oder der ganze Body."""
     body = suppe.body or suppe
 
-    # Semantische Abkuerzung: eine eindeutige <article>/<main> glauben wir.
     for name in ("article", "main"):
         knoten = suppe.find_all(name)
         if len(knoten) == 1 and len(knoten[0].get_text(strip=True)) > 400:
@@ -95,7 +92,6 @@ def hauptinhalt(suppe: BeautifulSoup) -> Tag:
         punkte[schluessel] *= 1 - _linkdichte(knoten)
 
     bester = knoten_nach_id[max(punkte, key=lambda k: punkte[k])]
-    # Zu duenn geraten? Dann lieber die ganze Seite als ein halber Satz.
     return bester if len(bester.get_text(strip=True)) > 250 else body
 
 
@@ -128,14 +124,9 @@ def tabelle_zu_markdown(tabelle: Tag, *, max_zeilen: int = 50) -> str:
     return "\n".join(aus)
 
 
-# ---------------------------------------------------------------------- #
-# Der Wandler                                                             #
-# ---------------------------------------------------------------------- #
-
-
 def _render(knoten: object, basis: str, bilder: bool, *, roh: bool = False) -> str:
     if isinstance(knoten, NavigableString):
-        if type(knoten) is not NavigableString:  # Kommentar, Doctype, CDATA
+        if type(knoten) is not NavigableString:
             return ""
         text = str(knoten)
         return text if roh else re.sub(r"\s+", " ", text)
@@ -186,8 +177,6 @@ def _render(knoten: object, basis: str, bilder: bool, *, roh: bool = False) -> s
         zeichen = BETONUNG[name]
         return f"{zeichen}{text}{zeichen}" if text else ""
     if name in BLOCK:
-        # An den Raendern trimmen: sonst landet das Leerzeichen zwischen zwei
-        # Inline-Elementen am Zeilenanfang. Innere Einrueckung bleibt heil.
         inhalt = kinder().strip()
         return f"\n\n{inhalt}\n\n" if inhalt else ""
     return kinder()
@@ -202,15 +191,11 @@ def _liste(knoten: Tag, basis: str, bilder: bool) -> str:
         inhalt = _aufraeumen(_render(punkt, basis, bilder))
         if not inhalt:
             continue
-        # Leerzeilen im Punkt zusammenziehen -- eine verschachtelte Liste soll
-        # direkt unter ihrem Elternpunkt stehen, nicht durch eine Luecke getrennt.
         inhalt = re.sub(r"\n{2,}", "\n", inhalt)
         marke = f"{nummer}." if geordnet else "-"
         nummer += 1
         erste, *rest = inhalt.split("\n")
         zeilen.append(f"{marke} {erste}")
-        # Jede Ebene rueckt ihre Fortsetzungszeilen um zwei Leerzeichen ein;
-        # verschachtelte Listen erben die Einrueckung dadurch von selbst.
         zeilen += [f"  {z}" for z in rest if z.strip()]
 
     return f"\n\n{chr(10).join(zeilen)}\n\n" if zeilen else ""
@@ -231,7 +216,6 @@ def _bild(knoten: Tag, basis: str, bilder: bool) -> str:
     beschreibung = str(knoten.get("alt") or "").strip()
     quelle = str(knoten.get("src") or knoten.get("data-src") or "").strip()
     if not bilder:
-        # Ohne Bilder bleibt der Alt-Text -- er sagt oft, was das Modell braucht.
         return f"[Image: {beschreibung}]" if beschreibung else ""
     if not quelle or quelle.startswith("data:"):
         return f"[Image: {beschreibung}]" if beschreibung else ""
@@ -272,11 +256,7 @@ def _vorfahren(knoten: Tag, anzahl: int) -> list[Tag]:
 
 def _aufraeumen(text: str) -> str:
     text = "\n".join(z.rstrip() for z in text.split("\n"))
-    # Nur nach einem sichtbaren Zeichen zusammenziehen -- die fuehrenden
-    # Leerzeichen von Listeneinrueckungen muessen stehen bleiben.
     text = re.sub(r"(?<=\S)[ \t]{2,}", " ", text)
-    # Ein einzelnes fuehrendes Leerzeichen stammt immer vom Umbruch zwischen
-    # zwei Inline-Elementen; Einrueckungen sind immer zwei oder mehr.
     text = re.sub(r"^ (?=\S)", "", text, flags=re.M)
     text = re.sub(r"\n{3,}", "\n\n", text)
     return text.strip()

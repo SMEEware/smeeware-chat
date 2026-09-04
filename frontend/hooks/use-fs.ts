@@ -2,10 +2,8 @@
 
 import { useQuery } from "@tanstack/react-query";
 
-/** Ein Unterordner auf dem Host des Agenten. */
 export type FsEntry = { name: string; path: string; hidden: boolean };
 
-/** Was der Browser pro Verzeichnis bekommt. */
 export type FsListing = {
   path: string;
   parent: string | null;
@@ -14,13 +12,6 @@ export type FsListing = {
   entries: FsEntry[];
 };
 
-/**
- * Ein Verzeichnis auf dem Rechner des Backends lesen.
- *
- * ``null`` als Pfad bedeutet "das Arbeitsverzeichnis des Agenten" -- das
- * Backend waehlt den Startpunkt. Besuchte Ordner bleiben kurz im Cache, damit
- * das Zurueckspringen nicht flackert.
- */
 export function useFsListing(
   path: string | null,
   enabled: boolean,
@@ -42,7 +33,6 @@ export function useFsListing(
         try {
           meldung = (await res.json())?.error?.message ?? meldung;
         } catch {
-          // Kein JSON -- der Status muss reichen.
         }
         throw new Error(meldung);
       }

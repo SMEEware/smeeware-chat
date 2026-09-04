@@ -5,7 +5,6 @@ import { KEYS_ENDPOINT } from "@/lib/chat/backend";
 
 type Context = { params: Promise<{ id: string }> };
 
-/** Einen einzelnen Schluessel umbenennen oder loeschen. */
 async function weiter(
   request: NextRequest,
   method: string,

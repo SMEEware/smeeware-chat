@@ -29,7 +29,6 @@ logger = get_logger(__name__)
 
 router = APIRouter(prefix="/account", tags=["account"])
 
-# Was ein Profilbild sein darf.
 BILD_TYPEN = {"image/png", "image/jpeg", "image/webp", "image/gif"}
 BILD_MAX = 4_000_000
 
@@ -74,8 +73,6 @@ async def setup(payload: Credentials, provider: ProviderDep) -> Session:
 async def login(payload: Credentials, provider: ProviderDep) -> Session:
     dek = await provider.accounts.unlock(payload.username, payload.password)
     if dek is None:
-        # Nicht unterscheiden, was daneben lag -- das ginge einen Fremden
-        # nichts an und verriete, ob es den Namen gibt.
         raise UnauthorizedError("Wrong username or password.")
 
     kennung = provider.sessions.oeffnen(payload.username, dek)
@@ -122,9 +119,6 @@ async def delete_account(
     if provider.chats is not None:
         await provider.chats.delete_all()
     await provider.notifications.delete_all()
-    # Die API-Schluessel haengen am Konto, nicht am Datenschluessel -- weg
-    # muessen sie trotzdem: ein Schluessel, der das Konto ueberlebte, waere
-    # ein gueltiger Ausweis fuer ein Konto, das es nicht mehr gibt.
     await provider.api_keys.delete_all()
     await asyncio.to_thread(_anhaenge_leeren, provider.settings.uploads_dir)
     await provider.accounts.delete()
@@ -179,9 +173,6 @@ async def update(
     if konto is None:
         raise NotFoundError("No account.")
 
-    # Die offenen Sitzungen bleiben gueltig: der Datenschluessel selbst hat
-    # sich nicht geaendert, nur seine Verpackung. Wer gerade tippt, soll
-    # nicht mitten im Satz herausfliegen.
     return AccountStatus(
         configured=True,
         username=konto.username,
@@ -231,7 +222,6 @@ async def get_avatar(provider: ProviderDep, session: SitzungHeader = None) -> Re
         raise NotFoundError("No profile picture set.")
 
     daten, medientyp = bild
-    # Privat und veraenderlich -- kein gemeinsamer Zwischenspeicher.
     return Response(
         content=daten,
         media_type=medientyp,

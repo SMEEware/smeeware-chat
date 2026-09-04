@@ -18,8 +18,6 @@ from src.services.ai.vision import VisionService
 from src.core.logging import get_logger
 
 if TYPE_CHECKING:
-    # Nur fuer die Typannotation -- ein Laufzeit-Import hier zoege
-    # skills -> tools.local.storage -> tools.local zu einem Zyklus zusammen.
     from src.services.events import EventBus
     from src.services.skills import SkillLibrary
     from src.services.tools.local.notify import HinweisQuelle
@@ -90,8 +88,6 @@ def create_local_toolbox(
     uploads_dir: Path | None = None,
     tts: TTSSettings | None = None,
 ) -> LocalToolBox:
-    # Ein Client fuer alle Werkzeuge: Verbindungen werden wiederverwendet.
-    # 0 heisst kein Zeitlimit -- httpx versteht dafuer None.
     client = httpx.AsyncClient(
         timeout=settings.http_timeout if settings.http_timeout > 0 else None,
         headers={"User-Agent": settings.user_agent},
@@ -111,23 +107,18 @@ def create_local_toolbox(
         from src.services.tools.local.system_check import SystemCheckTool
 
         tools.append(NotifyUserTool(bus, hinweise))
-        # Die Sonde haelt einen Zustand (das CPU-Fenster zwischen zwei
-        # Messungen) -- deshalb eine je Toolbox, nicht eine je Aufruf.
         tools.append(SystemCheckTool(SystemProbe(ollama_base_url=ollama_url), bus))
 
     if settings.brave_api_key:
         brave_key = settings.brave_api_key.get_secret_value()
         tools.append(BraveSearchTool(client, brave_key))
-        # Bildersuche laeuft ueber denselben Schluessel wie web_search.
         tools.append(ImageSearchTool(client, brave_key))
-        # Videos laufen ueber denselben Schluessel wie web_search.
         tools.append(VideoSearchTool(client, brave_key))
     else:
         logger.info("BRAVE_API_KEY fehlt -- web_search/image_search nicht verfuegbar")
 
     if settings.serpapi_api_key:
         serp_key = settings.serpapi_api_key.get_secret_value()
-        # Alle SerpApi-Engines laufen ueber denselben Schluessel.
         tools.append(SerpApiSearchTool(client, serp_key))
         tools.append(SocialProfileTool(client, serp_key))
         tools.append(AmazonSearchTool(client, serp_key))
@@ -152,8 +143,6 @@ def create_local_toolbox(
         logger.info("BRAVE_ANSWERS_API_KEY fehlt -- brave_answers nicht verfuegbar")
 
     if settings.hackerone_api_token:
-        # Lazy: der Import zieht sonst httpx-Aufbau in jeden Prozess, der nur
-        # die Werkzeugliste anschaut.
         from src.services.tools.local.hackerone import create_hackerone_tools
 
         tools += create_hackerone_tools(
@@ -170,13 +159,9 @@ def create_local_toolbox(
     else:
         logger.info("Vision ist deaktiviert -- analyze_image nicht verfuegbar")
 
-    # Ein Zugang zum Bucket fuer beide Seiten: die Speicher-Werkzeuge und
-    # die Bilderzeugung, die ihre Ergebnisse in dieselbe Ablage legt.
     mc = create_mc_client(settings) if settings.storage_enabled else None
 
     if images is not None and images.enabled and openai_key and uploads_dir:
-        # Lazy: der Import baut einen OpenAI-Client, und den braucht kein
-        # Prozess, der nur die Werkzeugliste anschaut.
         from src.services.tools.local.image_gen import GenerateImageTool
 
         tools.append(
@@ -186,7 +171,6 @@ def create_local_toolbox(
                 uploads_dir=uploads_dir,
                 bus=bus,
                 base_url=openai_base_url,
-                # Fuer Vorlagen, die als http-Adresse hereinkommen.
                 http=client,
                 mc=mc,
             )
@@ -196,9 +180,6 @@ def create_local_toolbox(
     else:
         logger.info("IMAGE_ENABLED=false -- generate_image nicht verfuegbar")
 
-    # Vorlesen: braucht keinen OpenAI-Schluessel -- ohne ElevenLabs-Schluessel
-    # spricht der gratis Rueckfall. Deshalb haengt es nur an TTS_ENABLED und
-    # einem Ort fuer die Audiodatei, nicht an einem bestimmten Anbieter.
     if tts is not None and tts.enabled and uploads_dir is not None:
         from src.services.tools.local.read_aloud import ReadAloudTool
 
@@ -214,7 +195,6 @@ def create_local_toolbox(
         logger.info("TTS_ENABLED=false -- read_aloud nicht verfuegbar")
 
     if skills is not None:
-        # Lazy: bricht den Import-Zyklus tools.local <-> skills.
         from src.services.tools.local.skills import create_skill_tools
 
         tools += create_skill_tools(skills, client)

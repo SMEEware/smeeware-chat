@@ -8,14 +8,6 @@ import { groesse, vorschauUrl } from "@/lib/chat/attachments";
 import type { Attachment } from "@/lib/chat/types";
 import { cn } from "@/lib/utils";
 
-/**
- * Eine angehaengte Datei als Zeile -- dieselbe Form im Composer wie spaeter
- * im Verlauf, damit man vor und nach dem Absenden dasselbe sieht.
- *
- * Wieder Haarlinie statt Fuellung: die Chips sitzen direkt ueber dem
- * Eingabefeld, das schon eine Flaeche ist. Zwei Flaechen uebereinander
- * waeren eine zu viel.
- */
 function Chip({
   anhang,
   onEntfernen,
@@ -60,7 +52,6 @@ function Chip({
           className={cn(
             "absolute -top-1.5 -right-1.5 flex size-5 cursor-pointer items-center justify-center rounded-full bg-background text-muted-foreground ring-1 ring-border transition-[opacity,color] ring-inset",
             "opacity-0 group-hover/chip:opacity-100 hover:text-foreground focus-visible:opacity-100",
-            // Ohne Hover kein Kreuz -- auf dem Handy also dauerhaft sichtbar.
             "max-md:opacity-100",
           )}
         >
@@ -77,7 +68,6 @@ export function AttachmentChips({
   className,
 }: {
   anhaenge: Attachment[];
-  /** Fehlt sie, sind die Chips nur zum Ansehen -- so im Verlauf. */
   onEntfernen?: (id: string) => void;
   className?: string;
 }) {

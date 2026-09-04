@@ -95,8 +95,6 @@ class ShellTool(LocalTool):
                     prozess.communicate(), timeout=self._timeout
                 )
             else:
-                # Kein Zeitlimit -- laeuft, bis der Befehl fertig ist oder der
-                # Client den Turn abbricht (dann greift der Zweig unten).
                 aus, fehler = await prozess.communicate()
         except TimeoutError:
             prozess.kill()
@@ -106,8 +104,6 @@ class ShellTool(LocalTool):
                 "Interactive programs do not work here."
             )
         except asyncio.CancelledError:
-            # Turn abgebrochen: den Unterprozess nicht als Waise weiterlaufen
-            # lassen -- sonst haelt ein endlos gedachter Befehl die Maschine.
             prozess.kill()
             raise
 
@@ -125,8 +121,6 @@ def _gesperrt(befehl: str) -> str | None:
     for muster, grund in GESPERRT:
         if muster.search(befehl):
             return grund
-    # shlex stolpert ueber unbalancierte Anfuehrungszeichen -- dann lieber
-    # ablehnen als etwas anderes ausfuehren als gemeint.
     try:
         shlex.split(befehl)
     except ValueError as exc:

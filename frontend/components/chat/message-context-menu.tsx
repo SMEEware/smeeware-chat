@@ -20,20 +20,6 @@ import {
 import { dispatchQuote } from "@/lib/chat/commands";
 import { cn } from "@/lib/utils";
 
-/**
- * Rechtsklick auf eine Nachricht: zitieren, kopieren, notieren, ausblenden.
- *
- * Warum ueberhaupt ein eigenes Menue -- das Kommando "Quote selection" aus
- * Palette und Slash-Menue konnte nie funktionieren: beide ziehen den Fokus in
- * ein Eingabefeld, und der Browser verwirft dabei die Textauswahl. Bis der
- * Handler lief, war nichts mehr markiert. Der Rechtsklick ist der einzige
- * Moment, in dem die Auswahl noch steht.
- *
- * Das Menue oeffnet immer, nicht nur mit Auswahl. Ein Rechtsklick, der mal
- * das eigene und mal das Browsermenue zeigt, fuehlt sich kaputt an; statt
- * dessen passen sich die Eintraege an: mit Auswahl beziehen sie sich auf den
- * markierten Teil, ohne auf die ganze Nachricht.
- */
 export function MessageContextMenu({
   messageId,
   role,
@@ -46,20 +32,15 @@ export function MessageContextMenu({
 }: {
   messageId: string;
   role: "user" | "assistant";
-  /** Der volle Text der Nachricht -- Grundlage, wenn nichts markiert ist. */
   text: string;
   hidden: boolean;
   onHide: (versteckt: boolean) => void;
-  /** Eine private Notiz an dieser Nachricht anfangen. */
   onNote?: () => void;
   className?: string;
   children: React.ReactNode;
 }) {
   const bereich = React.useRef<HTMLDivElement>(null);
 
-  // Die Auswahl wird beim Rechtsklick eingefroren. Sobald das Menue den Fokus
-  // uebernimmt, kann sie weg sein -- wer sie erst im Klick auf den Eintrag
-  // liest, liest zu spaet. Genau dieser Fehler steckte im alten Kommando.
   const [auswahl, setAuswahl] = React.useState("");
 
   const merkeAuswahl = React.useCallback(() => {
@@ -83,9 +64,6 @@ export function MessageContextMenu({
   return (
     <ContextMenu>
       <ContextMenuTrigger
-        // select-text schlaegt das select-none des Triggers: ohne das liesse
-        // sich in einer Nachricht gar nichts markieren -- und damit auch
-        // nichts zitieren, was der ganze Zweck dieses Menues ist.
         className={cn("select-text", className)}
         onContextMenu={merkeAuswahl}
         render={<div ref={bereich} />}
@@ -128,14 +106,6 @@ export function MessageContextMenu({
   );
 }
 
-/**
- * Der markierte Text, beschnitten auf diesen Bereich.
- *
- * Eine Auswahl kann ueber mehrere Nachrichten laufen. Zitiert wird dann nur
- * der Teil, der in der Nachricht liegt, auf die geklickt wurde -- alles
- * andere zu uebernehmen hiesse, Text in ein Zitat zu holen, den man in dieser
- * Blase gar nicht sieht.
- */
 function auswahlInnerhalb(bereich: HTMLElement | null): string {
   if (!bereich || typeof window === "undefined") return "";
 

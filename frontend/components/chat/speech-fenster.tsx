@@ -17,45 +17,17 @@ import { cn } from "@/lib/utils";
 
 const BREITE = 340;
 const RAND = 16;
-/** So viel vom Fenster bleibt immer im Bild, damit man es wiederfindet. */
 const SICHTBAR = 56;
 
-/**
- * Eine geladene Audiospur -- die Grundlage fuers Abspielen.
- *
- * Kein ``<audio>``-Element: dessen Zusammenspiel aus MediaElementSource,
- * Analyser und Suchen ist in Chrome unzuverlaessig (ein Sprung landet dann
- * auf 0). Stattdessen wird das MP3 einmal in einen ``AudioBuffer`` dekodiert
- * und ueber einen ``AudioBufferSourceNode`` gespielt. Der Fortschritt kommt
- * aus der Uhr des ``AudioContext`` -- nicht aus einem Medienelement --, und
- * Suchen heisst schlicht: die Quelle stoppen und mit neuem Versatz neu
- * starten. Damit sind Start, Stopp und Springen exakt und ohne Eigenheiten.
- */
 type Spur = {
   buffer: AudioBuffer | null;
   quelle: AudioBufferSourceNode | null;
-  /** ``ctx.currentTime`` beim Start der aktuellen Quelle. */
   startCtx: number;
-  /** Position in Sekunden -- Basis, von der aus gespielt/gesprungen wird. */
   versatz: number;
-  /** Gesetzt, bevor eine Quelle fuer Pause/Sprung gestoppt wird, damit ihr
-   *  ``onended`` das nicht fuer ein natuerliches Ende haelt. */
   handStop: boolean;
   fehler: boolean;
 };
 
-/**
- * Die Sprechanzeige -- ein verschiebbares Fenster mit einem Tab je Audio.
- *
- * Jedes Vorlesen bekommt seinen eigenen Tab und bleibt liegen: man wechselt
- * zwischen ihnen, schliesst sie einzeln oder das ganze Fenster, haelt an,
- * spielt weiter und springt im Regler vor und zurueck. Das Neue spielt von
- * selbst los -- der lebendige Teil, der bleiben soll --, die alten warten
- * daneben.
- *
- * Ein einziger ``AudioContext`` und ein Analyser fuer alle; es spielt immer
- * nur eine Spur, also zeigt die Kreis-Anzeige genau die, die man hoert.
- */
 export function SpeechFenster() {
   const laeufe = useSprechlauf((z) => z.laeufe);
   const aktiv = useSprechlauf((z) => z.aktiv);
@@ -68,13 +40,8 @@ export function SpeechFenster() {
   const [analyser, setAnalyser] = React.useState<AnalyserNode | null>(null);
   const [spieltId, setSpieltId] = React.useState<string | null>(null);
   const [zieht, setZieht] = React.useState(false);
-  // Ladezustand je Tab in echtem State -- so muss die Anzeige zum Rendern
-  // nie in die Ref schauen (Refs waehrend des Renderns sind heikel) und
-  // erfaehrt trotzdem von jedem frisch geladenen Puffer.
   type Ladung = { status: "laden" | "fertig" | "fehler"; dauer: number };
   const [geladen, setGeladen] = React.useState<Record<string, Ladung>>({});
-  // Welcher Tab seinen Text aufgeklappt zeigt. Als run-id statt als Boolean,
-  // damit das Aufklappen beim Tabwechsel von selbst wieder zufaellt.
   const [offenRun, setOffenRun] = React.useState<string | null>(null);
 
   const rahmenRef = React.useRef<HTMLDivElement>(null);
@@ -87,8 +54,6 @@ export function SpeechFenster() {
   const autoRef = React.useRef<Set<string>>(new Set());
 
   const derAktive = laeufe.find((l) => l.run === aktiv) ?? null;
-
-  // ---- Audio-Graph ------------------------------------------------- //
 
   const kontext = React.useCallback((): AudioContext => {
     if (!ctxRef.current) {
@@ -104,7 +69,6 @@ export function SpeechFenster() {
     return ctxRef.current;
   }, []);
 
-  /** Das MP3 einmal laden und dekodieren. Mehrfach aufrufbar. */
   const laden = React.useCallback(
     async (run: string, url: string): Promise<Spur> => {
       const da = spurRef.current.get(run);
@@ -144,7 +108,6 @@ export function SpeechFenster() {
       try {
         spur.quelle.stop();
       } catch {
-        // schon gestoppt
       }
       spur.quelle = null;
     }
@@ -158,13 +121,11 @@ export function SpeechFenster() {
       const spur = await laden(lauf.run, lauf.url);
       if (!spur.buffer) return;
 
-      // Alles andere anhalten -- es spielt immer nur eines.
       for (const [id, s] of spurRef.current) if (id !== lauf.run && s.quelle) pausieren(id);
 
       await c.resume().catch(() => {});
       if (c.state !== "running") return;
 
-      // Am Ende (oder ganz knapp davor) wieder von vorn.
       if (spur.versatz >= spur.buffer.duration - 0.05) spur.versatz = 0;
 
       const quelle = c.createBufferSource();
@@ -172,7 +133,7 @@ export function SpeechFenster() {
       quelle.connect(analyserRef.current!);
       spur.handStop = false;
       quelle.onended = () => {
-        if (spur.handStop) return; // fuer Pause/Sprung gestoppt
+        if (spur.handStop) return;
         spur.versatz = 0;
         spur.quelle = null;
         setSpieltId((id) => (id === lauf.run ? null : id));
@@ -197,7 +158,6 @@ export function SpeechFenster() {
         try {
           spur.quelle!.stop();
         } catch {
-          // egal
         }
         spur.quelle = null;
       }
@@ -221,7 +181,6 @@ export function SpeechFenster() {
     [],
   );
 
-  /** Die aktuelle Position einer Spur -- aus der Uhr des Kontexts. */
   const fortschritt = React.useCallback((run: string): number => {
     const spur = spurRef.current.get(run);
     const c = ctxRef.current;
@@ -231,8 +190,6 @@ export function SpeechFenster() {
     return Math.max(0, Math.min(p, dauer));
   }, []);
 
-  // Laden + Auto-Start: sobald der aktive Tab fertig ist. Jedes Vorlesen
-  // startet genau einmal von selbst.
   React.useEffect(() => {
     if (!derAktive || derAktive.phase !== "done" || !derAktive.url) return;
     const spur = spurRef.current.get(derAktive.run);
@@ -246,7 +203,6 @@ export function SpeechFenster() {
     }
   }, [derAktive, geladen, laden, abspielen]);
 
-  // Geschlossene Tabs raeumen. Ist der letzte weg, den Kontext schliessen.
   React.useEffect(() => {
     const ids = new Set(laeufe.map((l) => l.run));
     for (const [id, s] of spurRef.current) {
@@ -255,7 +211,6 @@ export function SpeechFenster() {
           try {
             s.quelle.stop();
           } catch {
-            // egal
           }
         }
         spurRef.current.delete(id);
@@ -271,8 +226,6 @@ export function SpeechFenster() {
       setSpieltId(null);
     }
   }, [laeufe]);
-
-  // ---- Ziehen ------------------------------------------------------ //
 
   const einpassen = React.useCallback((x: number, y: number) => {
     return {
@@ -337,14 +290,11 @@ export function SpeechFenster() {
       className={cn(
         "fixed top-0 left-0 z-50 flex flex-col overflow-hidden rounded-3xl shadow-2xl shadow-black/25 ring-1 ring-border/60 dark:shadow-black/50",
         "animate-in fade-in zoom-in-95 duration-200",
-        // Beim Ziehen fallen Milchglas und Durchsicht weg: ``backdrop-filter``
-        // muss den Hintergrund in jedem Bild neu abtasten und ruckelt dabei.
         zieht
           ? "select-none bg-background dark:bg-background"
           : "bg-background/80 backdrop-blur-xl transition-shadow dark:bg-background/70",
       )}
     >
-      {/* Kopf = Ziehgriff. */}
       <div
         onPointerDown={anfassen}
         onPointerMove={ziehen}
@@ -377,7 +327,6 @@ export function SpeechFenster() {
         </button>
       </div>
 
-      {/* Tab-Leiste -- nur ab zwei Audios. */}
       {laeufe.length > 1 ? (
         <div className="flex gap-1 overflow-x-auto px-2 pb-2 scrollbar-none">
           {laeufe.map((l, i) => (
@@ -394,7 +343,6 @@ export function SpeechFenster() {
         </div>
       ) : null}
 
-      {/* Koerper des offenen Tabs. */}
       <div className="group flex flex-col items-center gap-3 px-5 pt-1 pb-5">
         <div className="relative flex items-center justify-center">
           {bereitetVor || fehler ? (
@@ -419,7 +367,6 @@ export function SpeechFenster() {
             />
           )}
 
-          {/* Nur noch Start/Stop, mittig auf der Anzeige. */}
           {!bereitetVor && !fehler ? (
             <button
               type="button"
@@ -444,7 +391,6 @@ export function SpeechFenster() {
           </p>
         ) : null}
 
-        {/* Der Regler -- vor und zurueck, wie im Media-Player. */}
         {!bereitetVor && !fehler ? (
           <Seekleiste
             run={derAktive.run}
@@ -461,8 +407,6 @@ export function SpeechFenster() {
           </span>
         ) : null}
 
-        {/* Der Text -- eingeklappt zwei Zeilen mit Verlauf, aufgeklappt der
-            ganze, scrollbar. */}
         {derAktive.text ? (
           <div className="w-full">
             <div
@@ -500,7 +444,6 @@ export function SpeechFenster() {
   );
 }
 
-/** Ein Tab in der Leiste -- Nummer, Titel, ein Punkt wenn er spielt, ein x. */
 function Tab({
   lauf,
   nummer,
@@ -555,14 +498,6 @@ function Tab({
   );
 }
 
-/**
- * Der Regler unter der Anzeige -- vor- und zurueckziehen wie im Media-Player.
- *
- * Der Fortschritt laeuft nicht durch React: ein ``requestAnimationFrame``
- * schreibt Breite und Griff direkt ans Element. Er liest die Position aus
- * ``fortschritt`` -- der Uhr des AudioContext, nicht einem Medienelement --,
- * und schreibt den Zeitstempel nur selten in den Zustand.
- */
 function Seekleiste({
   run,
   spielt,
@@ -610,7 +545,6 @@ function Seekleiste({
     };
     tick();
     return () => cancelAnimationFrame(bild);
-    // run wechselt beim Tab, dauer wird beim Laden von 0 auf den Wert gesetzt.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [run, dauer]);
 
@@ -666,7 +600,6 @@ function Seekleiste({
   );
 }
 
-/** Sekunden als m:ss. */
 function uhr(sekunden: number): string {
   if (!Number.isFinite(sekunden) || sekunden < 0) sekunden = 0;
   const m = Math.floor(sekunden / 60);
@@ -674,7 +607,6 @@ function uhr(sekunden: number): string {
   return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
-/** Ein kurzer Titel je Tab: die ersten Worte des Textes, sonst "Audio N". */
 function titelAus(lauf: Sprechlauf, nummer: number): string {
   const text = (lauf.text ?? "").trim();
   if (!text) return `Audio ${nummer}`;

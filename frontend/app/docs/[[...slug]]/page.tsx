@@ -6,7 +6,6 @@ import { DocsToc } from "@/components/docs/docs-toc";
 import { docsContent, tocForSlug } from "@/lib/docs/content";
 import { findDocPage, flatDocPages } from "@/lib/docs/navigation";
 
-/** Jede Seite aus der Navigation wird vorgerendert. */
 export function generateStaticParams() {
   return flatDocPages.map((page) => ({
     slug: page.slug ? page.slug.split("/") : [],

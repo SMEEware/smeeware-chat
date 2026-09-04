@@ -86,7 +86,6 @@ async def _antworten(
     try:
         antwort, bilder = await vision.ask(quellen, frage, detail=detail)
     except VisionError as exc:
-        # Ein unbrauchbares Bild ist ein Eingabefehler, kein Serverfehler.
         raise ValidationError(str(exc)) from exc
 
     return VisionResponse(

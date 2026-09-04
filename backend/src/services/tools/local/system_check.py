@@ -49,9 +49,6 @@ class SystemCheckTool(LocalTool):
     async def run(self, **kwargs: Any) -> str:
         daten = await self._probe.messen()
 
-        # Erst ans Frontend, damit das Modal steht, waehrend das Modell noch
-        # formuliert -- der Nutzer liest die Zahlen und die Einschaetzung
-        # dann nebeneinander statt nacheinander.
         erreicht = await self._bus.publish(
             {"type": "system", "daten": daten.als_dict()}
         )

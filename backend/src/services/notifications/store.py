@@ -40,7 +40,6 @@ CREATE INDEX IF NOT EXISTS notifications_created_at
   ON notifications (created_at DESC);
 """
 
-# Mehr als das liest ohnehin niemand nach, und es haelt die Datei klein.
 MAX_HINWEISE = 200
 
 
@@ -103,7 +102,6 @@ class NotificationStore:
                     hinweis.created_at,
                 ),
             )
-            # Alte abschneiden, damit die Liste nicht unbegrenzt waechst.
             conn.execute(
                 "DELETE FROM notifications WHERE id NOT IN "
                 "(SELECT id FROM notifications ORDER BY created_at DESC LIMIT ?)",

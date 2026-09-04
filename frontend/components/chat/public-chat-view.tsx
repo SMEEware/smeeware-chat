@@ -19,46 +19,22 @@ import { ChatMessage } from "@/components/chat/chat-message";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { usePublicChat } from "@/hooks/use-chats";
 
-/**
- * Ein geteilter Verlauf, gelesen von jemandem ohne Konto.
- *
- * Bewusst keine ausgegraute Fassung des Chats: kein Composer, keine
- * Seitenleiste, keine Werkzeuge, die nicht gehen. Fuer viele ist diese Seite
- * der erste Kontakt mit dem Produkt, und eine Oberflaeche voller toter
- * Knoepfe waere ein schlechter erster Eindruck. Was hier steht, ist eine
- * Leseansicht -- und die darf sich auch so anfuehlen.
- */
 export function PublicChatView({ id }: { id: string }) {
   const { data, isPending, isError } = usePublicChat(id);
   const router = useRouter();
   const pfad = usePathname();
 
-  /**
-   * Nicht geteilt heisst: hier gibt es fuer Unangemeldete nichts, wohl aber
-   * fuer die Person, der er gehoert. Deshalb zur Anmeldung statt in eine
-   * Sackgasse -- mit ``next``, damit man nach dem Anmelden genau hier
-   * herauskommt.
-   *
-   * Der Grund fuer das 404 bleibt dabei absichtlich offen: es koennte den
-   * Chat nicht geben oder er ist bloss privat. Beides gleich zu behandeln
-   * ist dieselbe Zurueckhaltung wie im Backend, das fuer beides denselben
-   * Status liefert.
-   */
   React.useEffect(() => {
     if (!isError) return;
     router.replace(`/login?next=${encodeURIComponent(pfad)}`);
   }, [isError, router, pfad]);
 
-  // Waehrend der Weiterleitung weiter das Skelett: die Fehlermeldung waere
-  // fuer einen Sekundenbruchteil zu sehen und dann weg.
   if (isPending || isError || !data) return <LeseSkelett />;
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <header className="shrink-0 border-b border-border/60">
         <div className="mx-auto flex w-full max-w-3xl items-center gap-3 px-4 py-4 md:px-6">
-          {/* Fuer jemanden ohne Konto ist das hier der einzige Hinweis
-              darauf, wo er gelandet ist -- und der einzige Weg dorthin. */}
           <Link
             href="/"
             aria-label="SMEEware Chat"
@@ -110,8 +86,6 @@ export function PublicChatView({ id }: { id: string }) {
                 </MessageScrollerItem>
               ))}
 
-              {/* Am Ende des Gelesenen, nicht als Banner davor: wer bis
-                  hierher gekommen ist, hat einen Grund weiterzulesen. */}
               <div className="mt-4 flex flex-col items-center gap-3 border-t border-border/60 pt-8 pb-4 text-center">
                 <p className="max-w-sm text-sm text-muted-foreground">
                   This is a read-only copy of a conversation someone shared.
@@ -147,7 +121,6 @@ function LeseSkelett() {
   );
 }
 
-/** Ein Datum, das ohne Uhrzeit auskommt -- die Stunde sagt hier nichts. */
 function alsDatum(iso: string): string {
   const datum = new Date(iso);
   if (Number.isNaN(datum.getTime())) return "";

@@ -30,15 +30,6 @@ import {
 import { cn } from "@/lib/utils";
 import { SectionHeader } from "@/components/settings/section-parts";
 
-/**
- * Die API-Schluessel -- anlegen, umbenennen, widerrufen.
- *
- * Der ganze Abschnitt dreht sich um eine Tatsache: der Klartext eines
- * Schluessels ist genau einmal zu sehen, im Moment des Anlegens. Danach
- * liegt im Backend nur sein Hash. Deshalb ist das Anlegen kein stiller
- * Listeneintrag, sondern ein eigener Schritt mit einer Warnung und einem
- * grossen Kopierknopf -- wer jetzt nicht kopiert, braucht einen neuen.
- */
 export function ApiKeysSection() {
   const liste = useApiKeys();
   const { anlegen, umbenennen, loeschen } = useApiKeyActions();
@@ -47,8 +38,6 @@ export function ApiKeysSection() {
   const [neuNonce, setNeuNonce] = React.useState(0);
   const [frisch, setFrisch] = React.useState<ApiKeyCreated | null>(null);
 
-  // Jedes Oeffnen setzt die Dialog-Instanz neu auf (key = nonce): das
-  // Formular startet leer, ohne dass ein Effekt Felder zuruecksetzen muss.
   const oeffneNeu = () => {
     setNeuNonce((n) => n + 1);
     setNeuOffen(true);
@@ -118,7 +107,6 @@ export function ApiKeysSection() {
   );
 }
 
-/** Kurz erklaeren, wie ein Schluessel benutzt wird -- mit kopierbarem cURL. */
 function UsageHint() {
   const beispiel = `curl -N https://your-host/api/v1/chat/stream \\
   -H "Authorization: Bearer sk_smee_…" \\
@@ -284,7 +272,6 @@ function KeyRow({
   );
 }
 
-/** "used 3h ago" oder, wenn nie benutzt, ein ruhiges "never used". */
 function zeit(iso: string | null): string {
   if (!iso) return "never used";
   const d = new Date(iso);
@@ -375,7 +362,6 @@ function NeuerSchluesselDialog({
   );
 }
 
-/** Der eine Moment, in dem der Klartext sichtbar ist. */
 function GeheimnisDialog({
   schluessel,
   onClose,

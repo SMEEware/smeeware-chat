@@ -1,12 +1,5 @@
 import { TTS_ENDPOINT } from "@/lib/chat/backend";
 
-/**
- * Die waehlbaren Sprach-Modelle durchreichen.
- *
- * Wie bei /api/transcribe/models: die Liste haengt an einem Schluessel, und
- * das weiss nur das Backend. Ist es weg, kommt eine leere Liste statt eines
- * Fehlers -- die Einstellungen zeigen dann schlicht keine Auswahl.
- */
 export async function GET() {
   try {
     const upstream = await fetch(`${TTS_ENDPOINT}/models`, {

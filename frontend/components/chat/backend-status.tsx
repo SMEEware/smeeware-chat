@@ -7,49 +7,24 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 
-/**
- * Die Verbindungsanzeige im Kopf des Chats.
- *
- * Zwei Ebenen, und die Trennung dazwischen ist der ganze Entwurf: die
- * Pille sagt nur, ob es geht -- ein Punkt und ein Wort, im Blickfeld,
- * ohne dass man hinschauen muss. Alles, was man erst wissen will, wenn
- * etwas nicht stimmt, liegt im Tooltip: welcher Host, welcher Pfad, wie
- * schnell, wann zuletzt geprueft.
- *
- * Der Tooltip ist deshalb kein Einzeiler mehr, sondern eine kleine Karte
- * in denselben Farben wie die Modale und die Einfuehrung. Der Zeiger
- * darunter faellt weg -- an einer Karte mit Rahmen sieht er aus wie ein
- * Fehler, und ihn mitzurahmen ist mehr Aufwand, als er wert ist.
- */
-
 type Zustand = "prueft" | "verbunden" | "streamt" | "weg";
 
 type BackendStatusProps = {
   online: boolean | undefined;
   endpoint: string | undefined;
   isStreaming: boolean;
-  /** Rundlauf Next -> Backend in ms. null, wenn niemand geantwortet hat. */
   latencyMs?: number | null;
-  /** Wann die letzte Pruefung durchlief (Date.now()-Zeitstempel). */
   checkedAt?: number;
 };
 
-/**
- * Wie jeder Zustand aussieht und heisst -- an einer Stelle statt in vier
- * verschachtelten Bedingungen. Ein neuer Zustand ist damit ein Eintrag,
- * keine Suche durch das Markup.
- */
 const ZUSTAENDE: Record<
   Zustand,
   {
-    /** Was in der Pille steht -- knapp, sie ist nur ein Wort breit. */
     kurz: string;
-    /** Die Ueberschrift der Karte. */
     titel: string;
     punkt: string;
     schein: string;
     pille: string;
-    /** Schlaegt der Punkt? */
     puls: boolean;
   }
 > = {
@@ -74,11 +49,6 @@ const ZUSTAENDE: Record<
     titel: "Streaming a response",
     punkt: "bg-primary",
     schein: "bg-primary/30",
-    // Bewusst dieselbe ruhige Pille wie im Normalfall: primary und
-    // destructive sind in diesem Thema beide rot, ein gefaerbter Rahmen
-    // hier waere auf einen Blick nicht von "offline" zu unterscheiden --
-    // und das sind die zwei Zustaende, die man nie verwechseln darf.
-    // Dass etwas laeuft, tragen der schlagende Punkt und das Wort.
     pille: "ring-border/60 text-foreground",
     puls: true,
   },
@@ -99,8 +69,6 @@ export function BackendStatus({
   latencyMs,
   checkedAt,
 }: BackendStatusProps) {
-  // Der Strom hat Vorrang: laeuft gerade eine Antwort, ist die Frage nach
-  // der Erreichbarkeit beantwortet, und zwar mit ja.
   const zustand: Zustand = isStreaming
     ? "streamt"
     : online === undefined
@@ -128,8 +96,6 @@ export function BackendStatus({
         {art.kurz}
       </TooltipTrigger>
 
-      {/* Nach unten: die Pille sitzt in der Kopfzeile, ueber ihr ist kein
-          Platz fuer eine Karte. */}
       <TooltipContent
         side="bottom"
         sideOffset={8}
@@ -138,9 +104,6 @@ export function BackendStatus({
           "**:data-[slot=tooltip-arrow]:hidden",
         )}
       >
-        {/* Derselbe Schein wie in den Modalen -- hier in der Farbe des
-            Zustands, damit die Karte schon beim Aufgehen sagt, worum es
-            geht, bevor irgendjemand ein Wort gelesen hat. */}
         <span
           aria-hidden
           className={cn(
@@ -156,9 +119,6 @@ export function BackendStatus({
               {art.titel}
             </span>
 
-            {/* Die Zahl steht rechts und in Ziffern gleicher Breite: beim
-                Hovern zweier Messungen hintereinander soll sie sich
-                aendern, ohne dass daneben etwas verrutscht. */}
             {typeof latencyMs === "number" ? (
               <span className="ms-auto rounded-md bg-muted/70 px-1.5 py-0.5 font-mono text-[10px] tabular-nums text-muted-foreground">
                 {latencyMs} ms
@@ -166,9 +126,6 @@ export function BackendStatus({
             ) : null}
           </div>
 
-          {/* Wohin die Verbindung geht. Host und Pfad getrennt, weil man
-              nach dem Host sucht und den Pfad nur bestaetigt -- als eine
-              lange Zeile liest man beides nicht. */}
           {ziel ? (
             <div className="flex flex-col gap-0.5 font-mono text-[11px] leading-relaxed">
               <span className="truncate">
@@ -192,11 +149,6 @@ export function BackendStatus({
   );
 }
 
-/**
- * Der Punkt -- zweimal dieselbe Form in zwei Groessen, in der Pille und in
- * der Karte. Der Ring darum ist ein zweites Element und kein Rahmen: nur
- * so kann er schlagen, ohne den Punkt selbst mitzubewegen.
- */
 function Punkt({
   art,
   groesse,
@@ -220,11 +172,6 @@ function Punkt({
   );
 }
 
-/**
- * Was unten steht, haengt am Zustand: solange alles laeuft, ist die
- * einzige offene Frage, wie alt die Auskunft ist. Geht nichts, ist sie,
- * woran es liegt -- und ein Zeitstempel waere dann nur im Weg.
- */
 function fusszeile(zustand: Zustand, checkedAt?: number): string {
   if (zustand === "weg") return "Nothing is answering on this port.";
   if (zustand === "prueft") return "Reaching out…";
@@ -232,14 +179,6 @@ function fusszeile(zustand: Zustand, checkedAt?: number): string {
   return checkedAt ? `Checked ${seit(checkedAt)}.` : "Reachable.";
 }
 
-/**
- * Kompakte Altersangabe. Absichtlich nicht date-fns: dessen
- * ``formatDistanceToNowStrict`` schreibt "12 seconds ago" aus, und in
- * einer Zeile von zehn Pixeln Hoehe ist das eine halbe Zeile zu viel.
- *
- * Gerechnet wird beim Rendern, und das genuegt: die Karte haengt am
- * offenen Tooltip, existiert also nur, solange jemand hinschaut.
- */
 function seit(zeitpunkt: number): string {
   const sekunden = Math.max(0, Math.round((Date.now() - zeitpunkt) / 1000));
   if (sekunden < 5) return "just now";
@@ -249,12 +188,6 @@ function seit(zeitpunkt: number): string {
   return `${Math.round(minuten / 60)}h ago`;
 }
 
-/**
- * Die URL in ihre drei lesbaren Teile. Faellt das Zerlegen aus -- der
- * Endpunkt kommt aus einer Umgebungsvariable und muss nichts Gueltiges
- * sein --, wird der ganze Text zum Host: lieber unformatiert anzeigen als
- * die Karte an einer kaputten Einstellung scheitern lassen.
- */
 function zerlegen(endpoint: string | undefined) {
   if (!endpoint) return null;
   try {

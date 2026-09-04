@@ -16,8 +16,6 @@ export function ThemeToggle() {
       aria-label="Toggle theme"
       onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
     >
-      {/* Per CSS statt per State: sonst muesste die Komponente auf die
-          Hydration warten und das Icon wuerde nachtraeglich umspringen. */}
       <SunIcon className="hidden dark:block" />
       <MoonIcon className="dark:hidden" />
     </Button>

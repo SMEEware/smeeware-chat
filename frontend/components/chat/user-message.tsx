@@ -7,26 +7,10 @@ import { Bubble, BubbleContent } from "@/components/ui/bubble";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-/**
- * Zwei Zeilen: text-sm auf leading-relaxed sind 14px * 1.625 = 22.75px.
- * Die Konstante steuert Kuerzung und Messung gleichermassen, damit die
- * beiden nicht auseinanderlaufen koennen.
- */
 const COLLAPSED_MAX_PX = 46;
 
-/**
- * Der Beobachter misst erst nach dem ersten Layout. Damit eine lange
- * Nachricht nicht kurz in voller Hoehe aufblitzt, wird vorab geschaetzt --
- * zwei Zeilen sind in der Blase grob 140 Zeichen. Die Messung korrigiert
- * das anschliessend in beide Richtungen.
- */
 const ESTIMATED_LIMIT = 140;
 
-/**
- * Eigene Nachrichten koennen sehr lang sein -- ein hineinkopiertes Log
- * schiebt sonst den ganzen Verlauf aus dem Bild. Ueber der Schwelle
- * bleiben zwei Zeilen stehen, der Rest kommt per Knopf.
- */
 export function UserMessage({
   content,
   copySlot,
@@ -44,9 +28,6 @@ export function UserMessage({
     const inner = innerRef.current;
     if (!inner) return;
 
-    // Gemessen wird der ungekuerzte Inhalt gegen die feste Schwelle --
-    // nicht der sichtbare Ausschnitt. Sonst meldet der ausgeklappte
-    // Zustand "passt schon" und der Knopf verschwindet.
     const observer = new ResizeObserver(() => {
       setOverflows(inner.scrollHeight > COLLAPSED_MAX_PX + 1);
     });
@@ -58,10 +39,6 @@ export function UserMessage({
   const collapsed = overflows && !expanded;
 
   return (
-    // Mindestbreite: eine Blase ist ein Block, kein Etikett. Ohne sie
-    // schrumpft "ok" auf ein Pillchen, und eine Spalte aus verschieden
-    // breiten Fetzen liest sich unruhig. ``min()`` statt einer festen Zahl,
-    // damit die Blase auf schmalen Geraeten nicht breiter wird als der Platz.
     <Bubble
       variant="outline"
       align="end"
@@ -80,8 +57,6 @@ export function UserMessage({
           </span>
         </span>
 
-        {/* Nur bei gekuerzten Nachrichten -- unter einem Einzeiler
-            waere die Leiste schwerer als der Inhalt. */}
         {overflows ? (
           <span className="mt-2 flex items-center gap-1 border-t pt-1.5">
             <Button

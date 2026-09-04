@@ -10,8 +10,6 @@ import {
 
 export default function DocsLayout({ children }: LayoutProps<"/docs">) {
   return (
-    // select-text hebt das globale select-none auf -- in einer
-    // Dokumentation will man Code und Pfade markieren koennen.
     <SidebarProvider className="select-text">
       <DocsSidebar />
 

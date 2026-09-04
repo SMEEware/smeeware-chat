@@ -48,9 +48,6 @@ class _WebTool(LocalTool):
             return str(exc)
 
 
-# ---------------------------------------------------------------------- #
-
-
 class FetchPageTool(_WebTool):
     name = "fetch_page"
     description = (
@@ -113,8 +110,6 @@ class FetchPageTool(_WebTool):
 
         suppe = md.parse(seite.text)
         ueberschrift = md.titel(suppe)
-        # Wer einen Selektor angibt, hat den Bereich schon gewaehlt -- dann darf
-        # das Ausduennen ihn nicht vorher wegwerfen (z. B. selector="nav").
         md.saeubern(suppe, beiwerk=mode == "full" or bool(selector))
 
         if selector:
@@ -277,7 +272,6 @@ class ExtractTablesTool(_WebTool):
             zeilen_pro_tabelle = grenze
         else:
             gewaehlt = list(enumerate(tabellen, start=1))
-            # Uebersicht: von jeder Tabelle nur ein Vorgeschmack.
             zeilen_pro_tabelle = min(grenze, 5 if len(tabellen) > 1 else grenze)
 
         zeilen = [seite.herkunft(), f"{len(tabellen)} table(s) found.", ""]
@@ -539,11 +533,6 @@ class BatchFetchTool(_WebTool):
         return "\n".join(teile)
 
 
-# ---------------------------------------------------------------------- #
-# Hilfen                                                                  #
-# ---------------------------------------------------------------------- #
-
-
 def _inhaltspruefung(seite: Page) -> str | None:
     """Sagt dem Modell frueh, wenn hier kein Text zu holen ist."""
     if seite.status >= 400:
@@ -597,7 +586,7 @@ def _selektoren(rohwert: Any) -> dict[str, str] | str:
         try:
             rohwert = json.loads(rohwert)
         except json.JSONDecodeError:
-            rohwert = [rohwert]  # ein einzelner Selektor als blanker String
+            rohwert = [rohwert]
     if isinstance(rohwert, dict):
         paare = {str(k): str(v) for k, v in rohwert.items() if v}
     elif isinstance(rohwert, list):
@@ -692,10 +681,10 @@ def _entmarkieren(text: str) -> str:
     Tabellen bleiben als Zeilen mit Trennstrichen stehen: ohne sie waere
     nicht mehr zu erkennen, welcher Wert zu welcher Spalte gehoert.
     """
-    text = re.sub(r"!?\[([^\]]*)\]\([^)]*\)", r"\1", text)  # Links und Bilder
-    text = re.sub(r"^\s*```.*$", "", text, flags=re.M)  # Codezaeune ganz weg
+    text = re.sub(r"!?\[([^\]]*)\]\([^)]*\)", r"\1", text)
+    text = re.sub(r"^\s*```.*$", "", text, flags=re.M)
     text = re.sub(r"^#{1,6}\s*", "", text, flags=re.M)
-    text = re.sub(r"^ *\|[\s\-|]+\|[^\S\n]*\n", "", text, flags=re.M)  # Kopftrenner
+    text = re.sub(r"^ *\|[\s\-|]+\|[^\S\n]*\n", "", text, flags=re.M)
     text = re.sub(r"[*_~`>]", "", text)
     text = re.sub(r"^ (?=\S)", "", text, flags=re.M)
     return re.sub(r"\n{3,}", "\n\n", text).strip()

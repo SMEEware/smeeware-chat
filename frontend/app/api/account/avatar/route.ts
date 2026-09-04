@@ -3,7 +3,6 @@ import type { NextRequest } from "next/server";
 import { SESSION_COOKIE, SESSION_HEADER } from "@/lib/auth/session";
 import { ACCOUNT_ENDPOINT } from "@/lib/chat/backend";
 
-/** Das Profilbild -- lesen und setzen, beides nur angemeldet. */
 export async function GET(request: NextRequest) {
   return weiter(request, "GET");
 }
@@ -37,7 +36,6 @@ async function weiter(request: NextRequest, method: string, body?: FormData) {
     headers: {
       "Content-Type":
         upstream.headers.get("Content-Type") ?? "application/json",
-      // Privat und veraenderlich: nur im Browser dieser Person.
       "Cache-Control": "private, no-cache",
     },
   });

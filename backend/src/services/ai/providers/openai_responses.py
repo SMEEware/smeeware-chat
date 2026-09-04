@@ -43,8 +43,6 @@ from src.services.tools.base import ToolCall
 
 logger = get_logger(__name__)
 
-# Der Katalog reicht den Aufwand als ``extra`` durch; das hier ist die
-# Notbremse, falls jemand einen Wert erfindet, den die API nicht kennt.
 AUFWAENDE = frozenset({"none", "minimal", "low", "medium", "high", "xhigh", "max"})
 
 
@@ -72,9 +70,6 @@ class OpenAIResponsesProvider(LLMProvider):
             max_retries=max_retries,
         )
 
-    # ---------------------------------------------------------------- #
-    # Vertrag                                                           #
-    # ---------------------------------------------------------------- #
 
     async def complete(
         self,
@@ -128,7 +123,6 @@ class OpenAIResponsesProvider(LLMProvider):
             async for ereignis in strom:
                 art = ereignis.type
 
-                # Der Gedankengang -- als Zusammenfassung, siehe Modulkopf.
                 if art == "response.reasoning_summary_text.delta":
                     if ereignis.delta:
                         yield StreamChunk(kind="reasoning", text=ereignis.delta)
@@ -137,10 +131,6 @@ class OpenAIResponsesProvider(LLMProvider):
                     if ereignis.delta:
                         yield StreamChunk(kind="content", text=ereignis.delta)
 
-                # Werkzeugaufrufe kommen erst als fertiger Eintrag. Die
-                # ``function_call_arguments.delta`` davor waeren nur halbe
-                # Argument-Strings -- der Agent kann damit nichts anfangen,
-                # er will den vollstaendigen Aufruf.
                 elif art == "response.output_item.done":
                     eintrag = ereignis.item
                     if getattr(eintrag, "type", None) == "function_call":
@@ -152,9 +142,6 @@ class OpenAIResponsesProvider(LLMProvider):
                             tool_call_id=aufruf.id,
                         )
 
-                # Ein gescheiterter Lauf endet nicht mit einer Ausnahme,
-                # sondern mit einem Ereignis. Ohne diesen Zweig liefe der
-                # Stream stumm aus und der Nutzer saehe eine leere Antwort.
                 elif art in ("error", "response.failed"):
                     raise _fehler_von(ereignis)
 
@@ -169,15 +156,10 @@ class OpenAIResponsesProvider(LLMProvider):
             return False
         return True
 
-    # ---------------------------------------------------------------- #
-    # Uebersetzung                                                      #
-    # ---------------------------------------------------------------- #
 
     def _payload(
         self, messages: Sequence[Message], options: CompletionOptions
     ) -> dict[str, Any]:
-        # Der System-Prompt gehoert bei Responses nach ``instructions``,
-        # nicht in den Verlauf.
         anweisung, eingabe = _eingabe_von(messages)
 
         payload: dict[str, Any] = {
@@ -187,22 +169,15 @@ class OpenAIResponsesProvider(LLMProvider):
                 "effort": self._aufwand(options),
                 "summary": self._summary,
             },
-            # Zwischenstaende gehoeren dem Client, nicht dem Anbieter:
-            # gespeichert wuerden Verlaeufe zweimal liegen, hier und dort.
             "store": False,
         }
         if anweisung:
             payload["instructions"] = anweisung
         if options.max_tokens is not None:
-            # Bei Reasoning-Modellen zaehlen die Denk-Token mit hinein --
-            # deshalb heisst es hier output und nicht completion.
             payload["max_output_tokens"] = options.max_tokens
         if options.tools:
             payload["tools"] = [_werkzeug_von(spec) for spec in options.tools]
 
-        # temperature/top_p/stop verwirft dieser Zweig bewusst -- siehe
-        # Modulkopf. ``extra`` darf trotzdem durch: dort steht, was der
-        # Katalog pro Modell setzt (etwa ein abweichender Denkaufwand).
         extra = dict(options.extra)
         extra.pop("reasoning_effort", None)
         payload.update(extra)

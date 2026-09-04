@@ -18,13 +18,10 @@ class StoredMessage(BaseModel):
     role: Literal["system", "user", "assistant"]
     content: str
 
-    # Nicht anfassen: siehe Modul-Docstring.
     model_config = {"extra": "allow"}
 
 
 class ChatUpsertRequest(BaseModel):
-    # 500 Nachrichten sind reichlich fuer einen Verlauf und begrenzen zugleich,
-    # was ein einzelnes PUT in die Datei schreiben kann.
     messages: Annotated[list[StoredMessage], Field(max_length=500)]
     title: Annotated[str | None, Field(max_length=200)] = None
     model: Annotated[str | None, Field(max_length=100)] = None
@@ -73,9 +70,6 @@ class ChatSummary(BaseModel):
     message_count: int
     created_at: str
     updated_at: str
-    # Ob eine oeffentlich lesbare Kopie existiert. Berechnet, nicht
-    # gespeichert: die Kopie selbst ist die Wahrheit, ein zweites Flag am
-    # Chat koennte von ihr abweichen.
     public: bool = False
 
 

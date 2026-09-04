@@ -5,16 +5,13 @@ import { useQuery } from "@tanstack/react-query";
 
 import { useSettings } from "@/lib/settings/store";
 
-/** Was gerade passiert. Kein Boolean-Paar -- die drei schliessen sich aus. */
 export type Aufnahmezustand = "idle" | "recording" | "transcribing";
 
-/** Die erste Form, die der Browser wirklich kann. */
 function besterTyp(): string | undefined {
   if (typeof MediaRecorder === "undefined") return undefined;
   const kandidaten = [
     "audio/webm;codecs=opus",
     "audio/webm",
-    // Safari nimmt in einem mp4-Container auf.
     "audio/mp4",
     "audio/ogg;codecs=opus",
   ];
@@ -23,21 +20,7 @@ function besterTyp(): string | undefined {
 
 type Status = { available: boolean; reason?: string | null };
 
-/**
- * Spracheingabe als Zustandsmaschine.
- *
- * Der Pegel wandert bewusst NICHT durch React: der AnalyserNode wird nach
- * aussen gereicht und die Anzeige liest ihn selbst pro Bild. Sechzig
- * Zustandsaenderungen je Sekunde wuerden den ganzen Composer neu rendern,
- * waehrend jemand spricht.
- *
- * Was durch React laeuft, sind die drei Dinge, die sich selten aendern:
- * Zustand, verstrichene Zeit (fuenfmal je Sekunde) und ein Fehler.
- */
 export function useTranscribe(onText: (text: string) => void) {
-  // Welches Modell transkribiert, steht in den Einstellungen dieses
-  // Browsers und geht pro Aufnahme mit. Der Server haelt dazu keinen
-  // Zustand -- zwei Reiter duerfen verschiedene Modelle benutzen.
   const modell = useSettings((einstellungen) => einstellungen.transcribeModel);
   const [zustand, setZustand] = React.useState<Aufnahmezustand>("idle");
   const [ms, setMs] = React.useState(0);
@@ -50,14 +33,9 @@ export function useTranscribe(onText: (text: string) => void) {
   const stueckeRef = React.useRef<Blob[]>([]);
   const startRef = React.useRef(0);
   const uhrRef = React.useRef<ReturnType<typeof setInterval> | null>(null);
-  // Beim Abbrechen soll das fertige Blob nicht mehr losgeschickt werden.
   const verwerfenRef = React.useRef(false);
 
-  // Einmal fragen, ob das Backend ueberhaupt transkribieren kann.
   const status = useQuery<Status>({
-    // Das Modell gehoert in den Schluessel: ein Wechsel in den
-    // Einstellungen soll die Frage "geht das ueberhaupt?" neu stellen --
-    // die Antwort ist fuer whisper.cpp eine andere als fuer OpenAI.
     queryKey: ["transcribe", "status", modell],
     queryFn: async () => {
       const abfrage = modell ? `?model=${encodeURIComponent(modell)}` : "";
@@ -70,7 +48,6 @@ export function useTranscribe(onText: (text: string) => void) {
     retry: false,
   });
 
-  /** Mikrofon, Uhr und Audio-Kontext freigeben. Mehrfach aufrufbar. */
   const aufraeumen = React.useCallback(() => {
     if (uhrRef.current !== null) {
       clearInterval(uhrRef.current);
@@ -78,7 +55,6 @@ export function useTranscribe(onText: (text: string) => void) {
     }
     streamRef.current?.getTracks().forEach((spur) => spur.stop());
     streamRef.current = null;
-    // close() gibt das Mikrofon-Symbol im Browser wieder frei.
     void audioCtxRef.current?.close().catch(() => {});
     audioCtxRef.current = null;
     setAnalyser(null);
@@ -106,7 +82,6 @@ export function useTranscribe(onText: (text: string) => void) {
             const nutzlast = await antwort.json();
             meldung = nutzlast?.error?.message ?? meldung;
           } catch {
-            // Kein JSON -- der Status muss reichen.
           }
           throw new Error(meldung);
         }
@@ -135,8 +110,6 @@ export function useTranscribe(onText: (text: string) => void) {
     let stream: MediaStream;
     try {
       stream = await navigator.mediaDevices.getUserMedia({
-        // Der Browser raeumt die Aufnahme auf, bevor Whisper sie sieht --
-        // billiger als jede Nachbearbeitung und hoerbar besser.
         audio: {
           echoCancellation: true,
           noiseSuppression: true,
@@ -151,7 +124,6 @@ export function useTranscribe(onText: (text: string) => void) {
     streamRef.current = stream;
     stueckeRef.current = [];
 
-    // Pegelmessung: klein gehalten, wir zeigen Balken, keine Spektren.
     try {
       const ctx = new AudioContext();
       audioCtxRef.current = ctx;
@@ -161,7 +133,6 @@ export function useTranscribe(onText: (text: string) => void) {
       ctx.createMediaStreamSource(stream).connect(knoten);
       setAnalyser(knoten);
     } catch {
-      // Ohne Pegel laesst sich trotzdem aufnehmen -- nur ohne Ausschlag.
     }
 
     const typ = besterTyp();
@@ -184,7 +155,6 @@ export function useTranscribe(onText: (text: string) => void) {
       }
 
       const blob = new Blob(stuecke, { type: typ || "audio/webm" });
-      // Unter etwa einer Viertelsekunde war das ein Verklicken, keine Frage.
       if (blob.size < 1200) {
         setZustand("idle");
         setMs(0);

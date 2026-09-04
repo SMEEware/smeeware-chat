@@ -1,8 +1,6 @@
 "use client";
 
 /* eslint-disable @next/next/no-img-element */
-// Natives <img> mit Absicht: Vorschaubilder kommen von fremden Hosts, und
-// die darf next/image ohne Freigabe in next.config nicht laden.
 
 import * as React from "react";
 import { ArrowUpRightIcon, PictureInPicture2Icon, PlayIcon } from "lucide-react";
@@ -16,30 +14,16 @@ import {
 } from "@/lib/video-source";
 import { cn } from "@/lib/utils";
 
-/** Wie das Ding heisst, wenn man es benennen muss. */
 export function quellenName(quelle: VideoQuelle): string {
   return quelle.kind === "embed" ? ANBIETER_NAME[quelle.anbieter] : "Video";
 }
 
-/**
- * Ein Video im Verlauf.
- *
- * Eine Plattform wird erst beim Klick geladen -- immer, auch ohne
- * Vorschaubild. Ein eingebetteter Player pro Nachricht hiesse, dass ein
- * Verlauf mit fuenf Videos fuenf fremde Seiten mitlaedt, bevor jemand auch
- * nur eines ansehen wollte. Das kostet Zeit, Speicher und Cookies.
- *
- * Eine Datei ohne Vorschaubild bekommt gleich den Player des Browsers, mit
- * ``preload="metadata"``: genug fuer Dauer und erstes Bild, nicht das ganze
- * Video.
- */
 export function ChatVideo({
   quelle,
   poster,
   titel,
 }: {
   quelle: VideoQuelle;
-  /** Vorschaubild aus dem Markdown: [![titel](poster.jpg)](video.mp4). */
   poster?: string;
   titel?: string;
 }) {
@@ -47,8 +31,6 @@ export function ChatVideo({
   const verkleinern = useVideoFenster((z) => z.verkleinern);
 
   const bild = poster ?? vorschauBild(quelle);
-  // Plattformen bekommen immer eine Fassade, notfalls eine leere -- sonst
-  // laedt die fremde Seite ungefragt. Dateien nur, wenn ein Bild da ist.
   const fassade = !laeuft && (quelle.kind === "embed" || bild !== null);
   const einbettung = embedUrl(quelle, true);
 
@@ -69,9 +51,6 @@ export function ChatVideo({
                 className="size-full object-cover transition-transform duration-500 group-hover/video:scale-[1.03]"
               />
             ) : (
-              // Kein Vorschaubild zu haben ist der Normalfall bei Vimeo und
-              // Dailymotion -- eine ruhige Flaeche ist ehrlicher als ein
-              // fremdes Platzhalterbild.
               <span className="absolute inset-0 bg-gradient-to-br from-muted/70 to-muted/30" />
             )}
             <span className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/10" />
@@ -116,8 +95,6 @@ export function ChatVideo({
         )}
       </span>
 
-      {/* Die Leiste erscheint beim Hover -- sie soll das Bild nicht
-          dauerhaft beschneiden. */}
       <span className="pointer-events-none absolute top-2 right-2 flex gap-1 opacity-0 transition-opacity group-hover/video:opacity-100 focus-within:opacity-100 max-md:opacity-100">
         <button
           type="button"
@@ -143,7 +120,6 @@ export function ChatVideo({
   );
 }
 
-/** Dasselbe Video, nur klein und schwebend. */
 export function VideoInhalt({ quelle }: { quelle: VideoQuelle }) {
   const einbettung = embedUrl(quelle, true);
 
@@ -170,20 +146,6 @@ export function VideoInhalt({ quelle }: { quelle: VideoQuelle }) {
   );
 }
 
-
-/**
- * Ein Video, das sich nicht einbetten laesst.
- *
- * Die meisten Seiten verbieten das Framen per ``X-Frame-Options`` oder CSP
- * ``frame-ancestors``. Der Browser sagt einem das nicht vorher -- ein
- * iframe darauf bleibt schlicht schwarz. Statt es zu versuchen und zu
- * scheitern, zeigen wir das, was wir haben: das Vorschaubild, den Titel und
- * die Seite, von der es kommt.
- *
- * Und es sieht aus wie ein Video, nicht wie ein Bild. Vorher landete so ein
- * Fund im Bild-Zweig, und dann sah man ein Standbild ohne Hinweis darauf,
- * dass sich dahinter etwas abspielt.
- */
 export function VideoKarte({
   href,
   poster,

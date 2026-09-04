@@ -23,9 +23,6 @@ export type Systemdaten = {
     machine: string;
     python: string;
     uptime: string;
-    // Gesetzt, wenn das Backend in einem Container laeuft ("docker", …). Dann
-    // sind RAM/CPU/Uptime die des Hosts und der Hostname die Container-ID --
-    // der Hinweis dazu steht in ``hinweise``.
     container?: string | null;
   };
   cpu: {
@@ -48,11 +45,6 @@ export type Systemdaten = {
   hinweise: string[];
 };
 
-/**
- * Farbe nach Fuellstand -- je voller, desto waermer. Viel Platz ist gruen,
- * wird es knapper gelb, dann orange, und randvoll rot. So liest man an der
- * Farbe allein schon ab, wie ernst der Balken gemeint ist.
- */
 function ton(prozent: number): { balken: string; text: string } {
   if (prozent >= 90) return { balken: "bg-destructive", text: "text-destructive" };
   if (prozent >= 75) return { balken: "bg-orange-500", text: "text-orange-500" };
@@ -60,15 +52,6 @@ function ton(prozent: number): { balken: string; text: string } {
   return { balken: "bg-emerald-500", text: "text-emerald-500" };
 }
 
-/**
- * Der Systemcheck als Blatt.
- *
- * Es geht nie von selbst weg. Ein Hinweis, der sich nach sieben Sekunden
- * verabschiedet, ist ein Toast -- hier stehen Zahlen, die man liest,
- * vergleicht und mit der Einschaetzung daneben zusammenbringt. Es
- * verschwindet auf Klick, mit Escape oder ueber den Hintergrund; von allein
- * bleibt es stehen.
- */
 export function SystemModal({
   daten,
   onClose,
@@ -100,7 +83,6 @@ export function SystemModal({
         onClick={(event) => event.stopPropagation()}
         className="relative w-full max-w-lg overflow-hidden rounded-2xl bg-background/95 shadow-2xl shadow-black/20 ring-1 ring-border/70 backdrop-blur-xl ring-inset dark:shadow-black/50 animate-in zoom-in-95 slide-in-from-bottom-2 duration-300"
       >
-        {/* Ein Schein oben -- gibt der Glasflaeche Tiefe, ohne sie zu faerben. */}
         <span
           aria-hidden
           className="pointer-events-none absolute -top-16 left-1/2 size-48 -translate-x-1/2 rounded-full bg-primary/20 opacity-40 blur-3xl"
@@ -206,7 +188,6 @@ export function SystemModal({
   );
 }
 
-/** Ein Wert mit Balken. Der Balken waechst beim Erscheinen auf seine Laenge. */
 function Messwert({
   icon,
   label,
@@ -219,8 +200,6 @@ function Messwert({
   prozent: number;
 }) {
   const farbe = ton(prozent);
-  // Erst nach dem ersten Bild auf die echte Breite -- sonst gaebe es keine
-  // Bewegung zu sehen, der Balken staende gleich da.
   const [gewachsen, setGewachsen] = React.useState(false);
   React.useEffect(() => {
     const id = requestAnimationFrame(() => setGewachsen(true));

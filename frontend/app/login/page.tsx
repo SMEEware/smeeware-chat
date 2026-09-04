@@ -11,18 +11,6 @@ import { LOGIN_CHIME_FLAG } from "@/components/chat/login-chime";
 import { cn } from "@/lib/utils";
 import { useSettings } from "@/lib/settings/store";
 
-/**
- * Wohin nach dem Anmelden.
- *
- * ``next`` steht in der Adressleiste und laesst sich also von aussen
- * setzen. Da unten eine harte Navigation daraus wird, waere alles ausser
- * einem Pfad auf dieser Seite eine offene Weiterleitung -- ein Link auf die
- * eigene Anmeldeseite, der danach woanders hin fuehrt. Zwei Schraegstriche
- * am Anfang zaehlen dabei als "woanders": //fremde.example ist eine
- * vollstaendige Adresse, nur ohne Protokoll davor.
- *
- * Und zurueck auf die Anmeldeseite waere eine Schleife.
- */
 function sicheresZiel(roh: string | null): string {
   if (!roh || !roh.startsWith("/") || roh.startsWith("//")) return "/chat";
   if (roh === "/login" || roh.startsWith("/login?")) return "/chat";
@@ -35,17 +23,6 @@ type Status = {
   authenticated: boolean;
 };
 
-/**
- * Die Seite selbst ist nur die Huelle.
- *
- * ``useSearchParams`` liest ``next`` aus der Adresse und zwingt damit alles
- * darunter ins clientseitige Rendern. Ohne Suspense-Grenze bricht der Build
- * ab -- Next kann die Seite dann nicht vorrendern und sagt das deutlich.
- * Mit Grenze wird die Huelle vorgerendert und nur das Formular nachgereicht.
- *
- * Der Platzhalter zeigt dieselbe Kontur wie das Formular, damit beim
- * Wechsel nichts springt.
- */
 export default function LoginPage() {
   return (
     <React.Suspense fallback={<Geruest />}>
@@ -82,14 +59,6 @@ function Geruest() {
   );
 }
 
-/**
- * Eine Seite fuer beides: einrichten und anmelden.
- *
- * Welches von beidem gilt, entscheidet nicht der Nutzer ueber einen
- * Umschalter, sondern der Zustand -- gibt es noch kein Konto, ist die
- * einzige sinnvolle Handlung, eines anzulegen. Ein Formular mit zwei Modi
- * und einem Umschalter waere eine Frage, deren Antwort feststeht.
- */
 function Anmeldeformular() {
   const router = useRouter();
   const params = useSearchParams();
@@ -154,49 +123,19 @@ function Anmeldeformular() {
           const nutzlast = await antwort.json();
           meldung = nutzlast?.error?.message ?? meldung;
         } catch {
-          // Kein JSON -- der Status muss reichen.
         }
         throw new Error(meldung);
       }
 
-      // Frisch angelegtes Konto: die Einfuehrung fuer den naechsten
-      // Aufruf von /chat scharfstellen. Genau hier und sonst nirgends --
-      // damit sie an das Anlegen des Kontos haengt und nicht daran, dass
-      // dieser Browser sie noch nie gesehen hat.
       if (einrichten) useSettings.getState().setTourGesehen(false);
 
-      // Erst den Cache leeren, dann navigieren.
-      //
-      // Der QueryClient ueberlebt diese Navigation -- und mit ihm die
-      // Fehler von vorhin. Ein Abruf, der vor der Anmeldung mit 401
-      // gescheitert ist, liegt noch als Fehler im Cache; taucht er beim
-      // Aufbau der naechsten Seite wieder auf, schickt die Weiterleitung
-      // fuer abgelaufene Sitzungen einen gerade Angemeldeten sofort
-      // zurueck zur Anmeldung. Nach einem Wechsel des Kontos waeren die
-      // alten Daten ohnehin die falschen.
       queryClient.clear();
 
-      // Merken, dass diese Navigation aus einer erfolgreichen Anmeldung
-      // kommt -- der Chat spielt daraufhin den Anmelde-Klang. Der Ton hier
-      // abzuspielen braechte nichts: die harte Navigation schneidet ihn ab.
       try {
         sessionStorage.setItem(LOGIN_CHIME_FLAG, "1");
       } catch {
-        // Kein sessionStorage -- dann eben kein Klang.
       }
 
-      // Harte Navigation, kein router.replace.
-      //
-      // Wer auf der Startseite "Chat" anklickt, loest eine weiche
-      // Navigation nach /chat aus, die die Middleware auf /login umbiegt.
-      // Der Router haelt danach intern /chat fuer das Ziel, waehrend
-      // /login angezeigt wird -- ein replace("/chat") ist dann ein Wechsel
-      // auf die Route, auf der er sich schon wähnt, und tut nichts.
-      //
-      // Nach einer Anmeldung ist der harte Weg ohnehin der ehrlichere: die
-      // Sitzung hat gewechselt, der ganze Zustand gehoert neu aufgebaut.
-      // Der Cache ist eine Zeile darueber schon geleert, es geht also
-      // nichts verloren.
       window.location.assign(weiter);
       return;
     } catch (ausnahme) {

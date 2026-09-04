@@ -21,9 +21,7 @@ ChunkKind = Literal["reasoning", "content", "tool_call", "tool_result"]
 class Message:
     role: Role
     content: str
-    # Nur bei role="assistant": die Werkzeuge, die das Modell aufrufen will.
     tool_calls: tuple[ToolCall, ...] = ()
-    # Nur bei role="tool": auf welchen Aufruf sich dieses Ergebnis bezieht.
     tool_call_id: str | None = None
 
     def to_wire(self) -> dict[str, Any]:
@@ -48,7 +46,6 @@ class CompletionOptions:
     max_tokens: int | None = None
     top_p: float | None = None
     stop: Sequence[str] | None = None
-    # Werkzeuge, die das Modell in diesem Aufruf nutzen darf.
     tools: tuple[ToolSpec, ...] = ()
     extra: dict[str, Any] = field(default_factory=dict)
 
@@ -70,8 +67,6 @@ class CompletionOptions:
 class Usage:
     prompt_tokens: int = 0
     completion_tokens: int = 0
-    # Bei Reasoning-Modellen Teil der completion_tokens -- separat ausgewiesen,
-    # weil sie bezahlt werden, ohne in der Antwort sichtbar zu sein.
     reasoning_tokens: int = 0
 
     @property
@@ -85,10 +80,7 @@ class Completion:
     model: str
     finish_reason: str | None = None
     usage: Usage | None = None
-    # Gefuellt, wenn das Modell Werkzeuge aufrufen will statt zu antworten.
     tool_calls: tuple[ToolCall, ...] = ()
-    # Gedankengang von Reasoning-Modellen (deepseek-v4-*). Bei klassischen
-    # Modellen None.
     reasoning: str | None = None
 
 
@@ -103,10 +95,8 @@ class StreamChunk:
 
     kind: ChunkKind
     text: str
-    # Bei kind="tool_call"/"tool_result": welcher Aufruf gemeint ist.
     tool_name: str | None = None
     tool_call_id: str | None = None
-    # Nur bei kind="tool_result": ob das Werkzeug einen Fehler gemeldet hat.
     is_error: bool = False
 
 

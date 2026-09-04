@@ -3,7 +3,6 @@ import type { NextRequest } from "next/server";
 import { SESSION_COOKIE, SESSION_HEADER } from "@/lib/auth/session";
 import { NOTIFICATIONS_ENDPOINT } from "@/lib/chat/backend";
 
-/** Die gespeicherten Hinweise -- lesen, alle als gelesen setzen, leeren. */
 export async function GET(request: NextRequest) {
   return weiter(request, "GET", NOTIFICATIONS_ENDPOINT);
 }

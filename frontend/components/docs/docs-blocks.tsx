@@ -17,7 +17,6 @@ import { cn } from "@/lib/utils";
 import type { DocBlock } from "@/lib/docs/content";
 import type { HttpMethod } from "@/lib/docs/navigation";
 
-/** Farbe je Verb -- GET liest, POST schreibt, DELETE zerstoert. */
 const methodStyles: Record<HttpMethod, string> = {
   GET: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400",
   POST: "bg-sky-500/10 text-sky-700 dark:text-sky-400",
@@ -59,8 +58,6 @@ function DocsBlock({ block }: { block: DocBlock }) {
 
     case "heading":
       return (
-        // scroll-mt haelt die Ueberschrift unter der klebenden Kopfzeile,
-        // wenn ein Anker angesprungen wird.
         <h2
           id={block.id}
           className="group/heading scroll-mt-24 pt-6 text-xl font-semibold tracking-tight"
@@ -189,9 +186,6 @@ function DocsBlock({ block }: { block: DocBlock }) {
               href={card.href}
               className="group/card relative flex flex-col gap-1 overflow-hidden rounded-2xl p-4 ring-1 ring-border/70 transition-colors ring-inset hover:bg-primary/[0.04] hover:ring-primary/40"
             >
-              {/* Derselbe Schimmer wie am "New chat"-Knopf und an den
-                  Einstiegen im leeren Chat -- laeuft beim Hover einmal
-                  durch, danach liegt die Flaeche wieder ruhig. */}
               <span
                 aria-hidden
                 className="absolute inset-y-0 -left-full w-full bg-gradient-to-r from-transparent via-primary/12 to-transparent transition-transform duration-700 ease-out group-hover/card:translate-x-[200%]"

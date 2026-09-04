@@ -59,8 +59,6 @@ async def status_(
     try:
         dienst = _dienst(provider, model)
     except (ConfigurationError, ValidationError) as exc:
-        # Ein fehlender Schluessel oder ein unbekanntes Modell ist hier
-        # kein Fehlschlag der Anfrage, sondern die Antwort selbst.
         return TranscriptionStatus(available=False, reason=str(exc))
 
     return TranscriptionStatus(
@@ -124,14 +122,10 @@ async def transcribe(
         transkript = await dienst.transcribe(
             audio,
             language=language or None,
-            # Die gehostete API erkennt den Container an der Endung des
-            # Namens. Beides mitgeben: manche Clients schicken einen
-            # brauchbaren Namen ohne Typ, andere andersherum.
             mime=file.content_type,
             filename=file.filename,
         )
     except TranscriptionError as exc:
-        # Eine unbrauchbare Aufnahme ist ein Eingabefehler, kein Serverfehler.
         raise ValidationError(str(exc)) from exc
 
     logger.info(

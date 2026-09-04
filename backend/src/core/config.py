@@ -20,8 +20,6 @@ BASE_DIR = Path(__file__).resolve().parents[2]
 Environment = Literal["development", "staging", "production"]
 
 
-# Der Vorgabewert aus .env.example. Steht er noch, laeuft die Instanz ohne
-# eigenes Geheimnis -- ``teilen_moeglich`` im Container prueft genau darauf.
 DEFAULT_SECRET = "0815"
 
 
@@ -32,8 +30,6 @@ class LLMSettings(BaseModel):
     api_key: SecretStr
     base_url: str = "https://api.deepseek.com"
     default_model: str = "deepseek-chat"
-    # 0 = kein Zeitlimit: lange Antworten und Reasoning-Vorlauf brechen dann
-    # nicht mehr ab. Der Client kann jederzeit stoppen -- das ist die Bremse.
     timeout: float = Field(default=60.0, ge=0)
     max_retries: int = Field(default=2, ge=0)
 
@@ -43,39 +39,22 @@ class ToolSettings(BaseModel):
 
     brave_api_key: SecretStr | None = None
     serpapi_api_key: SecretStr | None = None
-    # Brave Answers laeuft ueber ein eigenes Abo -- eigener Schluessel.
     brave_answers_api_key: SecretStr | None = None
     brave_answers_enabled: bool = True
 
-    # HackerOne. Anmeldung per HTTP Basic: der API-Benutzername (ein eigener
-    # Bezeichner, KEIN Login-Name) plus das Token -- beides aus derselben
-    # API-Token-Einstellung des Kontos. Fehlt eins, werden die hackerone_*
-    # Werkzeuge weggelassen. Das Absenden eines Reports ist absichtlich hinter
-    # einem eigenen Schalter: ein automatisch abgeschickter, schwacher Report
-    # kann einen Forscher aus einem Programm werfen.
     hackerone_api_username: str | None = None
     hackerone_api_token: SecretStr | None = None
     hackerone_allow_submit: bool = False
 
-    # 0 = kein Zeitlimit fuer Werkzeug-HTTP (Suche, Seiten holen, HackerOne).
     http_timeout: float = Field(default=20.0, ge=0)
     user_agent: str = "SmeewareBot/0.1 (+https://smeeware.local)"
 
-    # Scraping. Das Modell waehlt die URLs -- deshalb ein Groessenlimit gegen
-    # Riesendownloads, eine Parallelitaetsgrenze und ein Mindestabstand pro
-    # Host, damit batch_fetch keine fremde Seite ueberfaehrt. Der Cache
-    # verhindert, dass eine Werkzeugkette dieselbe Seite dreimal holt.
     scrape_max_bytes: int = Field(default=2_000_000, ge=10_000)
     scrape_max_chars: int = Field(default=12_000, ge=500)
     scrape_cache_ttl: float = Field(default=300.0, ge=0)
     scrape_concurrency: int = Field(default=4, ge=1, le=32)
     scrape_host_delay: float = Field(default=0.25, ge=0)
 
-    # Eigener Speicher ueber das mc-Binary. Die Zugangsdaten stehen in
-    # ~/.mc/config.json und bleiben dort -- hier steht nur, welcher Alias und
-    # welcher Bucket gemeint sind. Der Bucket ist oeffentlich lesbar, damit
-    # abgelegte Bilder direkt im Chat angezeigt werden koennen; deshalb
-    # begrenzt STORAGE_LOCAL_ROOT im Zweifel, woher Uploads kommen duerfen.
     storage_enabled: bool = True
     storage_mc_binary: str = "mc"
     storage_alias: str = "smeeware"
@@ -83,24 +62,18 @@ class ToolSettings(BaseModel):
     storage_prefix: str = ""
     storage_public_base: str = "https://storage.smeeware.com"
     storage_config_dir: Path | None = None
-    storage_timeout: float = Field(default=120.0, ge=0)  # 0 = kein Zeitlimit
+    storage_timeout: float = Field(default=120.0, ge=0)
     storage_max_inline: int = Field(default=200_000, ge=1_000)
     storage_max_bytes: int = Field(default=50_000_000, ge=10_000)
     storage_local_root: Path | None = None
 
-    # Skills -- Arbeitsanweisungen, die das Modell selbst pflegt. Vertrauens-
-    # wuerdige liegen im Repo (skills/), modell-gepflegte lokal unter
-    # data/skills. Frueher lag die zweite Ebene in einem privaten Bucket; jetzt
-    # ist es ein Ordner neben der Chat-Datenbank -- kein mc, kein Netz.
     skills_enabled: bool = True
     skills_dir: Path = BASE_DIR / "skills"
     skills_data_dir: Path = BASE_DIR / "data" / "skills"
     skills_cache_ttl: float = Field(default=300.0, ge=0)
 
-    # Shell-Werkzeug. Laeuft mit den Rechten des Serverprozesses -- deshalb
-    # eigener Schalter, eigenes Zeitlimit und ein Arbeitsverzeichnis.
     shell_enabled: bool = True
-    shell_timeout: float = Field(default=30.0, ge=0)  # 0 = kein Zeitlimit
+    shell_timeout: float = Field(default=30.0, ge=0)
     shell_workdir: Path | None = None
     shell_max_output: int = Field(default=8000, ge=200)
 
@@ -112,27 +85,12 @@ class OllamaSettings(BaseModel):
     Modell wohin geht, entscheidet der Katalog in ``services/ai/catalog.py``.
     """
 
-    # Opt-in: aus, solange nicht ausdruecklich OLLAMA_ENABLED=true gesetzt ist.
-    # Frueher stand hier True -- dann bot das Auswahlfeld ein lokales Modell an,
-    # auch wenn gar kein Ollama lief, und der erste Klick scheiterte.
     enabled: bool = False
     base_url: str = "http://localhost:11434/v1"
-    # Ollama prueft keinen Schluessel, der OpenAI-Client besteht aber auf
-    # einem. Ein Platzhalter ist billiger als eine Sonderbehandlung.
     api_key: str = "ollama"
-    # Der Modell-Tag, den Ollama kennt (OLLAMA_MODEL). Leer = keins gewaehlt:
-    # dann taucht im Auswahlfeld auch kein lokales Modell auf. Ein Ollama ohne
-    # Modell ist eine Auswahl, die beim ersten Klick ins Leere liefe.
     model: str = ""
-    # Notnagel, falls doch ohne Modellangabe aufgerufen wird -- der Katalog
-    # nennt sonst immer ein Tag.
     default_model: str = "llama3.2"
-    # Zehn Minuten statt sechzig Sekunden: ein lokales 30B-MoE muss beim
-    # ersten Aufruf erst rund 21 GB in den Speicher legen. Mit dem Zeitlimit
-    # der Ferne waere der Kaltstart ein sicherer Fehlschlag.
-    timeout: float = Field(default=600.0, ge=0)  # 0 = kein Zeitlimit
-    # Kein Wiederholen: eine abgelaufene Anfrage nochmal zu schicken hiesse,
-    # denselben Kaltstart ein zweites Mal zu bezahlen.
+    timeout: float = Field(default=600.0, ge=0)
     max_retries: int = Field(default=0, ge=0)
 
     @property
@@ -165,11 +123,8 @@ class OpenAISettings(BaseModel):
     api_key: SecretStr | None = None
     base_url: str = "https://api.openai.com/v1"
     default_model: str = "gpt-5.6-terra"
-    # Wie viel das Modell denken darf, wenn der Katalog nichts vorgibt.
     reasoning_effort: str = "medium"
     reasoning_summary: str = "detailed"
-    # 0 = kein Zeitlimit. Ein Lauf mit "max" denkt minutenlang, bevor das
-    # erste Zeichen kommt -- ein knappes Limit killt genau diese Modelle.
     timeout: float = Field(default=600.0, ge=0)
     max_retries: int = Field(default=1, ge=0)
 
@@ -192,26 +147,13 @@ class ImageSettings(BaseModel):
     size: str = "1024x1024"
     quality: str = "high"
     output_format: str = "png"
-    # 0..3 -- mehr gibt die API nicht her.
     partial_images: int = Field(default=3, ge=0, le=3)
     moderation: str = "auto"
     timeout: float = Field(default=300.0, ge=0)
 
-    # Referenzbilder. Liegen welche an, geht die Anfrage an /images/edits
-    # statt /images/generations -- trotz des Namens ist das der Weg fuer
-    # "nimm diese Bilder als Vorlage", nicht bloss fuer Retusche.
     max_references: int = Field(default=4, ge=0, le=10)
-    # Grenze der API je Eingabebild.
     reference_max_bytes: int = Field(default=50_000_000, ge=10_000)
 
-    # Ablage im Bucket. Jedes erzeugte Bild wandert zusaetzlich dorthin,
-    # damit das Modell seine eigenen Bilder spaeter wiederfindet und mit
-    # storage_list/storage_delete verwalten kann.
-    #
-    # ACHTUNG: der Bucket ist oeffentlich lesbar. Was hier landet, liegt
-    # unter einer erratbaren Adresse im Netz. Wer das nicht will, setzt
-    # IMAGE_ARCHIVE=false -- die Bilder bleiben dann lokal unter
-    # data/uploads und werden weiterhin im Chat angezeigt.
     archive: bool = True
     archive_prefix: str = "generated"
 
@@ -230,13 +172,10 @@ class TranscribeSettings(BaseModel):
     """
 
     enabled: bool = True
-    # Ein Eintrag aus dem Transkriptions-Katalog. Bestimmt zugleich, ob
-    # OpenAI oder whisper.cpp die Arbeit macht.
     default_model: str = "gpt-transcribe"
     binary: str = "whisper-cli"
     ffmpeg: str = "ffmpeg"
     model: Path = BASE_DIR / "data" / "models" / "ggml-large-v3-turbo.bin"
-    # 0 = whisper.cpp entscheidet selbst.
     threads: int = Field(default=0, ge=0)
     timeout: float = Field(default=120.0, gt=0)
     max_bytes: int = Field(default=25_000_000, ge=10_000)
@@ -260,17 +199,11 @@ class TTSSettings(BaseModel):
     enabled: bool = True
     api_key: SecretStr | None = None
     base_url: str = "https://api.elevenlabs.io/v1"
-    # Ein Eintrag aus dem Sprach-Katalog. Bestimmt zugleich den Anbieter.
     default_model: str = "eleven_multilingual_v2"
-    # Die Vorgabe-Stimme fuer ElevenLabs. Zur Laufzeit ueberschreibbar.
     voice_id: str = "DDpANZ8PLYsm2RvgHVlV"
-    # Das Ausgabeformat, das ElevenLabs liefert. mp3 spielt jeder Browser.
     output_format: str = "mp3_44100_128"
-    # Sprache des gratis Rueckfalls (Google-Uebersetzer). ElevenLabs erkennt
-    # die Sprache am Text selbst und braucht das nicht.
     free_language: str = "en"
     timeout: float = Field(default=120.0, gt=0)
-    # Obergrenze fuer den Text -- eine Vorlese-Anfrage ist kein Hoerbuch.
     max_chars: int = Field(default=5000, ge=100)
 
 
@@ -318,52 +251,26 @@ class Settings(BaseModel):
     llm: LLMSettings
     vision: VisionSettings = Field(default_factory=VisionSettings)
     tools: ToolSettings = Field(default_factory=ToolSettings)
-    # OpenAI und die Bilderzeugung haengen am selben Schluessel, sind aber
-    # getrennt schaltbar: wer nur Bilder will, braucht keine gpt-5.6-Modelle
-    # in der Auswahl -- und umgekehrt.
     openai: OpenAISettings = Field(default_factory=OpenAISettings)
     images: ImageSettings = Field(default_factory=ImageSettings)
     supabase: SupabaseSettings | None = None
 
-    # Der Wert, den der Assistent am Ende der Prüfung preisgibt. Beliebiger
-    # String -- pro Deployment austauschbar, ohne den Prompt anzufassen.
     secret: SecretStr = SecretStr(DEFAULT_SECRET)
 
-    # System-Prompts als Dateien. Der Default bestimmt die Persona des Agents;
-    # pro Anfrage laesst sich ein anderer waehlen.
     prompts_dir: Path = BASE_DIR / "prompts"
     default_prompt: str = "default"
 
-    # Chat-Verlaeufe. Eine SQLite-Datei neben dem Code; der Chat selbst bleibt
-    # zustandslos, gespeichert wird nur, was das Frontend hierher schickt.
     chats_enabled: bool = True
     chats_db_path: Path = BASE_DIR / "data" / "chats.db"
 
-    # Wie lange eine Anmeldung haelt. Der Datenschluessel der Chats haengt
-    # daran und lebt nur im Speicher: nach einem Neustart des Servers ist
-    # jede Sitzung weg, und das ist Absicht.
     session_ttl: float = Field(default=12 * 3600, gt=0)
 
-    # Verlangen die Inferenz-Endpunkte einen Ausweis? Vorgabe ``False`` --
-    # lokal, hinter localhost, soll ein blankes ``curl`` weiter funktionieren.
-    # Wer das Backend oeffentlich stellt, setzt ``REQUIRE_API_KEY=true``: dann
-    # braucht jede Anfrage entweder eine offene Sitzung (das eigene Frontend)
-    # oder einen gueltigen API-Schluessel im ``Authorization: Bearer``-Kopf.
     require_api_key: bool = False
 
-    # Anhaenge aus dem Chat. Sie landen als Datei auf der Platte, nicht in der
-    # Nachricht: das Hauptmodell sieht keine Bilder, es bekommt nur den Pfad
-    # und reicht ihn bei Bedarf an ``analyze_image`` weiter. Ein eigenes
-    # Verzeichnis neben der Chat-Datenbank, damit beides zusammen umzieht.
-    # Spracheingabe. Laeuft neben allem anderen und braucht keinen Anbieter.
     transcribe: TranscribeSettings = Field(default_factory=TranscribeSettings)
 
-    # Text zu Sprache. Laeuft neben allem anderen; der Schluessel ist
-    # optional, ohne ihn spricht der gratis Rueckfall.
     tts: TTSSettings = Field(default_factory=TTSSettings)
 
-    # Lokale Modelle ueber Ollama. Unabhaengig vom gehosteten Anbieter --
-    # welches Modell wo laeuft, steht im Katalog.
     ollama: OllamaSettings = Field(default_factory=OllamaSettings)
 
     uploads_enabled: bool = True
@@ -371,16 +278,9 @@ class Settings(BaseModel):
     uploads_max_bytes: int = Field(default=20_000_000, ge=10_000)
     uploads_max_files: int = Field(default=8, ge=1, le=50)
 
-    # MCP-Werkzeuge. Die Datei hat dieselbe Form wie die von Claude Desktop:
-    # {"mcpServers": {"name": {"command": ..., "args": [...], "env": {...}}}}
     mcp_enabled: bool = True
     mcp_config_path: Path = BASE_DIR / "mcp.json"
-    # 0 = kein Zeitlimit fuer einen einzelnen MCP-Werkzeugaufruf.
     mcp_call_timeout: float = Field(default=60.0, ge=0)
-    # Gilt fuer alle Werkzeuge, nicht nur MCP. Eine Scraping-Kette braucht
-    # mehrere Runden -- suchen, Links holen, Seiten lesen, nachfassen -- und
-    # bricht bei zu wenig Runden mitten im Vorgang ab. Hoch gedeckelt, damit
-    # lange Aufgabenketten nicht an der Runden-Grenze enden.
     mcp_max_tool_rounds: int = Field(default=8, ge=1, le=1000)
 
     @field_validator("cors_origins", mode="before")
@@ -404,9 +304,6 @@ class Settings(BaseModel):
                 "DEEPSEEK_API_KEY is missing. Create backend/.env (see .env.example)."
             )
 
-        # Ohne Schluessel bleiben OpenAI-Modelle und die Bilderzeugung
-        # schlicht weg -- der Katalog laesst sie dann aus, statt sie
-        # anzubieten und beim ersten Aufruf mit 401 zu scheitern.
         openai_key = os.getenv("OPENAI_API_KEY")
 
         supabase_url = os.getenv("SUPABASE_URL")
@@ -504,8 +401,6 @@ class Settings(BaseModel):
                 enabled=_as_bool(os.getenv("OLLAMA_ENABLED"), default=False),
                 base_url=os.getenv("OLLAMA_BASE_URL", "http://localhost:11434/v1"),
                 api_key=os.getenv("OLLAMA_API_KEY", "ollama"),
-                # OLLAMA_MODEL ist der neue Name; OLLAMA_DEFAULT_MODEL bleibt
-                # als aelterer Alias gueltig, damit vorhandene .env nicht bricht.
                 model=(os.getenv("OLLAMA_MODEL") or os.getenv("OLLAMA_DEFAULT_MODEL") or ""),
                 default_model=(
                     os.getenv("OLLAMA_MODEL")

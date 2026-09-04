@@ -55,9 +55,6 @@ logger = get_logger(__name__)
 GROESSEN = ("1024x1024", "1536x1024", "1024x1536", "auto")
 QUALITAETEN = ("low", "medium", "high", "auto")
 
-# Was die Images-API als Vorlage annimmt. GIF steht bewusst nicht dabei,
-# obwohl der Anhang-Uploader es durchlaesst: die API lehnt es ab, und ein
-# klarer Satz hier ist besser als ihr HTTP 400.
 VORLAGE_TYPEN: dict[str, str] = {
     "image/png": "png",
     "image/jpeg": "jpg",
@@ -154,8 +151,6 @@ class GenerateImageTool(LocalTool):
         self._dir = uploads_dir
         self._bus = bus
         self._http = http
-        # Der McClient der Speicher-Werkzeuge, sofern mc auf dem Rechner
-        # liegt. Ohne ihn entfaellt nur die Ablage im Bucket.
         self._mc = mc
         self._client = AsyncOpenAI(
             api_key=api_key,
@@ -179,9 +174,6 @@ class GenerateImageTool(LocalTool):
         vorlagen = await self._vorlagen_laden(reference_images or [])
 
         self._dir.mkdir(parents=True, exist_ok=True)
-        # Eine Kennung fuer den ganzen Lauf: der Browser erkennt daran, dass
-        # Zwischenstand und fertiges Bild dasselbe Bild sind, und tauscht
-        # aus, statt untereinander zu stapeln.
         lauf = uuid.uuid4().hex
         beschriftung = (alt or sauber)[:200]
 
@@ -196,9 +188,6 @@ class GenerateImageTool(LocalTool):
             }
         )
 
-        # Zwischenstaende liegen als echte Dateien, damit der Browser sie
-        # ueber dieselbe Route holt wie jeden Anhang -- ein Base64-Bild im
-        # Ereignis waere je Zwischenstand ein Megabyte durch die Leitung.
         entwuerfe: list[Path] = []
         try:
             daten = await self._erzeugen(
@@ -214,9 +203,6 @@ class GenerateImageTool(LocalTool):
             await self._melde({"type": "image", "phase": "error", "run": lauf})
             raise ToolError(f"Image generation failed: {exc}") from exc
         finally:
-            # Die Entwuerfe haben ihren Zweck erfuellt, sobald das fertige
-            # Bild gemeldet ist. Sie liegen zu lassen hiesse, den
-            # Anhang-Ordner mit Halbfertigem zu fuellen.
             for pfad in entwuerfe:
                 pfad.unlink(missing_ok=True)
 
@@ -242,9 +228,6 @@ class GenerateImageTool(LocalTool):
 
         return self._bericht(url, beschriftung, len(daten), vorlagen, await self._ablegen_im_bucket(pfad, beschriftung))
 
-    # ------------------------------------------------------------------ #
-    # Erzeugen                                                            #
-    # ------------------------------------------------------------------ #
 
     async def _erzeugen(
         self,
@@ -267,9 +250,6 @@ class GenerateImageTool(LocalTool):
         }
 
         if vorlagen:
-            # ``input_fidelity`` wird bewusst NICHT gesetzt: gpt-image-2
-            # verarbeitet jede Vorlage ohnehin in voller Treue und lehnt den
-            # Parameter ab. ``moderation`` kennt der Edits-Weg nicht.
             strom = await self._client.images.edit(image=vorlagen, **gemeinsam)
         else:
             strom = await self._client.images.generate(
@@ -284,11 +264,6 @@ class GenerateImageTool(LocalTool):
                 continue
             daten = base64.b64decode(roh)
 
-            # Auf die Endung pruefen, nicht auf den vollen Namen: derselbe
-            # Ablauf heisst bei /generations "image_generation.partial_image"
-            # und bei /edits "image_edit.partial_image". Wer hier den vollen
-            # Namen vergleicht, haelt jeden Zwischenstand des zweiten Wegs
-            # fuer das fertige Bild.
             if ereignis.type.endswith(".partial_image"):
                 pfad = self._ablegen(daten)
                 entwuerfe.append(pfad)
@@ -309,9 +284,6 @@ class GenerateImageTool(LocalTool):
             raise ToolError("The image API returned no image.")
         return letztes
 
-    # ------------------------------------------------------------------ #
-    # Vorlagen                                                            #
-    # ------------------------------------------------------------------ #
 
     async def _vorlagen_laden(
         self, referenzen: list[str]
@@ -351,8 +323,6 @@ class GenerateImageTool(LocalTool):
                 f"{referenz} is larger than "
                 f"{self._cfg.reference_max_bytes // 1_000_000} MB."
             )
-        # Der Name traegt die Endung, und die API erkennt den Container
-        # daran -- derselbe Fallstrick wie bei der Transkription.
         return (f"reference.{VORLAGE_TYPEN[typ]}", daten, typ)
 
     def _von_platte(self, referenz: str) -> tuple[bytes, str]:
@@ -363,8 +333,6 @@ class GenerateImageTool(LocalTool):
         Pfad waere ein Weg, jede Datei der Maschine an einen fremden Dienst
         zu schicken -- und das Modell waehlt diesen Pfad, nicht der Nutzer.
         """
-        # "/api/uploads/<id>" ist die Form, die im Verlauf steht -- sowohl
-        # bei Anhaengen als auch bei frueher erzeugten Bildern.
         if (treffer := re.search(r"/api/uploads/([0-9a-f]{32})", referenz)) is not None:
             kandidaten = sorted(self._dir.glob(f"{treffer.group(1)}.*"))
             if not kandidaten:
@@ -402,9 +370,6 @@ class GenerateImageTool(LocalTool):
         typ = (antwort.headers.get("content-type") or "").split(";")[0].strip().lower()
         return antwort.content, typ
 
-    # ------------------------------------------------------------------ #
-    # Ablage                                                              #
-    # ------------------------------------------------------------------ #
 
     def _ablegen(self, daten: bytes) -> Path:
         pfad = self._dir / f"{uuid.uuid4().hex}.{self._cfg.output_format}"

@@ -36,7 +36,7 @@ from src.services.tools.local.base import LocalTool, truncate
 logger = get_logger(__name__)
 
 MAX_RESULTS = 20
-YT_MAX = 16_000  # Transkripte sind der Zweck -- hier mehr Platz als anderswo
+YT_MAX = 16_000
 
 
 class BraveSearchTool(LocalTool):
@@ -166,7 +166,6 @@ class SerpApiSearchTool(LocalTool):
 
         lines: list[str] = []
 
-        # Die Antwortbox ist oft die eigentliche Antwort -- zuerst zeigen.
         if box := data.get("answer_box"):
             antwort = box.get("answer") or box.get("snippet") or box.get("result")
             if antwort:
@@ -209,7 +208,6 @@ class _SerpApiTool(LocalTool):
             response = await self._client.get(self.ENDPOINT, params=params)
         except httpx.HTTPError as exc:
             raise ToolError(f"SerpAPI unreachable: {type(exc).__name__}: {exc}") from exc
-        # SerpApi legt die eigentliche Fehlermeldung in den Rumpf, auch bei 4xx.
         try:
             data = response.json()
         except ValueError:
@@ -347,8 +345,6 @@ class MapsSearchTool(_SerpApiTool):
             if koordinaten:
                 params["ll"] = koordinaten
             else:
-                # Kein GPS, sondern ein Ortsname -- den in die Suche falten,
-                # statt ein ungueltiges ll zu bauen (das raet Google woanders).
                 params["q"] = f"{query} {location.strip()}"
 
         daten = await self._get(**params)
@@ -662,8 +658,6 @@ class VideoSearchTool(LocalTool):
 
         lines = [f"{len(results)} video(s) for {query!r}:", ""]
         for index, hit in enumerate(results, start=1):
-            # Brave legt Dauer, Autor und Aufrufe unter "video"; das
-            # Vorschaubild liegt daneben. Beides ist optional.
             video = hit.get("video") or {}
             thumb = (hit.get("thumbnail") or {}).get("src")
 
@@ -712,9 +706,6 @@ class BraveAnswersTool(LocalTool):
         self._api_key = api_key
 
     async def run(self, query: str) -> str:
-        # Quellen gibt es nur im Stream (enable_citations verlangt stream=true),
-        # und die Quellen sind der Grund, dieses Werkzeug ueberhaupt zu nehmen.
-        # Sie kommen als <citation>{...}</citation>-Marken mitten im Text.
         try:
             roh = await self._sammeln(query)
         except httpx.HTTPStatusError as exc:
@@ -811,7 +802,6 @@ def _zitate_aufloesen(text: str) -> tuple[str, list[tuple[int, str]]]:
 
     ohne = _CITATION.sub(ersetzen, text)
     ohne = _USAGE.sub("", ohne)
-    # Aufeinanderfolgende Marken entdoppeln: [1][1][2] -> [1][2].
     ohne = re.sub(r"(\[\d+\])(?=\1)", "", ohne)
     ohne = re.sub(r"\s+([.,;:!?])", r"\1", ohne)
     ohne = re.sub(r"\n{3,}", "\n\n", ohne).strip()
@@ -843,7 +833,6 @@ def _video_id(video: str) -> str | None:
     text = (video or "").strip()
     if _VIDEO_ID.match(text):
         return text
-    # youtu.be/ID, watch?v=ID, /shorts/ID, /embed/ID, /live/ID
     treffer = re.search(
         r"(?:v=|/shorts/|/embed/|/live/|youtu\.be/)([A-Za-z0-9_-]{11})", text
     )
@@ -913,7 +902,6 @@ def _als_koordinaten(location: str) -> str | None:
     text = location.strip().lstrip("@").replace(" ", "")
     if not _KOORD.match(text):
         return None
-    # SerpApi erwartet einen Zoom im ll; fehlt er, eine brauchbare Stadtstufe.
     if not text.rstrip("z").split(",")[-1].isdigit() or text.count(",") < 2:
         text = f"{text},14z"
     return f"@{text}"
@@ -931,7 +919,6 @@ def _handle(profile_id: str) -> str:
     return text.split("?")[0].strip()
 
 
-# Felder je Plattform, in sinnvoller Reihenfolge: (Schluessel, Beschriftung).
 _PROFIL_FELDER = {
     "instagram": [
         ("full_name", "Name"),
@@ -969,7 +956,6 @@ def _profil_text(platform: str, handle: str, profil: dict[str, Any]) -> str:
             continue
         lines.append(f"{label}: {str(wert).strip()}")
 
-    # Verlinkte Seiten (Bio-Links bei Instagram, Reiter-Links bei Facebook).
     verweise: list[str] = []
     for eintrag in (profil.get("bio_links") or profil.get("links") or []):
         if isinstance(eintrag, dict) and (url := eintrag.get("url") or eintrag.get("link")):

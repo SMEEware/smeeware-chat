@@ -1,19 +1,3 @@
-# SMEEware Chat -- drei Dienste, einer davon optional.
-#
-#   backend    FastAPI (EIN Worker, zwingend)
-#   frontend   Next.js -- das oeffentliche Gesicht, spricht das Backend nur
-#              serverseitig an
-#   ollama     lokales Modell -- nur mit `--profile ollama`, sonst weggelassen
-#
-# NETZWERK: backend und frontend laufen im HOST-Netz. Absicht, kein Zufall:
-#   * die Werkzeuge sind damit NICHT im Container eingesperrt, sondern reden
-#     ueber den Netz-Stack des Servers (system_check, storage, Suche, …);
-#   * der Ollama-Endpunkt ist immer derselbe -- http://127.0.0.1:11434 --,
-#     egal ob Ollama auf dem Host installiert ist oder als Container unten
-#     laeuft (der Container veroeffentlicht denselben Port auf 127.0.0.1).
-# Das Backend bindet dabei auf 127.0.0.1 (privat); nach aussen zeigt nur das
-# Frontend auf Port 3000, davor gehoert ein Reverse-Proxy mit TLS. Siehe
-# DEPLOY.md.
 
 services:
   backend:
@@ -23,12 +7,9 @@ services:
     env_file:
       - ./backend/.env
     environment:
-      # privat -- erreichbar nur ueber das Frontend/den Proxy auf demselben Host
       HOST: "127.0.0.1"
       PORT: "8000"
     volumes:
-      # Verschluesselte chats.db + Uploads. Named Volume: ueberlebt jeden
-      # `up -d --build` und hat die richtigen Rechte fuer den app-Benutzer.
       - smee_data:/app/data
     restart: unless-stopped
 
@@ -37,7 +18,6 @@ services:
     image: smeeware-frontend
     network_mode: host
     environment:
-      # Backend liegt auf demselben Host-Loopback (network_mode: host).
       LLM_STREAM_URL: "http://127.0.0.1:8000/api/v1/chat/stream"
       PORT: "3000"
       HOSTNAME: "0.0.0.0"
@@ -46,28 +26,14 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
-  # Optional: nur mit `docker compose --profile ollama up -d`.
-  # Ohne dieses Profil bleibt der Dienst komplett weg -- genau das, was fuer
-  # ein Deployment ohne lokales Modell gewollt ist.
   ollama:
     image: ollama/ollama:latest
     profiles: ["ollama"]
-    # Auf 127.0.0.1 veroeffentlicht: derselbe Endpunkt, den das Backend auch
-    # bei einem Host-Ollama nutzt. Nicht nach aussen offen.
     ports:
       - "127.0.0.1:11434:11434"
     volumes:
       - ollama_models:/root/.ollama
     restart: unless-stopped
-    # ---- GPU (NVIDIA) -- auskommentiert lassen, wenn keine Karte da ist -----
-    # Voraussetzung: nvidia-container-toolkit auf dem Host.
-    # deploy:
-    #   resources:
-    #     reservations:
-    #       devices:
-    #         - driver: nvidia
-    #           count: all
-    #           capabilities: [gpu]
 
 volumes:
   smee_data:

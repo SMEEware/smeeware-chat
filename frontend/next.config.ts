@@ -8,8 +8,6 @@ const nextConfig: NextConfig = {
         hostname: "storage.smeeware.com",
         port: "",
         pathname: "/**",
-        // search bleibt offen: Ein leerer Wert wuerde jede URL mit
-        // Query-String mit 400 abweisen, also auch Cache-Buster.
       },
     ],
   },

@@ -14,7 +14,6 @@ type PromptListe = {
   prompts: PromptSummary[];
 };
 
-/** Die System-Prompts aus prompts/ -- eine Datei je Persona. */
 export function usePrompts() {
   return useQuery<PromptListe>({
     queryKey: ["prompts"],
@@ -23,14 +22,11 @@ export function usePrompts() {
       if (!antwort.ok) throw new Error(`HTTP ${antwort.status}`);
       return (await antwort.json()) as PromptListe;
     },
-    // Prompts sind Dateien auf der Platte -- die aendern sich nicht waehrend
-    // man chattet.
     staleTime: 5 * 60_000,
     retry: 1,
   });
 }
 
-/** Der Rohtext eines Prompts -- mit Platzhaltern, so wie er auf der Platte steht. */
 export function usePromptText(name: string | null) {
   return useQuery<{ text: string }>({
     queryKey: ["prompts", "text", name],
@@ -55,7 +51,6 @@ async function pruefen(antwort: Response): Promise<void> {
     const nutzlast = await antwort.json();
     meldung = nutzlast?.error?.message ?? meldung;
   } catch {
-    // Kein JSON -- der Status muss reichen.
   }
   throw new Error(meldung);
 }

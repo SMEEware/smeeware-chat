@@ -13,19 +13,10 @@ const OPTIONEN = [
   { wert: "dark", label: "Dark", icon: MoonIcon },
 ] as const;
 
-/**
- * Das Aussehen -- hell, dunkel, oder was das Betriebssystem sagt.
- *
- * Erst nach dem Einhaengen echte Werte: ``next-themes`` kennt die Wahl auf
- * dem Server nicht, und ein vorab gerendertes Haekchen saesse sonst kurz am
- * falschen Feld.
- */
 export function AppearanceSection() {
   const { theme, setTheme } = useTheme();
   const [bereit, setBereit] = React.useState(false);
   React.useEffect(() => {
-    // Nicht synchron im Effekt-Rumpf: ein Frame Vorlauf, dann steht die
-    // Wahl fest -- vorher kennt next-themes sie nicht.
     const id = requestAnimationFrame(() => setBereit(true));
     return () => cancelAnimationFrame(id);
   }, []);

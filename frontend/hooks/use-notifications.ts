@@ -15,7 +15,6 @@ type Liste = { count: number; unread: number; notifications: Hinweis[] };
 
 export const hinweisKey = ["notifications"] as const;
 
-/** Was der Toast hinterlassen hat. */
 export function useNotifications() {
   return useQuery<Liste>({
     queryKey: hinweisKey,
@@ -27,8 +26,6 @@ export function useNotifications() {
       if (!antwort.ok) throw new Error(`HTTP ${antwort.status}`);
       return (await antwort.json()) as Liste;
     },
-    // Neue Hinweise kommen ueber den Ereignis-Strom herein, nicht ueber
-    // Nachfragen -- deshalb kein Intervall.
     staleTime: 60_000,
     retry: false,
   });
@@ -48,8 +45,6 @@ export function useNotificationActions() {
       fetch(`/api/notifications/${encodeURIComponent(id)}`, {
         method: "DELETE",
       }),
-    // Sofort aus der Liste nehmen -- das Ergebnis ist absehbar, und ein
-    // Zucken nach dem Klick waere schlechter als ein seltener Rueckfall.
     onMutate: async (id) => {
       await client.cancelQueries({ queryKey: hinweisKey });
       const vorher = client.getQueryData<Liste>(hinweisKey);

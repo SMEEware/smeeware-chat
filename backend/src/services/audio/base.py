@@ -22,8 +22,6 @@ class TranscriptionError(Exception):
 @dataclass(frozen=True, slots=True)
 class Transkript:
     text: str
-    # Was der Dienst selbst erkannt hat -- "de", "en", ... oder None.
-    # Niemand musste sie vorher waehlen, und das ist der Punkt.
     language: str | None
     duration_ms: int = 0
 

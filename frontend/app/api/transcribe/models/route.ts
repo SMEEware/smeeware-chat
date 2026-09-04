@@ -1,13 +1,5 @@
 import { TRANSCRIBE_ENDPOINT } from "@/lib/chat/backend";
 
-/**
- * Die waehlbaren Transkriptions-Modelle durchreichen.
- *
- * Wie bei /api/models: die Liste haengt an Schluesseln und installierten
- * Programmen, und das weiss nur das Backend. Ist es weg, kommt eine leere
- * Liste statt eines Fehlers -- die Einstellungen zeigen dann schlicht
- * keine Auswahl, statt einen roten Kasten.
- */
 export async function GET() {
   try {
     const upstream = await fetch(`${TRANSCRIBE_ENDPOINT}/models`, {

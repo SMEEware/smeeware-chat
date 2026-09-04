@@ -66,7 +66,6 @@ class PublicChatStore:
         self._path = Path(path)
         self._key = key
 
-    # -- Schema --------------------------------------------------------- #
 
     async def ensure_schema(self) -> None:
         await asyncio.to_thread(self._ensure_schema)
@@ -77,7 +76,6 @@ class PublicChatStore:
             conn.executescript(SCHEMA)
         logger.info("Speicher fuer geteilte Chats bereit: %s", self._path)
 
-    # -- Lesen ---------------------------------------------------------- #
 
     async def hole(self, chat_id: str) -> StoredChat | None:
         """Der geteilte Verlauf -- None, wenn dieser Chat nicht geteilt ist."""
@@ -134,7 +132,6 @@ class PublicChatStore:
                 for zeile in conn.execute("SELECT id FROM public_chats").fetchall()
             }
 
-    # -- Schreiben ------------------------------------------------------ #
 
     async def veroeffentliche(self, chat: StoredChat) -> None:
         """Anlegen oder nachziehen. Idempotent.
@@ -199,7 +196,6 @@ class PublicChatStore:
         with self._open() as conn:
             return conn.execute("DELETE FROM public_chats").rowcount
 
-    # -- Verbindung ----------------------------------------------------- #
 
     @contextmanager
     def _open(self) -> Iterator[sqlite3.Connection]:

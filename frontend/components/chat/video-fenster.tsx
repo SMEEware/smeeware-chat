@@ -10,7 +10,6 @@ const BREITE = 320;
 const HOEHE = 180;
 const RAND = 16;
 
-/** Innerhalb des Fensters halten -- auch wenn es kleiner geworden ist. */
 function einpassen(x: number, y: number) {
   return {
     x: Math.min(Math.max(x, RAND), Math.max(RAND, window.innerWidth - BREITE - RAND)),
@@ -18,19 +17,6 @@ function einpassen(x: number, y: number) {
   };
 }
 
-/**
- * Das verkleinerte Video -- unten rechts, bis es jemand woanders hinzieht.
- *
- * Waehrend des Ziehens laeuft nichts durch React: der Zeiger schreibt das
- * ``transform`` direkt ans Element, und erst beim Loslassen wandert die
- * Position in den Zustand. Ein setState je Mausbewegung hiesse, den ganzen
- * Chat sechzig Mal in der Sekunde neu zu rendern -- genau dabei beginnt es
- * zu haken.
- *
- * Pointer-Events statt Maus-Events, damit es am Touchscreen genauso geht,
- * und ``setPointerCapture``, damit ein schneller Zug das Element nicht
- * verliert.
- */
 export function VideoFenster() {
   const { video, position, schliessen, setPosition } = useVideoFenster();
   const rahmenRef = React.useRef<HTMLDivElement>(null);
@@ -38,7 +24,6 @@ export function VideoFenster() {
   const letzteRef = React.useRef<{ x: number; y: number } | null>(null);
   const [zieht, setZieht] = React.useState(false);
 
-  // Startpunkt: die gespeicherte Position, sonst unten rechts.
   React.useEffect(() => {
     const rahmen = rahmenRef.current;
     if (!rahmen || !video) return;
@@ -50,7 +35,6 @@ export function VideoFenster() {
     rahmen.style.transform = `translate3d(${start.x}px, ${start.y}px, 0)`;
   }, [video, position]);
 
-  // Wird das Fenster kleiner, soll das Video nicht draussen hängen.
   React.useEffect(() => {
     if (!video) return;
     const beiGroesse = () => {
@@ -72,8 +56,6 @@ export function VideoFenster() {
     if (!letzte) return;
     event.currentTarget.setPointerCapture(event.pointerId);
     zugRef.current = { dx: event.clientX - letzte.x, dy: event.clientY - letzte.y };
-    // Eigene Compositor-Ebene fuers Ziehen: dann wandert das Fenster samt
-    // Video, ohne dass der Inhalt in jedem Bild neu gemalt wird.
     if (rahmenRef.current) rahmenRef.current.style.willChange = "transform";
     setZieht(true);
   };
@@ -102,8 +84,6 @@ export function VideoFenster() {
       className={[
         "fixed top-0 left-0 z-50 overflow-hidden rounded-xl bg-background shadow-2xl shadow-black/20 ring-1 ring-border/70 ring-inset dark:shadow-black/50",
         "animate-in fade-in zoom-in-95 duration-200",
-        // Waehrend des Ziehens keine Uebergaenge: sie wuerden dem Zeiger
-        // hinterherlaufen und sich wie Verzoegerung anfuehlen.
         zieht ? "cursor-grabbing select-none" : "transition-shadow",
       ].join(" ")}
     >
@@ -128,8 +108,6 @@ export function VideoFenster() {
           rel="noopener noreferrer"
           title="Open the original"
           aria-label="Open the original"
-          // Der Zug darf hier nicht anfangen, sonst verschiebt jeder Klick
-          // auf die Knoepfe das Fenster.
           onPointerDown={(event) => event.stopPropagation()}
           className="ms-auto flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-md text-muted-foreground/50 transition-colors hover:text-foreground"
         >

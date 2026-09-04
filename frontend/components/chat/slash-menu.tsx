@@ -7,14 +7,6 @@ import { groupCommands } from "@/lib/chat/command-registry";
 import type { CommandEntry } from "@/lib/chat/command-registry";
 import { cn } from "@/lib/utils";
 
-/**
- * Das Slash-Menue ueber dem Eingabefeld, waehrend man "/" tippt.
- *
- * Reine Darstellung: der Composer haelt den offenen Zustand, die Eingabe
- * und den Index -- er reicht sie herein und bekommt das gewaehlte Kommando
- * zurueck. Gezeigt wird, was der Katalog fuer diese Oberflaeche hergibt,
- * gruppiert und mit Symbol, Ausloese-Wort und Kurztext.
- */
 export function SlashMenu({
   items,
   selectedIndex,
@@ -60,8 +52,6 @@ export function SlashMenu({
                           type="button"
                           role="option"
                           aria-selected={selected}
-                          // mousedown statt click: das Textfeld behaelt den
-                          // Fokus, statt vor dem Ausfuehren zu verlieren.
                           onMouseDown={(event) => {
                             event.preventDefault();
                             onSelect(command);

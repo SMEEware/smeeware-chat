@@ -7,14 +7,6 @@ import {
 } from "@/lib/auth/session";
 import { ACCOUNT_ENDPOINT } from "@/lib/chat/backend";
 
-/**
- * Anmelden, einrichten, abmelden.
- *
- * Das Passwort geht durch diese Route und nie weiter als bis zum Backend --
- * es landet in keinem Cookie und in keinem Speicher des Browsers. Zurueck
- * kommt eine Sitzungskennung, und die setzen wir als httpOnly-Cookie, damit
- * kein Skript sie lesen kann.
- */
 export async function GET(request: NextRequest) {
   const sitzung = request.cookies.get(SESSION_COOKIE)?.value;
 
@@ -80,8 +72,6 @@ export async function POST(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   const sitzung = request.cookies.get(SESSION_COOKIE)?.value;
 
-  // Auch wenn das Backend nicht erreichbar ist: das Cookie muss weg. Sonst
-  // sieht die Oberflaeche angemeldet aus, ohne es zu sein.
   try {
     await fetch(`${ACCOUNT_ENDPOINT}/logout`, {
       method: "POST",
@@ -89,7 +79,6 @@ export async function DELETE(request: NextRequest) {
       signal: AbortSignal.timeout(4000),
     });
   } catch {
-    // Egal -- die Sitzung im Backend laeuft ohnehin ab.
   }
 
   const antwort = new Response(null, { status: 204 });
@@ -107,7 +96,6 @@ function cookieZeile(name: string, wert: string, maxAge: number): string {
   ].join("; ");
 }
 
-/** Namen und Passwort aendern -- das Backend prueft die Sitzung. */
 export async function PATCH(request: NextRequest) {
   const sitzung = request.cookies.get(SESSION_COOKIE)?.value;
 

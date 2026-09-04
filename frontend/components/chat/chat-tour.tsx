@@ -21,41 +21,16 @@ import { useSidebar } from "@/components/ui/sidebar";
 import { useSettings } from "@/lib/settings/store";
 import { cn } from "@/lib/utils";
 
-/**
- * Die Einfuehrung -- einmal, beim ersten Oeffnen des Chats.
- *
- * Warum eine eigene Schicht und keine Bibliothek: die drei Dinge, die eine
- * Tour ausmachen, sind hier jeweils drei Zeilen -- den Kasten eines
- * Elements messen, alles andere abdunkeln, einen Text danebenlegen. Eine
- * Bibliothek braechte dafuer ihr eigenes Gestaltungssystem mit, das man
- * anschliessend wieder einfangen muesste.
- *
- * Das Loch entsteht ueber ``clip-path`` mit der Regel evenodd: die aeussere
- * Bahn ist der ganze Bildschirm, die innere das hervorgehobene Element --
- * uebrig bleibt alles dazwischen, und genau darauf liegt der Weichzeichner.
- * Ein Element hoeher zu stapeln waere der andere Weg, wuerde aber
- * verlangen, jedem Ziel eine Positionierung aufzuzwingen.
- *
- * Ziele werden ueber ``data-tour`` gefunden. Fehlt eines -- die Sidebar ist
- * auf schmalen Fenstern eingeklappt --, faellt der Schritt weg, statt auf
- * einen Kasten der Groesse null zu zeigen.
- */
-
 type Seite = "oben" | "unten";
 
 type Schritt = {
   id: string;
-  /** Ein oder mehrere ``data-tour``-Namen. Mehrere ergeben einen Kasten. */
   ziele: string[];
   icon: React.ElementType;
   titel: string;
   text: React.ReactNode;
-  /** Wo der Text bevorzugt steht. Passt er nicht, dreht er sich um. */
   seite?: Seite;
-  /** Wie rund das Loch ist -- passend zum Element darunter. */
   radius?: number;
-  /** Liegt das Ziel in der Sidebar? Dann wird sie fuer den Schritt
-   *  aufgeklappt, falls sie zu ist -- sonst zeigte er ins Leere. */
   sidebar?: boolean;
 };
 
@@ -184,27 +159,11 @@ const SCHRITTE: Schritt[] = [
 
 type Kasten = { x: number; y: number; breite: number; hoehe: number };
 
-/** Wie viel Luft zwischen Element und Loch bleibt. */
 const LUFT = 8;
-/** Breite der Textkarte. */
 const KARTE = 340;
-/** Abstand der Karte zum Loch. */
 const ABSTAND = 16;
-/** Rand, den die Karte zum Fensterrand haelt. */
 const RAND = 16;
 
-/**
- * Die Einfuehrung von aussen anstossen -- fuer den Knopf in der Sidebar.
- *
- * Sie haengt an genau einem Wert, und der liegt in den Einstellungen:
- * "nochmal zeigen" ist dasselbe wie "noch nicht gesehen". Die Funktion gibt
- * es trotzdem, damit der Aufrufer das nicht wissen muss -- die Sidebar
- * startet eine Tour, sie setzt keine Merkvariable zurueck.
- *
- * ``getState`` statt Hook: das hier laeuft in einem Klick, nicht beim
- * Rendern. Ein Abonnement wuerde die Sidebar bei jedem Schritt der Tour
- * neu zeichnen, obwohl sie den Wert gar nicht anzeigt.
- */
 export function tourStarten() {
   useSettings.getState().setTourGesehen(false);
 }
@@ -213,31 +172,21 @@ export function ChatTour() {
   const gesehen = useSettings((z) => z.tourGesehen);
   const setGesehen = useSettings((z) => z.setTourGesehen);
 
-  // Die Sidebar -- fuer Schritte, die auf etwas in ihr zeigen. Ist sie zu,
-  // wird sie fuer den Schritt aufgeklappt; auf dem Handy als Sheet, sonst
-  // fest an der Seite.
   const { open, setOpen, isMobile, openMobile, setOpenMobile } = useSidebar();
   const sidebarOffen = isMobile ? openMobile : open;
 
-  // Erst nach dem Einhaengen: der Server kennt den localStorage nicht, und
-  // eine Tour, die im vorgerenderten HTML steht, blitzt beim Laden auf.
   const [bereit, setBereit] = React.useState(false);
   const [index, setIndex] = React.useState(0);
   const [kasten, setKasten] = React.useState<Kasten | null>(null);
   const [fenster, setFenster] = React.useState({ breite: 0, hoehe: 0 });
 
   React.useEffect(() => {
-    // Ein Wimpernschlag Vorlauf, damit Sidebar und Composer wirklich
-    // stehen -- gemessen wird sonst ein halb aufgebautes Fenster.
     const id = setTimeout(() => setBereit(true), 600);
     return () => clearTimeout(id);
   }, []);
 
   const laeuft = bereit && !gesehen;
 
-  // Nur Schritte, deren Ziel es wirklich gibt. Ein Sidebar-Schritt bleibt
-  // immer dabei, auch wenn die Sidebar gerade zu ist -- er klappt sie beim
-  // Erreichen selbst auf. Alles andere muss jetzt schon sichtbar sein.
   const schritte = React.useMemo(() => {
     if (!laeuft) return [];
     return SCHRITTE.filter(
@@ -271,9 +220,6 @@ export function ChatTour() {
     setIndex((i) => Math.max(0, i - 1));
   }, []);
 
-  // Zeigt der Schritt in die Sidebar und ist sie zu, aufklappen -- sonst
-  // zeigte der Schritt ins Leere. Das setState liegt in einem Frame Vorlauf,
-  // nicht direkt im Effekt-Rumpf: sonst ruegt der Linter die Kaskade.
   React.useEffect(() => {
     if (!laeuft || !schritt?.sidebar || sidebarOffen) return;
     const id = requestAnimationFrame(() => {
@@ -283,8 +229,6 @@ export function ChatTour() {
     return () => cancelAnimationFrame(id);
   }, [laeuft, schritt, sidebarOffen, isMobile, setOpen, setOpenMobile]);
 
-  // Messen -- bei jedem Schritt, wenn sich das Fenster aendert und sobald die
-  // Sidebar auf- oder zugeht (dann steht ihr Ziel woanders).
   React.useEffect(() => {
     if (!laeuft || !schritt) return;
 
@@ -299,8 +243,6 @@ export function ChatTour() {
         return;
       }
 
-      // Mehrere Ziele ergeben einen umschliessenden Kasten -- Anhang und
-      // Mikrofon gehoeren zusammen und sollen auch so aussehen.
       const links = Math.min(...kaesten.map((k) => k.left));
       const oben = Math.min(...kaesten.map((k) => k.top));
       const rechts = Math.max(...kaesten.map((k) => k.right));
@@ -316,9 +258,6 @@ export function ChatTour() {
     };
 
     messen();
-    // Nach dem Auf-/Zuklappen der Sidebar sitzt das Ziel erst nach der
-    // Animation (~200 ms, auf dem Handy laenger) an seinem Platz -- ein paar
-    // Nachmessungen holen die endgueltige Lage ein.
     const t1 = setTimeout(messen, 230);
     const t2 = setTimeout(messen, 520);
     window.addEventListener("resize", messen);
@@ -329,7 +268,6 @@ export function ChatTour() {
     };
   }, [laeuft, schritt, sidebarOffen]);
 
-  // Tastatur: vor, zurueck, raus.
   React.useEffect(() => {
     if (!laeuft) return;
     const auf = (e: KeyboardEvent) => {
@@ -361,17 +299,11 @@ export function ChatTour() {
       aria-label="Getting started"
       className="fixed inset-0 z-[60] animate-in fade-in duration-300"
     >
-      {/* Alles ausser dem Ziel: weichgezeichnet und abgedunkelt. Faengt
-          zugleich jeden Klick ab -- waehrend der Einfuehrung soll niemand
-          versehentlich etwas ausloesen, das die Erklaerung daneben
-          widerlegt. */}
       <div
         className="absolute inset-0 bg-background/55 backdrop-blur-[3px] transition-[clip-path] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]"
         style={{ clipPath: `path(evenodd, "${lochPfad(kasten, schritt.radius ?? 12)}")` }}
       />
 
-      {/* Der Ring um das Ziel. Er liegt ueber dem Schleier, aber nicht ueber
-          dem Element -- das bleibt unberuehrt und damit lesbar. */}
       <div
         aria-hidden
         className="tour-ring pointer-events-none absolute transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]"
@@ -384,15 +316,11 @@ export function ChatTour() {
         }}
       />
 
-      {/* Die Karte */}
       <div
         className="absolute w-[340px] max-w-[calc(100vw-2rem)] transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]"
         style={{ left: platz.x, top: platz.top, bottom: platz.bottom }}
       >
         <div className="relative overflow-hidden rounded-2xl bg-card/95 shadow-2xl shadow-black/25 ring-1 ring-border/70 backdrop-blur-xl">
-          {/* Ein Schein oben rechts -- derselbe Griff wie in den
-              Einstellungen, damit die Tour dazugehoert und nicht
-              danebensteht. */}
           <span
             aria-hidden
             className="pointer-events-none absolute -top-12 -right-8 size-32 rounded-full bg-primary/25 opacity-50 blur-3xl"
@@ -423,8 +351,6 @@ export function ChatTour() {
             </div>
 
             <div className="flex items-center gap-2 pt-1">
-              {/* Punkte statt "3 von 6": man sieht auf einen Blick, wie viel
-                  noch kommt, ohne zu rechnen. */}
               <span className="flex items-center gap-1.5">
                 {schritte.map((s, i) => (
                   <span
@@ -488,25 +414,10 @@ export function ChatTour() {
   );
 }
 
-/**
- * Der Pfad mit dem Loch. Aussen der ganze Bildschirm, innen das Ziel als
- * abgerundetes Rechteck; ``evenodd`` laesst dazwischen stehen, was
- * abgedunkelt wird.
- *
- * Beide Bahnen haben immer dieselbe Form und dieselbe Zahl an Befehlen --
- * nur so kann der Browser zwischen zwei Schritten weich ueberblenden statt
- * zu springen.
- */
 function lochPfad(k: Kasten, radius: number): string {
   const r = Math.max(0, Math.min(radius, k.breite / 2, k.hoehe / 2));
   const { x, y, breite: b, hoehe: h } = k;
   return [
-    // Die aeussere Bahn ist bewusst ein fester, riesiger Rahmen und nicht die
-    // Fenstergroesse: die Schicht liegt ohnehin ueber dem ganzen Fenster
-    // (``inset-0``), also deckt der Rahmen es immer ab. Haenge er dagegen an
-    // ``fenster`` -- das anfangs {0,0} ist und erst nach dem Messen steht --,
-    // schrumpfte die dunkle Flaeche beim ersten Schritt kurz zusammen und
-    // wuchse wieder. Fest bleibt sie immer gross; nur das Loch wandert.
     `M0 0 H100000 V100000 H0 Z`,
     `M${x + r} ${y}`,
     `H${x + b - r}`,
@@ -521,26 +432,11 @@ function lochPfad(k: Kasten, radius: number): string {
   ].join(" ");
 }
 
-/**
- * Wohin die Karte gehoert.
- *
- * Der Kniff steckt in der Rueckgabe: steht die Karte oben, wird sie ueber
- * ``bottom`` verankert, steht sie unten, ueber ``top``. Damit braucht die
- * Rechnung ihre Hoehe nicht zu kennen -- und kann sie folglich auch nicht
- * unterschaetzen. Mit einem festen Schaetzwert legte sich eine hohe Karte
- * ueber genau das Element, das sie erklaert.
- *
- * Die gewuenschte Seite gilt, solange dort ueberhaupt Platz ist; sonst
- * kippt sie. Waagerecht folgt sie der Mitte des Ziels und wird dann ins
- * Fenster geschoben -- eine Karte, die halb draussen steht, erklaert nichts.
- */
 function karteSetzen(
   schritt: Schritt,
   k: Kasten,
   fenster: { breite: number; hoehe: number },
 ): { x: number; top?: number; bottom?: number } {
-  // Nur fuer die Frage "passt sie da ueberhaupt hin?" -- grosszuegig
-  // geschaetzt, damit im Zweifel die Seite mit mehr Luft gewinnt.
   const grob = 260;
   const platzOben = k.y - ABSTAND - RAND;
   const platzUnten = fenster.hoehe - (k.y + k.hoehe) - ABSTAND - RAND;

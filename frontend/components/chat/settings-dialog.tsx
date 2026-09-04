@@ -45,14 +45,6 @@ import { useTtsModels } from "@/hooks/use-tts-models";
 import { promptLabel, useSettings } from "@/lib/settings/store";
 import { cn } from "@/lib/utils";
 
-/**
- * Die Einstellungen -- drei Reiter statt einer langen Spalte.
- *
- * Der Schnitt folgt dem, was man gerade vorhat: an Schaltern drehen, eine
- * Persona schreiben, oder das eigene Konto anfassen. Alles untereinander
- * hiesse, an einer Passwortaenderung vorbeizuscrollen, um einen Schalter
- * umzulegen.
- */
 export function SettingsDialog({
   open,
   onOpenChange,
@@ -86,9 +78,6 @@ export function SettingsDialog({
         <Tabs defaultValue="general" className="relative gap-0">
           <TabsList
             variant="line"
-            // relative: der gleitende Strich richtet sich an der Liste aus.
-            // Die eingebauten Einzel-Striche der Reiter blenden wir aus --
-            // es gibt jetzt genau einen, und der wandert.
             className="relative w-full justify-start gap-1 border-b border-border/60 px-5 pb-2 **:data-[slot=tabs-trigger]:after:hidden"
           >
             <TabsTrigger value="general">General</TabsTrigger>
@@ -110,19 +99,10 @@ export function SettingsDialog({
   );
 }
 
-/**
- * Ein Kasten, dessen Hoehe der Inhalt mitnimmt -- statt beim Reiterwechsel zu
- * springen. Er misst den sichtbaren Inhalt (nur der aktive Reiter ist
- * gemountet) und faehrt seine Hoehe weich dorthin.
- *
- * Die Obergrenze -- frueher `max-h-[min(28rem,65vh)]` -- rechnen wir als Zahl
- * aus, damit ein zu grosser Inhalt an einem festen Wert kappt und der Rest
- * scrollt, statt dass die Animation an einer CSS-Grenze haengen bleibt.
- */
 function AutoHoehe({ children }: { children: React.ReactNode }) {
   const innen = React.useRef<HTMLDivElement>(null);
   const [hoehe, setHoehe] = React.useState<number>();
-  const [maxPx, setMaxPx] = React.useState(448); // 28rem
+  const [maxPx, setMaxPx] = React.useState(448);
   const erste = React.useRef(true);
   const [uebergang, setUebergang] = React.useState(false);
 
@@ -134,8 +114,6 @@ function AutoHoehe({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener("resize", rechne);
   }, []);
 
-  // Der ResizeObserver feuert schon beim Beobachten mit der aktuellen Groesse
-  // -- daher kein eigener Erst-Messwert im Effekt (den ruegt der Linter).
   React.useLayoutEffect(() => {
     const el = innen.current;
     if (!el) return;
@@ -144,8 +122,6 @@ function AutoHoehe({ children }: { children: React.ReactNode }) {
     return () => ro.disconnect();
   }, []);
 
-  // Uebergaenge erst nach der ersten Messung freischalten, sonst waechst der
-  // Kasten beim Oeffnen sichtbar von 0 auf seine Hoehe.
   React.useEffect(() => {
     if (hoehe === undefined || !erste.current) return;
     erste.current = false;
@@ -166,10 +142,6 @@ function AutoHoehe({ children }: { children: React.ReactNode }) {
     </div>
   );
 }
-
-/* ------------------------------------------------------------------ */
-/* Allgemein                                                           */
-/* ------------------------------------------------------------------ */
 
 function Allgemein() {
   const {
@@ -216,13 +188,6 @@ function Allgemein() {
   );
 }
 
-/**
- * Der Weg zu allem, was das Konto betrifft.
- *
- * Frueher stand hier ein ganzer Reiter. Er ist auf eine eigene Seite
- * gezogen -- Profil, Passwort, API-Schluessel. Diese Zeile ist die Bruecke
- * dorthin, damit man aus dem Chat nicht erst ueber die Landing-Page muss.
- */
 function KontoVerweis() {
   return (
     <Link
@@ -243,13 +208,6 @@ function KontoVerweis() {
   );
 }
 
-/**
- * Die Einfuehrung noch einmal ansehen.
- *
- * Sie laeuft von selbst genau einmal. Ohne diesen Knopf waere der einzige
- * Weg zurueck, den localStorage zu leeren -- und damit auch alles andere,
- * was dort steht.
- */
 function Einfuehrung() {
   const { tourGesehen, setTourGesehen } = useSettings();
 
@@ -283,14 +241,6 @@ function Einfuehrung() {
   );
 }
 
-/**
- * Womit Gesprochenes zu Text wird.
- *
- * Als Liste und nicht als Auswahlfeld: der Unterschied zwischen den
- * Eintraegen ist nicht der Name, sondern wo die Aufnahme hingeht -- und
- * das steht in der Beschreibung, die ein zugeklapptes Feld verstecken
- * wuerde.
- */
 function Spracheingabe() {
   const modelle = useSttModels();
   const { transcribeModel, setTranscribeModel } = useSettings();
@@ -333,8 +283,6 @@ function Spracheingabe() {
               <button
                 type="button"
                 onClick={() =>
-                  // Das Default nicht festschreiben: so folgt die Wahl
-                  // weiterhin dem Backend, wenn sich dort etwas aendert.
                   setTranscribeModel(eintrag.id === standard ? null : eintrag.id)
                 }
                 className={cn(
@@ -389,14 +337,6 @@ function Ueberschrift() {
   );
 }
 
-/**
- * Womit vorgelesen wird -- Modell und Stimme.
- *
- * Dieselbe Liste wie bei der Spracheingabe, plus ein Feld fuer die
- * ElevenLabs-Stimme. Die Stimme gilt nur fuer ElevenLabs; der gratis
- * Rueckfall kennt keine Auswahl, deshalb steht das Feld nur dann, wenn ein
- * ElevenLabs-Modell gewaehlt ist.
- */
 function Vorlesen() {
   const modelle = useTtsModels();
   const { ttsModel, setTtsModel, voiceId, setVoiceId } = useSettings();
@@ -437,13 +377,6 @@ function Vorlesen() {
             <li key={eintrag.id}>
               <button
                 type="button"
-                // Immer die konkrete id speichern, nie null-fuer-Vorgabe wie
-                // bei der Spracheingabe: die Modellliste wird eine Sitzung
-                // lang zwischengespeichert, und ihr ``default`` kann von dem
-                // abweichen, was das Backend gerade wirklich als Vorgabe
-                // nimmt (z. B. weil der Schluessel spaeter dazukam). Wer hier
-                // waehlt, soll genau das bekommen -- nicht "was auch immer
-                // die Vorgabe war, als die Liste geladen wurde".
                 onClick={() => setTtsModel(eintrag.id)}
                 className={cn(
                   "flex w-full cursor-pointer items-start gap-2.5 rounded-lg px-2 py-2 text-left transition-colors",
@@ -482,8 +415,6 @@ function Vorlesen() {
         })}
       </ul>
 
-      {/* Die Stimme nur, wenn ElevenLabs spricht -- der gratis Dienst hat
-          keine Auswahl. Der Platzhalter zeigt die Vorgabe aus der .env. */}
       {istElevenlabs ? (
         <div className="mt-1 flex flex-col gap-1.5">
           <label className="text-[11px] text-muted-foreground/70">
@@ -540,32 +471,16 @@ function Schalter({
   );
 }
 
-/* ------------------------------------------------------------------ */
-/* Prompts                                                             */
-/* ------------------------------------------------------------------ */
-
-/**
- * Die Personas -- waehlen, schreiben, wegwerfen.
- *
- * Jeder Prompt ist eine .md-Datei im Backend. Das Anlegen legt eine an,
- * das Loeschen entfernt sie; das Auswaehlen bestimmt nur, welche der
- * naechste Turn benutzt, und bleibt auf diesem Rechner.
- */
 function Prompts() {
   const prompts = usePrompts();
   const { speichern, loeschen } = usePromptActions();
   const { prompt, setPrompt } = useSettings();
 
-  // null = nichts offen, "" = neuer Prompt, sonst der Name des bearbeiteten.
   const [bearbeitet, setBearbeitet] = React.useState<string | null>(null);
   const [name, setName] = React.useState("");
 
   const geladen = usePromptText(bearbeitet || null);
 
-  // null heisst "noch nichts getippt" -- dann gilt, was geladen wurde.
-  // Abgeleitet statt in einen Effekt kopiert: ein setState auf geladene
-  // Daten loeste eine zweite Renderrunde aus und wuerde ausserdem
-  // ueberschreiben, was jemand in der Zwischenzeit geschrieben hat.
   const [entwurf, setEntwurf] = React.useState<string | null>(null);
   const text = entwurf ?? geladen.data?.text ?? "";
   const setText = setEntwurf;
@@ -577,8 +492,6 @@ function Prompts() {
   const oeffnen = (fuer: string) => {
     setBearbeitet(fuer);
     setName(fuer);
-    // Beim Oeffnen zurueck auf "noch nichts getippt": ein neuer Prompt
-    // startet leer, ein bestehender mit dem, was geladen wird.
     setEntwurf(fuer === "" ? "" : null);
   };
 
@@ -732,8 +645,6 @@ function Prompts() {
                 >
                   <PencilLineIcon className="size-3.5" />
                 </button>
-                {/* Das Default bleibt: ohne es haette jeder Chat ohne
-                    eigene Wahl keine Persona mehr. */}
                 {eintrag.name !== standard ? (
                   <button
                     type="button"

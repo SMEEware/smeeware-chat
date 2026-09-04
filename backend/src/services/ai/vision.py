@@ -43,7 +43,6 @@ from src.services.tools.base import ToolError
 
 logger = get_logger(__name__)
 
-# (Magic Bytes, MIME) -- die vier Formate, die das Modell annimmt.
 SIGNATUREN: tuple[tuple[bytes, str], ...] = (
     (b"\xff\xd8\xff", "image/jpeg"),
     (b"\x89PNG\r\n\x1a\n", "image/png"),
@@ -69,8 +68,8 @@ class VisionError(ToolError):
 class Bild:
     """Ein einsatzbereites Bild -- entweder als URL oder eingebettet."""
 
-    block: dict[str, Any]  # fertiger image_url-Block fuer die API
-    herkunft: str  # was der Aufrufer angegeben hat (fuer Meldungen)
+    block: dict[str, Any]
+    herkunft: str
     mime: str | None = None
     bytes_: int = 0
     eingebettet: bool = False
@@ -110,7 +109,6 @@ class VisionService:
         self._cache_ttl = cache_ttl
         self._cache: dict[str, tuple[float, str]] = {}
 
-    # -- Eingang -------------------------------------------------------- #
 
     async def load(self, quelle: str | bytes, *, detail: str | None = None) -> Bild:
         """Macht aus einer beliebigen Quelle einen Block fuer die API."""
@@ -134,8 +132,6 @@ class VisionService:
         if pfad.is_file():
             return self._aus_bytes(_lesen(pfad, self._max_bytes), str(pfad), stufe)
 
-        # Nacktes Base64 ohne data:-Kopf kommt vor, wenn jemand nur den Rumpf
-        # kopiert. Erst pruefen, sonst waere die Fehlermeldung irrefuehrend.
         if len(text) > 100 and re.fullmatch(r"[A-Za-z0-9+/=\s]+", text):
             return self._aus_bytes(_base64_dekodieren(text), "base64 data", stufe)
 
@@ -149,13 +145,8 @@ class VisionService:
             raise VisionError(
                 f"The URL is {len(url)} characters long, the limit is {MAX_URL}."
             )
-        # Bei einer durchgereichten URL pruefen wir die Bytes nicht selbst --
-        # die Endung faengt aber die haeufigen Nichtbilder ab (das Modell legt
-        # gern SVGs im Speicher ab), bevor die API mit einem kargen 400 kontert.
         if grund := _endung_ungeeignet(url):
             raise VisionError(grund)
-        # Was von aussen nicht erreichbar ist, kann die API nicht laden --
-        # solche Bilder holen wir selbst und betten sie ein.
         if await _nur_intern(urlparse(url).hostname):
             logger.info("Nicht oeffentlich erreichbar, wird eingebettet: %s", url)
             return self._aus_bytes(await self._holen(url), url, detail)
@@ -219,7 +210,6 @@ class VisionService:
             )
         return antwort.content
 
-    # -- Der Aufruf ----------------------------------------------------- #
 
     async def ask(
         self,
@@ -262,8 +252,6 @@ class VisionService:
             antwort = await self._client.chat.completions.create(
                 model=self.model,
                 max_tokens=self._max_tokens,
-                # Bilder sind nur in User-Nachrichten erlaubt -- ein System-Prompt
-                # mit Bild quittiert die API mit 400.
                 messages=[{"role": "user", "content": inhalt}],
             )
         except openai.APIStatusError as exc:
@@ -290,13 +278,8 @@ class VisionService:
         return True
 
     async def aclose(self) -> None:
-        # Beide Clients gehoeren diesem Service -- der ServiceProvider baut
-        # sie beim Zusammenstecken eigens dafuer.
         await self._client.close()
         await self._http.aclose()
-
-
-# ---------------------------------------------------------------------- #
 
 
 def _format_erkennen(roh: bytes) -> str | None:
@@ -381,7 +364,7 @@ async def _nur_intern(host: str | None) -> bool:
             host, None, type=socket.SOCK_STREAM
         )
     except OSError:
-        return False  # Aufloesung scheitert hier -- die API mag mehr Glueck haben
+        return False
 
     for eintrag in adressen:
         try:

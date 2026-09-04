@@ -22,14 +22,6 @@ function istAbschnitt(wert: string | null): wert is Abschnitt {
   return wert === "account" || wert === "keys" || wert === "appearance";
 }
 
-/**
- * Die General Settings -- linke Navigation, rechts der Inhalt.
- *
- * Der offene Abschnitt steht in der Adresse (``?section=keys``): so kann die
- * Landing-Page direkt auf die Schluessel zeigen, und ein Neuladen bleibt am
- * selben Ort. Die Anmeldung prueft die Seite selbst -- wer nicht angemeldet
- * ist, hat hier nichts zu sehen und wird zur Anmeldung geschickt.
- */
 export function SettingsShell() {
   const konto = useAccount();
   const router = useRouter();
@@ -38,7 +30,6 @@ export function SettingsShell() {
   const roh = params.get("section");
   const aktiv: Abschnitt = istAbschnitt(roh) ? roh : "account";
 
-  // Nicht angemeldet -> zur Anmeldung, mit dem Rueckweg im Gepaeck.
   React.useEffect(() => {
     if (konto.isSuccess && !konto.data.authenticated) {
       const ziel = `/settings${aktiv === "account" ? "" : `?section=${aktiv}`}`;
@@ -61,8 +52,6 @@ export function SettingsShell() {
 
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-8 px-6 py-10 md:flex-row md:gap-12 md:py-14">
-      {/* Linke Navigation. Auf schmalen Fenstern eine waagerechte Leiste, die
-          quer scrollt, statt drei Zeilen zu stapeln. */}
       <nav className="flex shrink-0 gap-1 overflow-x-auto md:w-48 md:flex-col md:overflow-visible">
         {NAV.map((eintrag) => {
           const an = eintrag.id === aktiv;

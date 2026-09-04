@@ -13,9 +13,7 @@ import { cn } from "@/lib/utils";
 
 type ReasoningProps = {
   reasoning: string;
-  /** Der Turn laeuft noch. */
   streaming: boolean;
-  /** Es ist noch kein sichtbares Zeichen der Antwort da. */
   thinking: boolean;
   durationMs?: number;
 };
@@ -30,10 +28,8 @@ export function Reasoning({
 }: ReasoningProps) {
   const tailRef = React.useRef<HTMLDivElement>(null);
 
-  // Auch der Gedankengang kann Werkzeug-Geruest mitschleppen.
   const clean = stripToolScaffolding(reasoning);
 
-  // Die Vorschau laeuft mit dem Gedankengang mit.
   React.useEffect(() => {
     if (!thinking) return;
     const tail = tailRef.current;

@@ -53,17 +53,6 @@ logger = get_logger(__name__)
 
 T = TypeVar("T")
 
-# Was der Prompt sagen muss, wenn keine Werkzeuge dranhaengen.
-#
-# Der Prompt selbst beschreibt in eigenen Abschnitten Websuche, Shell und
-# Skills. Faellt die Toolbox weg, stehen diese Zusagen weiter im Kontext --
-# und das Modell tut, was ein Modell dann tut: es erfindet einen Aufruf,
-# meldet ein leeres Ergebnis und bietet an, es nochmal zu versuchen. Der
-# Nutzer sieht ein kaputtes Werkzeug statt eines abgeschalteten.
-#
-# Deshalb hier ein Widerruf, kein zusaetzliches Werkzeug: ein registriertes
-# "Werkzeuge sind aus"-Werkzeug koennte das Modell aufrufen, was eine Runde
-# kostet und es erst *danach* schlauer macht. Der Prompt weiss es vorher.
 WERKZEUGE_AUS = """## Keine Werkzeuge in diesem Gespräch
 
 Die Werkzeuge sind abgeschaltet. Alles, was oben über Websuche, Seiten
@@ -99,15 +88,9 @@ class ServiceProvider:
     def __init__(self, settings: Settings | None = None) -> None:
         self.settings = settings or get_settings()
         self._instances: dict[str, Any] = {}
-        # Beim Start gerendert: die Skill-Uebersicht fuer den System-Prompt.
         self._skills_block = ""
-        # Letzter Erreichbarkeits-Ping an Ollama: (Zeitpunkt, erreichbar?).
-        # Kurz gecacht, damit die Modell-Liste nicht bei jedem Aufruf wartet.
         self._ollama_probe: tuple[float, bool] | None = None
 
-    # ------------------------------------------------------------------ #
-    # Services                                                            #
-    # ------------------------------------------------------------------ #
 
     @property
     def llm(self) -> LLMProvider:
@@ -410,8 +393,6 @@ class ServiceProvider:
     def tts_default(self) -> str:
         """Welches Modell die Vorgabe ist -- haengt am Schluessel."""
         gewuenscht = self.settings.tts.default_model
-        # Auf die Vorgabe fallen, falls das eingestellte Modell einen
-        # Schluessel braucht, den es gerade nicht gibt.
         return tts_catalog.resolve(
             gewuenscht, elevenlabs=self._hat_elevenlabs
         ).id
@@ -456,18 +437,10 @@ class ServiceProvider:
             if self._skills_block:
                 system_prompt = f"{system_prompt}\n\n{self._skills_block}"
         else:
-            # Die Skill-Uebersicht faellt mit weg: sie aufzuzaehlen waere
-            # derselbe Fehler noch einmal -- use_skill ist selbst ein
-            # Werkzeug und steht gerade nicht zur Verfuegung.
             system_prompt = f"{system_prompt}\n\n{WERKZEUGE_AUS}"
         return Agent(
             self.provider_for(runtime),
             system_prompt=system_prompt,
-            # Ohne Werkzeuge eine leere Box statt None: der Ablauf im Agenten
-            # braucht so keinen Sonderfall.
-            # Ohne Werkzeuge bleibt genau eines: der Hinweis. Er ruft nichts
-            # ab und veraendert nichts -- ihn mit abzuschalten hiesse, dem
-            # Modell die Stimme zu nehmen statt eine Faehigkeit.
             toolbox=self.toolbox if tools else self.notify_toolbox,
             max_tool_rounds=self.settings.mcp_max_tool_rounds,
         )
@@ -478,15 +451,11 @@ class ServiceProvider:
             logger.info("VISION_ENABLED=false -- kein Vision-Modell")
             return None
 
-        # Ohne eigenen Schluessel den des Hauptproviders nehmen: bei DeepSeek
-        # ist es dieselbe API, nur ein anderes Modell.
         schluessel = vision.api_key or self.settings.llm.api_key
         return VisionService(
             api_key=schluessel.get_secret_value(),
             model=vision.model,
             base_url=vision.base_url or self.settings.llm.base_url,
-            # Eigener HTTP-Client: nur fuer Bilder, die die API nicht selbst
-            # laden kann. Der Service schliesst ihn in aclose.
             http=httpx.AsyncClient(
                 timeout=vision.timeout,
                 headers={"User-Agent": self.settings.tools.user_agent},
@@ -532,9 +501,6 @@ class ServiceProvider:
         if not cfg.skills_enabled:
             logger.info("SKILLS_ENABLED=false -- keine Skills")
             return None
-        # Modell-gepflegte Skills liegen jetzt lokal unter data/skills -- kein
-        # mc, kein Bucket mehr. Der Ordner entsteht beim ersten Speichern; ihn
-        # hier anzulegen schadet nicht und macht ihn im Finder sichtbar.
         cfg.skills_data_dir.mkdir(parents=True, exist_ok=True)
         return SkillLibrary(
             local_dir=cfg.skills_dir,
@@ -571,16 +537,11 @@ class ServiceProvider:
                 skills=self.skills,
                 bus=self.events,
                 hinweise=self.notifications_intern,
-                # Fuer den Systemcheck: laeuft ein lokales Modell und
-                # belegt es gerade Speicher?
                 ollama_url=(
                     self.settings.ollama.base_url
                     if self.settings.ollama.enabled
                     else None
                 ),
-                # Erzeugte Bilder landen bei den Anhaengen: dieselbe Route
-                # holt sie ab, und ein wieder geoeffneter Chat findet sie
-                # genauso wieder wie ein hochgeladenes Bild.
                 images=self.settings.images,
                 openai_key=(
                     self.settings.openai.api_key.get_secret_value()
@@ -606,17 +567,6 @@ class ServiceProvider:
 
         return CompositeToolBox(boxes) if len(boxes) > 1 else boxes[0]
 
-    # Naechster Baustein -- Supabase liegt bereits im venv:
-    #
-    # @property
-    # def supabase(self) -> AsyncClient:
-    #     if self.settings.supabase is None:
-    #         raise ConfigurationError("Supabase ist nicht konfiguriert.")
-    #     return self._singleton("supabase", lambda: create_client(...))
-
-    # ------------------------------------------------------------------ #
-    # Lifecycle                                                           #
-    # ------------------------------------------------------------------ #
 
     async def startup(self) -> None:
         """Eifrig erzeugen, was beim ersten Request nicht scheitern soll.
@@ -625,19 +575,13 @@ class ServiceProvider:
         wieder geschlossen -- beides in derselben Task, sonst raeumt anyio
         die Cancel-Scopes an der falschen Stelle ab.
         """
-        # Tabelle jetzt anlegen, damit der erste Request nicht auf ein
-        # fehlendes Schema laeuft.
         if (chats := self.chats) is not None:
             await chats.ensure_schema()
-            # Konto liegt in derselben Datei -- ohne Chats gibt es auch
-            # nichts zu schuetzen.
             await self.accounts.ensure_schema()
             await self.notifications.ensure_schema()
             await self.api_keys.ensure_schema()
             if (oeffentlich := self.public_chats) is not None:
                 await oeffentlich.ensure_schema()
-        # Skill-Uebersicht rendern, BEVOR der Agent gebaut wird -- sonst
-        # traegt sein System-Prompt die Skills noch nicht.
         if self.skills is not None:
             self._skills_block = await _render_skills(self.skills)
         _ = self.agent
@@ -652,10 +596,6 @@ class ServiceProvider:
 
     async def aclose(self) -> None:
         """Gibt alle erzeugten Services frei -- zuletzt erzeugte zuerst."""
-        # Zuerst die offenen Ereignis-Stroeme: sie laufen endlos, und
-        # uvicorn wartet beim Herunterfahren auf sie. Nur wenn der Bus
-        # ueberhaupt schon gebaut wurde -- ihn hier zu erzeugen waere
-        # verkehrt herum.
         if (bus := self._instances.get("events")) is not None:
             bus.stilllegen()
 
@@ -671,9 +611,6 @@ class ServiceProvider:
         self._instances.clear()
         logger.info("ServiceProvider heruntergefahren")
 
-    # ------------------------------------------------------------------ #
-    # Test-Hilfen                                                         #
-    # ------------------------------------------------------------------ #
 
     def override(self, **services: Any) -> None:
         """Ersetzt Services durch Fakes -- ausschliesslich fuer Tests."""

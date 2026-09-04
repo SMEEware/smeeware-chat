@@ -2,7 +2,6 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-/** Ein Schluessel, wie ihn die Liste zeigt -- nie das Geheimnis selbst. */
 export type ApiKey = {
   id: string;
   name: string;
@@ -11,26 +10,22 @@ export type ApiKey = {
   last_used_at: string | null;
 };
 
-/** Die Antwort beim Anlegen -- als Einzige traegt sie den Klartext. */
 export type ApiKeyCreated = ApiKey & { secret: string };
 
 type Liste = { count: number; keys: ApiKey[] };
 
 export const apiKeysKey = ["api-keys"] as const;
 
-/** Die Fehlermeldung des Backends ziehen -- sonst bleibt nur der Status. */
 async function fehlerAus(antwort: Response): Promise<string> {
   let meldung = `HTTP ${antwort.status}`;
   try {
     const nutzlast = await antwort.json();
     meldung = nutzlast?.error?.message ?? meldung;
   } catch {
-    // Kein JSON -- der Status muss reichen.
   }
   return meldung;
 }
 
-/** Die Schluessel des Kontos. Erfordert eine Anmeldung -- sonst 401. */
 export function useApiKeys() {
   return useQuery<Liste>({
     queryKey: apiKeysKey,
@@ -48,10 +43,6 @@ export function useApiKeyActions() {
   const client = useQueryClient();
   const neu = () => client.invalidateQueries({ queryKey: apiKeysKey });
 
-  /**
-   * Anlegen. Gibt den Klartext zurueck -- der Aufrufer zeigt ihn genau
-   * einmal und kann ihn danach nicht mehr erfragen.
-   */
   const anlegen = useMutation<ApiKeyCreated, Error, string>({
     mutationFn: async (name) => {
       const antwort = await fetch("/api/keys", {
@@ -84,8 +75,6 @@ export function useApiKeyActions() {
       });
       if (!antwort.ok) throw new Error(await fehlerAus(antwort));
     },
-    // Sofort aus der Liste nehmen -- das Ergebnis ist absehbar, und ein
-    // Zucken nach dem Klick waere schlechter als ein seltener Rueckfall.
     onMutate: async (id) => {
       await client.cancelQueries({ queryKey: apiKeysKey });
       const vorher = client.getQueryData<Liste>(apiKeysKey);

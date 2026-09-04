@@ -11,11 +11,9 @@ import {
 export type HttpMethod = "GET" | "POST" | "PATCH" | "DELETE";
 
 export type DocPage = {
-  /** Leeres Slug = /docs. Sonst der Pfad hinter /docs. */
   slug: string;
   title: string;
   description: string;
-  /** Nur bei Endpoint-Seiten -- faerbt das Kuerzel in der Navigation. */
   method?: HttpMethod;
 };
 
@@ -227,12 +225,10 @@ export const docsNavigation: DocGroup[] = [
   },
 ];
 
-/** Icon fuer die Startkacheln auf der Uebersichtsseite. */
 export const docsHighlightIcon = RocketIcon;
 
 export const hrefForSlug = (slug: string) => (slug ? `/docs/${slug}` : "/docs");
 
-/** Alle Seiten in Navigationsreihenfolge -- Basis fuer Suche und Pager. */
 export const flatDocPages: (DocPage & { href: string; group: string })[] =
   docsNavigation.flatMap((group) =>
     group.pages.map((page) => ({
@@ -245,7 +241,6 @@ export const flatDocPages: (DocPage & { href: string; group: string })[] =
 export const findDocPage = (slug: string) =>
   flatDocPages.find((page) => page.slug === slug);
 
-/** Vorherige und naechste Seite fuer die Blaetternavigation am Seitenende. */
 export function docNeighbours(slug: string) {
   const index = flatDocPages.findIndex((page) => page.slug === slug);
   if (index === -1) return { previous: undefined, next: undefined };
@@ -255,7 +250,6 @@ export function docNeighbours(slug: string) {
   };
 }
 
-/** Breadcrumb-Pfad: Gruppe + Seitentitel. */
 export function docBreadcrumb(slug: string) {
   const group = docsNavigation.find((candidate) =>
     candidate.pages.some((page) => page.slug === slug),

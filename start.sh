@@ -1,21 +1,15 @@
 #!/usr/bin/env bash
 
-# Server Shell Script (mit flags wie -dev und -build und so)
-
 set -euo pipefail
 
 BACKEND_DIR="/home/smee/smeeware-chat/backend"
 FRONTEND_DIR="/home/smee/smeeware-chat/frontend"
 MODE="dev"
 
-# Liest das Frontend zur Laufzeit (lib/chat/backend.ts). Von aussen ueberschreibbar:
-#   LLM_STREAM_URL=http://... ./start.sh -build
 export LLM_STREAM_URL="${LLM_STREAM_URL:-http://127.0.0.1:8000/api/v1/chat/stream}"
 
-# Setzt "npm ci" aus, wenn du die Abhaengigkeiten selbst verwaltest.
 SKIP_DEPS="${SKIP_DEPS:-0}"
 
-# -shell: das Werkzeug run_shell fuer diesen Lauf einschalten.
 SHELL_TOOL=0
 
 usage() {
@@ -46,10 +40,6 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-# ---------- Preflight --------------------------------------------------------
-# Alles pruefen, bevor irgendein Prozess laeuft. Ein Abbruch mitten im Start
-# laesst sonst ein Backend ohne Frontend zurueck.
-
 for verzeichnis in "$BACKEND_DIR" "$FRONTEND_DIR"; do
   if [[ ! -d "$verzeichnis" ]]; then
     echo "FEHLER: $verzeichnis existiert nicht" >&2
@@ -57,16 +47,12 @@ for verzeichnis in "$BACKEND_DIR" "$FRONTEND_DIR"; do
   fi
 done
 
-# --- Backend: venv ---
 if [[ ! -f "$BACKEND_DIR/.venv/bin/activate" ]]; then
   echo "FEHLER: $BACKEND_DIR/.venv nicht gefunden" >&2
   echo "        python3 -m venv .venv && .venv/bin/pip install -r requirements.txt" >&2
   exit 1
 fi
 
-# Ein vom Entwicklungsrechner kopiertes .venv sieht vollstaendig aus, laesst
-# sich aber nicht starten: die Pfade darin zeigen woanders hin und die
-# kompilierten Module sind fuer die falsche Plattform gebaut.
 if ! "$BACKEND_DIR/.venv/bin/python" -c "import sys" >/dev/null 2>&1; then
   echo "FEHLER: $BACKEND_DIR/.venv laesst sich nicht ausfuehren." >&2
   echo "        Vermutlich von einem anderen Rechner kopiert -- neu anlegen:" >&2
@@ -74,11 +60,6 @@ if ! "$BACKEND_DIR/.venv/bin/python" -c "import sys" >/dev/null 2>&1; then
   exit 1
 fi
 
-# --- Frontend: node_modules ---
-
-# Native Pakete tragen die Plattform im Namen (@next/swc-darwin-arm64,
-# lightningcss-darwin-x64 ...). Liegen macOS-Pakete in einem Baum, der hier
-# auf Linux laufen soll, stammt node_modules aus einem rsync und ist Schrott.
 fremde_binaries() {
   if [[ "$(uname -s)" == "Darwin" ]]; then
     return 1
@@ -106,15 +87,12 @@ abhaengigkeiten_pruefen() {
     grund="node_modules fehlt"
   elif fremde_binaries; then
     grund="node_modules stammt von macOS"
-  # npm legt diese Datei bei jeder Installation an. Ist sie aelter als das
-  # Lockfile, wurde seither eine Abhaengigkeit geaendert.
   elif [[ package-lock.json -nt node_modules/.package-lock.json ]]; then
     grund="package-lock.json ist neuer als die Installation"
   fi
 
   if [[ -n "$grund" ]]; then
     echo ">> $grund -- installiere neu (npm ci)"
-    # ci braucht die devDependencies: ohne sie laeuft "next build" nicht.
     rm -rf node_modules
     npm ci
   fi
@@ -128,7 +106,6 @@ if [[ "$MODE" == "dev" ]]; then
   echo ">>          Chunks mit 403. Fuer den Server: ./start.sh -build"
 fi
 
-# ---------- Backend ----------------------------------------------------------
 BACKEND_PID=""
 cleanup() {
   if [[ -n "$BACKEND_PID" ]] && kill -0 "$BACKEND_PID" 2>/dev/null; then
@@ -139,11 +116,6 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
-# backend/.env setzt SHELL_ENABLED=false. Das Backend liest die Datei mit
-# load_dotenv() ohne override=True, also gewinnt eine Variable, die hier schon
-# in der Umgebung steht -- der Schalter gilt nur fuer diesen Lauf, die Datei
-# bleibt unveraendert. Ohne -shell exportieren wir nichts, dann entscheidet
-# weiterhin die .env.
 if [[ "$SHELL_TOOL" == "1" ]]; then
   export SHELL_ENABLED=true
   echo ">> SHELL_ENABLED=true -- run_shell ist aktiv (laeuft mit den Rechten"
@@ -160,7 +132,6 @@ python run.py &
 BACKEND_PID=$!
 echo ">> Backend läuft (PID $BACKEND_PID)"
 
-# kurz warten und prüfen, ob das Backend nicht sofort gestorben ist
 sleep 2
 if ! kill -0 "$BACKEND_PID" 2>/dev/null; then
   echo "FEHLER: Backend ist beim Start abgestürzt" >&2
@@ -168,7 +139,6 @@ if ! kill -0 "$BACKEND_PID" 2>/dev/null; then
   exit 1
 fi
 
-# ---------- Frontend ---------------------------------------------------------
 echo ">> Frontend: $FRONTEND_DIR (Modus: $MODE)"
 echo ">> LLM_STREAM_URL=$LLM_STREAM_URL"
 cd "$FRONTEND_DIR"

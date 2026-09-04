@@ -79,16 +79,6 @@ function TabsContent({ className, ...props }: TabsPrimitive.Panel.Props) {
   )
 }
 
-/**
- * Ein einzelner Unterstrich, der zum aktiven Reiter gleitet -- statt eines
- * eigenen Strichs pro Reiter, der nur ein- und ausblendet.
- *
- * Base UI legt dafuer die Masse des aktiven Reiters als CSS-Variablen an
- * (`--active-tab-left`, `--active-tab-width`, ... jeweils mit `px`). Wir
- * setzen Breite und Verschiebung daraus und lassen den Uebergang den Rest
- * tun. Voreingestellt fuer waagerechte "line"-Reiter (unten am Rand); die
- * Liste muss `relative` sein, damit der Strich sich an ihr ausrichtet.
- */
 function TabsIndicator({
   className,
   ...props

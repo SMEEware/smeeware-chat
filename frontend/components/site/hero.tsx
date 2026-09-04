@@ -40,10 +40,6 @@ export function Hero() {
   );
 }
 
-/**
- * Die Schichten hinter dem Text: Raster, Punkte, zwei Farbschleier in der
- * Markenfarbe und ein weicher Abschluss nach unten. Alles rein dekorativ.
- */
 function HeroBackdrop() {
   return (
     <div aria-hidden className="pointer-events-none absolute inset-0 -z-10">
@@ -63,9 +59,6 @@ function HeroBackdrop() {
         speedMax={1.4}
       />
 
-      {/* Im Hellen ein weicher schwarzer Schleier statt Rot -- das Rot wirkte
-          auf Weiss blass und schmutzig. Im Dunkeln bleibt es die Markenfarbe;
-          das ``dark:`` ueberschreibt die Grundfarbe nur dort. */}
       <div className="hero-aurora absolute -top-48 left-1/3 size-[36rem] rounded-full bg-black/10 blur-[130px] dark:bg-primary/35" />
       <div className="hero-aurora-slow absolute top-1/4 -right-32 size-[30rem] rounded-full bg-black/6 blur-[130px] dark:bg-primary/25" />
 
@@ -151,21 +144,13 @@ function HeroCopy() {
 const ANSWER =
   "Everything stayed here: the model ran on your machine, the tools read your files, and the answer streamed straight back.";
 
-/** Verzoegerung je Schritt in ms. Schritt 4 tippt und wartet selbst. */
 const STEP_DELAYS = [520, 1000, 1150, 950, 0, 500];
 
-/**
- * Ein kleiner Nachbau des Chats: Frage, Gedankengang, Werkzeugaufruf und
- * die tippende Antwort -- dieselben Bausteine wie im echten Verlauf, nur
- * als Schleife. Rein dekorativ, deshalb aria-hidden.
- */
 function HeroPreview() {
   const reduced = useReducedMotion();
   const [step, setStep] = React.useState(0);
   const [typed, setTyped] = React.useState(0);
 
-  // Ohne Bewegung wird der Endzustand nur abgeleitet -- die Schleife
-  // unten laeuft dann gar nicht erst an.
   const shownStep = reduced ? 4 : step;
   const shownTyped = reduced ? ANSWER.length : typed;
 
@@ -205,7 +190,6 @@ function HeroPreview() {
       <div className="absolute -inset-8 -z-10 rounded-[2.5rem] bg-primary/20 blur-3xl dark:bg-primary/25" />
 
       <div className="overflow-hidden rounded-3xl border bg-card/80 shadow-2xl shadow-black/10 ring-1 ring-black/5 backdrop-blur-xl dark:shadow-black/40 dark:ring-white/10">
-        {/* Kopfzeile: Fensterpunkte, Modell, Ort der Ausfuehrung */}
         <div className="flex items-center gap-3 border-b bg-muted/30 px-4 py-3">
           <div className="flex gap-1.5">
             <span className="size-2 rounded-full bg-muted-foreground/25" />
@@ -221,10 +205,8 @@ function HeroPreview() {
           </span>
         </div>
 
-        {/* Verlauf: staffelt sich von unten auf, damit nichts springt */}
         <div className="flex h-[19rem] flex-col justify-end gap-3 px-4 py-4 sm:h-[20rem]">
           <PreviewItem show={shownStep >= 1} className="self-end">
-            {/* Dieselbe Form wie die echte eigene Nachricht: outline, rechts. */}
             <div className="w-fit max-w-[85%] rounded-3xl border bg-background px-4 py-3 text-sm leading-relaxed shadow-sm">
               Does any of this leave my machine?
             </div>
@@ -271,7 +253,6 @@ function HeroPreview() {
           </PreviewItem>
         </div>
 
-        {/* Eingabezeile -- dieselbe Form wie im Chat */}
         <div className="border-t bg-muted/20 p-3">
           <div className="flex items-center gap-2 rounded-full border bg-background/70 py-1.5 pr-1.5 pl-3">
             <PaperclipIcon className="size-4 shrink-0 text-muted-foreground" />
@@ -289,7 +270,6 @@ function HeroPreview() {
   );
 }
 
-/** Ein Element des Verlaufs, das beim Erscheinen kurz aufsteigt. */
 function PreviewItem({
   show,
   className,

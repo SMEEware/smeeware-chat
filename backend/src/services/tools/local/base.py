@@ -57,8 +57,6 @@ class LocalToolBox(ToolBox):
                 is_error=True,
             )
 
-        # Das Modell erfindet gelegentlich Parameter. Unbekannte wegwerfen ist
-        # freundlicher als ein TypeError, den es nicht deuten kann.
         accepted = _accepted_parameters(tool)
         arguments = {k: v for k, v in call.arguments.items() if k in accepted}
         verworfen = set(call.arguments) - set(arguments)
@@ -68,8 +66,6 @@ class LocalToolBox(ToolBox):
         try:
             content = await tool.run(**arguments)
         except ToolError as exc:
-            # Vom Werkzeug bewusst gemeldeter Fehler -- Meldung unveraendert
-            # weiterreichen, aber als Fehler markieren (is_error).
             logger.info("Werkzeug %s meldet Fehler: %s", call.name, str(exc)[:160])
             return _fehler(call, str(exc))
         except TypeError as exc:

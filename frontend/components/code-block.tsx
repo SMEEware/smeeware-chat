@@ -9,9 +9,7 @@ import { cn } from "@/lib/utils";
 
 type CodeBlockProps = {
   code: string;
-  /** Sprache aus dem Zaun bzw. der Doku-Definition. */
   language?: string;
-  /** Ueberschreibt die Sprache in der Kopfzeile, etwa "stream.ts". */
   filename?: string;
   className?: string;
 };
@@ -39,12 +37,8 @@ export function CodeBlock({
       .then((result) => {
         if (!cancelled) setHtml(result);
       })
-      // Faerben ist Zierde. Schlaegt es fehl, bleibt der Klartext stehen.
       .catch(() => {});
 
-    // Waehrend des Streamens loesen die Tokens diesen Effekt schnell
-    // hintereinander aus; die alten Durchlaeufe duerfen das Ergebnis des
-    // neuesten nicht ueberschreiben.
     return () => {
       cancelled = true;
     };
@@ -54,8 +48,6 @@ export function CodeBlock({
     try {
       await navigator.clipboard.writeText(code);
     } catch {
-      // Ohne sicheren Kontext gibt es kein Clipboard -- dann bleibt der
-      // Text markierbar und der Knopf still.
       return;
     }
     setCopied(true);
@@ -88,14 +80,11 @@ export function CodeBlock({
       </div>
 
       {html ? (
-        // Shiki maskiert den Code beim Erzeugen -- siehe lib/highlight.ts.
         <div
           className="code-block-body"
           dangerouslySetInnerHTML={{ __html: html }}
         />
       ) : (
-        // Gleiche Masse wie die gefaerbte Fassung, damit beim Wechsel
-        // nichts springt.
         <div className="code-block-body overflow-x-auto">
           <pre className="p-4 font-mono text-[13px] leading-relaxed">
             <code>{code}</code>

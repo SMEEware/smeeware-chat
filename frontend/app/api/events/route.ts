@@ -3,16 +3,6 @@ import type { NextRequest } from "next/server";
 import { SESSION_COOKIE, SESSION_HEADER } from "@/lib/auth/session";
 import { EVENTS_ENDPOINT } from "@/lib/chat/backend";
 
-/**
- * Der Rueckkanal vom Backend, durchgereicht wie der Chat-Stream.
- *
- * Genau deshalb Server-Sent Events und kein WebSocket: eine Route wie diese
- * kann einen SSE-Koerper unveraendert weiterleiten und dabei das
- * httpOnly-Cookie in den Header uebersetzen, den das Backend liest. Ein
- * WebSocket liesse sich hier nicht durchreichen -- der Browser muesste am
- * Proxy vorbei direkt ans Backend, und die Sitzungskennung koennte er dabei
- * nicht mitgeben, weil sie fuer Skripte unlesbar ist.
- */
 export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
@@ -22,7 +12,6 @@ export async function GET(request: NextRequest) {
   try {
     upstream = await fetch(EVENTS_ENDPOINT, {
       headers: sitzung ? { [SESSION_HEADER]: sitzung } : undefined,
-      // Kein Zeitlimit: der Strom soll offen bleiben.
       signal: request.signal,
       cache: "no-store",
     });

@@ -35,7 +35,6 @@ logger = get_logger(__name__)
 
 MAX_CHARS = 12_000
 
-# Wandert in einen oeffentlichen Bucket -- diese Pfade also nie.
 GESPERRTE_QUELLEN: tuple[tuple[re.Pattern[str], str], ...] = (
     (re.compile(r"/\.ssh/", re.I), "an SSH directory"),
     (re.compile(r"/\.mc/config\.json$", re.I), "mc credentials"),
@@ -48,7 +47,6 @@ GESPERRTE_QUELLEN: tuple[tuple[re.Pattern[str], str], ...] = (
     (re.compile(r"/Library/Keychains/|/etc/(shadow|sudoers)", re.I), "a system secret"),
 )
 
-# Was ``storage_get`` direkt in den Chat schreiben darf.
 TEXTARTIG = re.compile(
     r"^text/|^application/(json|xml|javascript|x-yaml|x-sh|sql|toml)|\+xml$|\+json$",
     re.I,
@@ -86,7 +84,6 @@ class McClient:
         self.config_dir = config_dir
         self.timeout = timeout
 
-    # -- Adressen ------------------------------------------------------- #
 
     def key(self, roh: str) -> str:
         """Normalisiert einen Objektnamen und nagelt ihn auf den Bucket fest.
@@ -99,9 +96,6 @@ class McClient:
         if not name:
             raise McError("No file name given.")
 
-        # Volle URL oder mc-Adresse: den bekannten Vorsatz abziehen. Zeigt er
-        # auf einen *anderen* Bucket, ist das ein Versehen -- sonst entstuende
-        # still ein Objekt namens "assets/logo.png" im eigenen Bucket.
         for vorsatz in (f"{self.public_base}/", f"{self.alias}/"):
             if name.startswith(vorsatz):
                 rest = name[len(vorsatz) :].lstrip("/")
@@ -145,7 +139,6 @@ class McClient:
         pfad = f"{self.prefix}/{key}" if self.prefix else key
         return f"{self.public_base}/{self.bucket}/{quote(pfad)}"
 
-    # -- Aufrufe -------------------------------------------------------- #
 
     async def run(
         self, *args: str, timeout: float | None = None
@@ -165,8 +158,6 @@ class McClient:
         except FileNotFoundError as exc:
             raise McError(f"{self.binary!r} not found: {exc}") from exc
 
-        # ``timeout or self.timeout`` waere hier falsch: bei 0 (kein Limit)
-        # fiele es auf self.timeout zurueck. Deshalb explizit auf None pruefen.
         grenze = timeout if timeout is not None else self.timeout
         try:
             if grenze and grenze > 0:
@@ -301,7 +292,6 @@ class StoragePutTool(_StorageTool):
                     "use 'local_path'."
                 )
             ziel = self._mc.key(key)
-            # Temporaerdatei mit derselben Endung: daran erkennt mc den MIME-Typ.
             with tempfile.NamedTemporaryFile(
                 "w", suffix=Path(ziel).suffix or ".txt", delete=False, encoding="utf-8"
             ) as datei:
@@ -391,8 +381,6 @@ class StorageListTool(_StorageTool):
 
     async def run(self, prefix: str = "", limit: int = 100) -> str:
         try:
-            # mc liefert die Namen *relativ* zum aufgelisteten Ordner -- fuer
-            # Anzeige und URL muss der Ordner wieder davor.
             basis = self._mc.key(prefix).rstrip("/") if prefix else ""
             eintraege = await self._mc.json_lines(
                 "ls", "--recursive", self._mc.target(basis)
@@ -544,9 +532,6 @@ class StorageDeleteTool(_StorageTool):
                 return f"Nothing was under {schluessel}/ -- nothing deleted."
             return f"Deleted: {len(entfernt)} object(s) under {schluessel}/."
         return f"Deleted: {schluessel}."
-
-
-# ---------------------------------------------------------------------- #
 
 
 def _fehlertext(eintrag: dict[str, Any]) -> str:

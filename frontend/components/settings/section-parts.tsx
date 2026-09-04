@@ -2,14 +2,6 @@ import * as React from "react";
 
 import { cn } from "@/lib/utils";
 
-/**
- * Die kleinen, geteilten Bausteine der Einstellungsseite.
- *
- * An einer Stelle, damit Account- und Schluessel-Abschnitt dieselbe Sprache
- * sprechen: dieselbe Ueberschrift, dieselbe Kartenkante. Eine Kopie je
- * Abschnitt liefe frueher oder spaeter auseinander.
- */
-
 export function SectionHeader({
   titel,
   text,

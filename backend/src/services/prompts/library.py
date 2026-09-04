@@ -21,7 +21,6 @@ logger = get_logger(__name__)
 
 PLACEHOLDER = re.compile(r"\{\{([A-Z_][A-Z0-9_]*)\}\}")
 SUFFIXES = (".md", ".txt")
-# Kein Pfad, keine Punkte -- der Name darf nie aus dem Verzeichnis herausfuehren.
 VALID_NAME = re.compile(r"^[a-zA-Z0-9_-]{1,64}$")
 
 
@@ -145,8 +144,6 @@ class PromptLibrary:
             schluessel = match.group(1)
             if schluessel in self._variables:
                 return self._variables[schluessel]
-            # Unbekannte Platzhalter bleiben stehen: sichtbar im Prompt ist
-            # besser als stillschweigend leer.
             logger.warning("Platzhalter {{%s}} hat keinen Wert", schluessel)
             return match.group(0)
 

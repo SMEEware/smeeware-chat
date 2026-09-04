@@ -1,15 +1,3 @@
-/**
- * Was ein Link auf ein Video ist -- und was fuer eines.
- *
- * Zwei Sorten, weil zwei Abspielwege: eine Plattform laeuft nur in ihrem
- * eigenen Rahmen, eine Datei laeuft im ``<video>``-Element des Browsers.
- * Alles andere ist kein Video und bleibt ein Link.
- *
- * Die Unterscheidung zaehlt an zwei Stellen im Markdown: eine Adresse in
- * Bildschreibweise (``![x](...)``) darf nicht als Bild landen, wenn sie auf
- * ein Video zeigt -- sonst sieht man ein kaputtes Bild statt eines Players.
- */
-
 export type Anbieter =
   | "youtube"
   | "vimeo"
@@ -34,7 +22,6 @@ const MIME: Record<string, string> = {
   ogv: "video/ogg",
 };
 
-/** Wie die Anbieter heissen, wenn man sie benennen muss. */
 export const ANBIETER_NAME: Record<Anbieter, string> = {
   youtube: "YouTube",
   vimeo: "Vimeo",
@@ -45,13 +32,6 @@ export const ANBIETER_NAME: Record<Anbieter, string> = {
   bilibili: "Bilibili",
 };
 
-/**
- * Die id aus den Formen, in denen die Links vorkommen.
- *
- * Der Wirtsname wird exakt geprueft, nicht per "enthaelt": sonst gilt
- * ``youtube.com.fremde.example`` als YouTube, und wir betten eine fremde
- * Seite ein.
- */
 function erkenne(url: URL): { anbieter: Anbieter; id: string } | null {
   const host = url.hostname.replace(/^www\./, "");
   const pfad = url.pathname;
@@ -71,20 +51,16 @@ function erkenne(url: URL): { anbieter: Anbieter; id: string } | null {
   }
 
   if (host === "vimeo.com" || host === "player.vimeo.com") {
-    // /123456789 und /video/123456789
     const treffer = /^\/(?:video\/)?(\d+)/.exec(pfad);
     return treffer ? { anbieter: "vimeo", id: treffer[1] } : null;
   }
 
   if (host === "dailymotion.com" || host === "dai.ly") {
-    // /video/x5x6kv2, /embed/video/x5x6kv2, und dai.ly/x5x6kv2
     const treffer = /^\/(?:embed\/)?(?:video\/)?([a-z0-9]+)/i.exec(pfad);
     return treffer ? { anbieter: "dailymotion", id: treffer[1] } : null;
   }
 
   if (host === "twitch.tv" || host === "m.twitch.tv") {
-    // Nur Aufzeichnungen: ein Kanal-Link zeigt auf einen Live-Stream, der
-    // morgen etwas voellig anderes sein kann.
     const treffer = /^\/videos\/(\d+)/.exec(pfad);
     return treffer ? { anbieter: "twitch", id: treffer[1] } : null;
   }
@@ -107,7 +83,6 @@ function erkenne(url: URL): { anbieter: Anbieter; id: string } | null {
   return null;
 }
 
-/** null = kein Video. Dann bleibt der Link ein Link. */
 export function videoQuelle(roh: string | undefined): VideoQuelle | null {
   if (!roh) return null;
 
@@ -118,8 +93,6 @@ export function videoQuelle(roh: string | undefined): VideoQuelle | null {
     return null;
   }
 
-  // Nur http(s): ein data:- oder blob:-Video in einer Modellantwort waere
-  // kein Fund, sondern ein Verdachtsfall.
   if (url.protocol !== "http:" && url.protocol !== "https:") return null;
 
   const plattform = erkenne(url);
@@ -135,7 +108,6 @@ export function videoQuelle(roh: string | undefined): VideoQuelle | null {
   return null;
 }
 
-/** Das Vorschaubild, ohne den Player zu laden. Nur YouTube gibt eines her. */
 export function vorschauBild(quelle: VideoQuelle): string | null {
   if (quelle.kind === "embed" && quelle.anbieter === "youtube") {
     return `https://i.ytimg.com/vi/${quelle.id}/hqdefault.jpg`;
@@ -143,7 +115,6 @@ export function vorschauBild(quelle: VideoQuelle): string | null {
   return null;
 }
 
-/** Sparsame Einbettung: nichts wird geladen, bis wirklich abgespielt wird. */
 export function embedUrl(quelle: VideoQuelle, autoplay: boolean): string | null {
   if (quelle.kind !== "embed") return null;
 
@@ -168,9 +139,6 @@ export function embedUrl(quelle: VideoQuelle, autoplay: boolean): string | null 
       return `https://www.dailymotion.com/embed/video/${quelle.id}?${p}`;
     }
     case "twitch": {
-      // Twitch verlangt den einbettenden Wirt als Parameter -- ohne ihn
-      // bleibt der Player schwarz. Auf dem Server gibt es kein window,
-      // dort ist der Wert egal: gerendert wird das ohnehin im Browser.
       const wirt =
         typeof window === "undefined" ? "localhost" : window.location.hostname;
       const p = new URLSearchParams({

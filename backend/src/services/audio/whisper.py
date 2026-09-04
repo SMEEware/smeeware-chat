@@ -100,9 +100,6 @@ class WhisperService(TranscriptionService):
         if (grund := self.why_unavailable()) is not None:
             raise TranscriptionError(grund)
 
-        # Ein eigenes Verzeichnis je Aufruf: whisper.cpp legt seine Ausgabe
-        # neben die Eingabe, und zwei gleichzeitige Anfragen sollen sich
-        # nicht gegenseitig die Datei wegschreiben.
         with tempfile.TemporaryDirectory(prefix="smeeware-stt-") as ordner:
             basis = Path(ordner)
             roh = basis / "input"
@@ -113,9 +110,6 @@ class WhisperService(TranscriptionService):
             return await self._whisper(wav, language)
 
     async def _ffmpeg_nach_wav(self, quelle: Path, ziel: Path) -> None:
-        # -vn wirft eine etwaige Videospur weg (Safari nimmt in einem
-        # mp4-Container auf), der Rest ist genau das Format, das
-        # whisper.cpp erwartet.
         code, _, fehler = await self._lauf(
             self._ffmpeg,
             "-nostdin",
@@ -146,8 +140,6 @@ class WhisperService(TranscriptionService):
             str(self._model),
             "-f",
             str(wav),
-            # auto = Whisper erkennt selbst. Das ist der ganze Grund fuer
-            # Whisper statt der Browser-Erkennung.
             "-l",
             language or "auto",
             "-oj",

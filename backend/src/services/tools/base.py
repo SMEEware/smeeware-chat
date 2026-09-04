@@ -12,7 +12,6 @@ from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import Any
 
-# OpenAI erlaubt fuer Tool-Namen nur [a-zA-Z0-9_-], hoechstens 64 Zeichen.
 NAME_SEPARATOR = "__"
 MAX_NAME_LENGTH = 64
 
@@ -42,7 +41,6 @@ class ToolSpec:
             "function": {
                 "name": self.name,
                 "description": self.description,
-                # Ein leeres Schema lehnen manche Anbieter ab.
                 "parameters": self.parameters or {"type": "object", "properties": {}},
             },
         }

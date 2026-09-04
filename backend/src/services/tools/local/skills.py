@@ -216,7 +216,7 @@ def _name_aus_url(url: str) -> str:
     """Rät einen Skill-Namen aus der URL: der Ordner vor der SKILL.md."""
     teile = [t for t in url.split("?")[0].split("/") if t]
     if teile and teile[-1].lower().endswith(".md"):
-        teile.pop()  # SKILL.md selbst
+        teile.pop()
     return teile[-1] if teile else "imported-skill"
 
 

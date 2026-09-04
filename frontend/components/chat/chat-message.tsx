@@ -78,27 +78,15 @@ export function ChatMessage({
 }: {
   message: ChatMessageType;
   chatId: string;
-  /** Counts up when the palette wants a note on this message. */
   commentSignal?: number;
-  /** Aus dem Verlauf nehmen oder zurueckholen. */
   onHide?: (messageId: string, versteckt: boolean) => void;
-  /** Die oeffentliche Leseansicht: kein Zitieren, kein Ausblenden, keine Notizen. */
   readOnly?: boolean;
 }) {
   const zeigeDenken = useSettings((zustand) => zustand.thinking);
 
-  // Zwei Wege fuehren zur Notiz: die Palette (ueber ``commentSignal``, nur an
-  // der letzten Nachricht) und das Kontextmenue dieser Nachricht. Beide
-  // zaehlen hoch statt zu schalten -- so wirkt auch der zweite Aufruf
-  // hintereinander, was ein boolescher Schalter nicht koennte.
   const [notizZaehler, setNotizZaehler] = React.useState(0);
   const notizSignal = commentSignal + notizZaehler;
 
-  /**
-   * Das Kontextmenue nur dort, wo es etwas bewirken kann. In der
-   * oeffentlichen Ansicht gibt es keinen Composer zum Zitieren und keinen
-   * Verlauf zum Aendern -- dann bleibt es beim Browsermenue.
-   */
   const mitMenue = (kinder: React.ReactNode, klasse?: string) =>
     readOnly ? (
       kinder
@@ -123,13 +111,7 @@ export function ChatMessage({
   if (message.role === "user") {
     return (
       <Message align="end">
-        {/* Kein Avatar an der eigenen Nachricht: die Blase steht rechts und
-            sagt damit schon, von wem sie ist. Ein Bild daneben wiederholt das
-            nur -- in jeder Zeile, den ganzen Verlauf hinunter. */}
         <MessageContent className="flex flex-col items-end gap-2">
-          {/* Ueber der Blase, nicht darin: die Dateien gehoerten zur Frage,
-              standen aber nie in ihrem Text -- der Block dafuer entsteht
-              erst auf dem Weg zum Modell. */}
           <AttachmentChips
             anhaenge={message.attachments ?? []}
             className="justify-end"
@@ -162,8 +144,6 @@ export function ChatMessage({
 
   const streaming = message.streaming ?? false;
 
-  // Aeltere Nachrichten (vor der Abschnitts-Struktur) haben nur content.
-  // Dann tut es ein einzelner Content-Abschnitt.
   const parts: MessagePart[] =
     message.parts && message.parts.length > 0
       ? message.parts
@@ -172,7 +152,6 @@ export function ChatMessage({
         : [];
 
   const lastIndex = parts.length - 1;
-  // Noch gar nichts da, aber der Turn laeuft schon: reiner Denk-Vorlauf.
   const bootThinking = streaming && parts.length === 0;
 
   return (
@@ -188,7 +167,6 @@ export function ChatMessage({
           const isLast = index === lastIndex;
 
           if (part.type === "tool") {
-            // Echter Werkzeugaufruf -- eigene Karte mit Status und Ergebnis.
             return (
               <ToolEvent
                 key={part.callId}
@@ -199,12 +177,7 @@ export function ChatMessage({
           }
 
           if (part.type === "reasoning") {
-            // Ausgeblendet heisst wirklich weg, nicht eingeklappt: wer das
-            // Denken abstellt, will keine Reihe zugeklappter Kaesten sehen.
-            // Erzeugt wird es trotzdem -- Reasoning-Modelle denken immer.
             if (!zeigeDenken) return null;
-            // Denken -- ob vor der Antwort oder mitten drin, es bleibt der
-            // Gedankengang. Werkzeuge haben ihre eigene Darstellung.
             return (
               <Reasoning
                 key={index}
@@ -233,11 +206,6 @@ export function ChatMessage({
           "flex flex-col gap-3",
         )}
 
-        {/* Die Fusszeile gibt es auch ohne Text, sobald der Turn
-            unterbrochen wurde: bei einer Bilderzeugung besteht die halbe
-            Antwort aus einem laufenden Werkzeug und sonst nichts -- ohne
-            diesen Zweig staende dort eine Werkzeugzeile ohne jede
-            Erklaerung, warum es nicht weitergeht. */}
         {!streaming && (message.content || message.interrupted) ? (
           <MessageFooter className="gap-1 px-0">
             {message.content ? (

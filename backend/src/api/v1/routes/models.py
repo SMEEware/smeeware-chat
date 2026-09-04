@@ -40,12 +40,8 @@ async def list_models(provider: ProviderDep) -> ModelListResponse:
         )
         for entry in eintraege
     ]
-    # Die Ueberschriften aus der gefilterten Liste, nicht aus dem vollen
-    # Katalog: eine leere Gruppe im Auswahlfeld waere schlechter als keine.
     gruppen = list(dict.fromkeys(entry.group for entry in eintraege))
 
-    # Faellt das Standardmodell weg -- etwa weil sein Anbieter aus ist --,
-    # zeigt die Auswahl sonst auf etwas, das nicht in der Liste steht.
     vorgabe = DEFAULT_MODEL
     if all(entry.id != vorgabe for entry in eintraege) and eintraege:
         vorgabe = eintraege[0].id

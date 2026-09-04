@@ -71,8 +71,6 @@ async def list_directory(
 
     for kind in kinder:
         try:
-            # ``is_dir`` folgt Symlinks -- ein defekter Link wirft, den
-            # ueberspringen wir still statt die ganze Liste scheitern zu lassen.
             if not kind.is_dir():
                 continue
         except OSError:
@@ -82,7 +80,6 @@ async def list_directory(
             continue
         entries.append(FsEntry(name=kind.name, path=str(kind), hidden=versteckt))
 
-    # An der Wurzel zeigt ``parent`` auf sich selbst -- dann gibt es kein hoeher.
     parent = None if ziel.parent == ziel else str(ziel.parent)
 
     return FsListing(

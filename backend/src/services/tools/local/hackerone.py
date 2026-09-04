@@ -38,8 +38,6 @@ logger = get_logger(__name__)
 
 BASIS = "https://api.hackerone.com/v1"
 
-# Gueltige Werte laut API -- hier gespiegelt, damit ein Tippfehler im
-# Modell nicht erst die HackerOne-API bemueht.
 SCHWERE = ("none", "low", "medium", "high", "critical")
 HACKTIVITY_SORT = (
     "latest_disclosable_activity_at",
@@ -75,8 +73,6 @@ class _HackerOneTool(LocalTool):
         params: dict[str, Any] | None = None,
         json: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
-        # Ohne API-Benutzer meldet sich HackerOne nicht an. Lieber hier
-        # klar sagen, was fehlt, als eine 401 aus der Ferne zu holen.
         if not self._auth[0]:
             raise ToolError(
                 "HackerOne needs an API username too. Add "
@@ -98,8 +94,6 @@ class _HackerOneTool(LocalTool):
             ) from exc
 
         if response.status_code in (401, 403):
-            # Der haeufigste Fall: das API-Token stimmt, aber der
-            # API-Benutzername fehlt oder passt nicht dazu.
             raise ToolError(
                 "HackerOne rejected the credentials (HTTP "
                 f"{response.status_code}). Check HACKERONE_API_USERNAME and "
@@ -120,7 +114,6 @@ class _HackerOneTool(LocalTool):
             ) from None
 
         if response.status_code >= 400:
-            # HackerOne legt die eigentliche Ursache in "errors": [{title,...}].
             fehler = daten.get("errors") if isinstance(daten, dict) else None
             hinweis = _fehlertext(fehler) or f"HTTP {response.status_code}"
             raise ToolError(f"HackerOne error: {hinweis}")

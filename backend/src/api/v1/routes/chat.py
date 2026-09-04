@@ -22,15 +22,8 @@ from src.services.speech.runtime import setze_wahl
 
 logger = get_logger(__name__)
 
-# Wie viel vom Werkzeug-Ergebnis in den Stream geht -- genug fuer eine
-# Statuszeile im Frontend ("web_search: 5 Treffer..."), nicht das ganze
-# Ergebnis (ein Scrape sind schnell 12k Zeichen, die keiner anzeigen will).
 TOOL_PREVIEW = 240
 
-# Sekunden Stille, nach denen ein SSE-Kommentar die Leitung wachhaelt. Muss
-# deutlich unter dem Body-Timeout des Proxys (Node/undici ~300s) und typischer
-# Reverse-Proxys liegen -- sonst bricht ein lang laufendes Werkzeug den Stream
-# trotz abgeschalteter Tool-Zeitlimits ab.
 HERZSCHLAG = 15.0
 
 router = APIRouter(prefix="/chat", tags=["chat"])
@@ -49,10 +42,6 @@ def _fuer(
     Eintraege reicht ``lokale_modelle`` bei -- ohne sie kennte ``resolve``
     nur die feste Liste und wiese das eigene Ollama-Modell als unbekannt ab.
     """
-    # Die vom Nutzer gewaehlte Stimme fuer read_aloud in den Anfrage-Kontext
-    # legen -- das Werkzeug liest sie dort, ohne dass sie durch jede Schicht
-    # gereicht werden muss. Muss vor dem Bauen des Agenten geschehen, weil die
-    # spaetere Aufgabe genau diesen Kontext kopiert.
     setze_wahl(model=payload.tts_model, voice=payload.voice_id)
 
     eintrag = resolve(payload.model, lokal=provider.lokale_modelle)
@@ -61,11 +50,6 @@ def _fuer(
     )
     optionen = payload.to_options().merged(model=eintrag.upstream)
 
-    # Wie viel ein Modell denken soll, steht am Katalogeintrag und nicht in
-    # der Anfrage: es ist eine Eigenschaft des Modells ("Sol denkt viel,
-    # Luna wenig"), keine Entscheidung des Aufrufers. Nur der
-    # Responses-Anbieter liest den Wert -- die anderen kennen ihn nicht und
-    # bekommen ihn deshalb gar nicht erst.
     if eintrag.reasoning_effort and eintrag.runtime == "openai":
         optionen = replace(
             optionen,
@@ -122,7 +106,7 @@ async def chat_stream(
         headers={
             "Cache-Control": "no-cache",
             "Connection": "keep-alive",
-            "X-Accel-Buffering": "no",  # nginx darf den Strom nicht puffern
+            "X-Accel-Buffering": "no",
         },
     )
 
@@ -151,13 +135,6 @@ async def _sse(
     stoppt. Ein eigener Disconnect-Check waere nur ein ``await`` pro Token,
     das nie greift.
     """
-    # Der Agent laeuft in einer eigenen Aufgabe und schiebt seine Fragmente in
-    # eine Schlange. So kann der Rahmen hier bei Stille -- etwa waehrend ein
-    # Werkzeug lange arbeitet -- einen Herzschlag senden, OHNE die Generierung
-    # abzubrechen. Ein direktes ``wait_for`` auf den Agent-Iterator wuerde bei
-    # jedem Herzschlag genau das tun und das laufende Werkzeug mitten im Lauf
-    # abwuergen. Die Grenze (maxsize) bremst den Erzeuger, wenn der Client
-    # langsamer liest, als das Modell schreibt.
     schlange: asyncio.Queue[tuple[str, object]] = asyncio.Queue(maxsize=256)
 
     async def erzeugen() -> None:
@@ -165,7 +142,7 @@ async def _sse(
             async for chunk in agent.stream(payload.to_domain_messages(), options):
                 await schlange.put(("chunk", chunk))
         except asyncio.CancelledError:
-            raise  # Client hat abgebrochen -- die Aufgabe soll wirklich enden
+            raise
         except AppError as exc:
             await schlange.put(("fehler", exc))
         except Exception as exc:  # noqa: BLE001 -- der Strom darf nicht stumm enden
@@ -181,8 +158,6 @@ async def _sse(
                     schlange.get(), timeout=HERZSCHLAG
                 )
             except TimeoutError:
-                # Stille -- die Leitung wachhalten. Eine SSE-Kommentarzeile ist
-                # kein Frame; das Frontend ueberspringt jede Zeile ohne "data:".
                 yield ": keepalive\n\n"
                 continue
 
@@ -208,17 +183,15 @@ async def _sse(
                     },
                 )
                 break
-            else:  # "ende" -- der Agent ist fertig
+            else:
                 break
 
     except asyncio.CancelledError:
         logger.info("Client hat den Stream abgebrochen")
         aufgabe.cancel()
-        raise  # niemals schlucken -- sonst haengt das Herunterfahren
+        raise
 
     finally:
-        # Der Erzeuger darf nie verwaisen: seine Aufraeumung schliesst die
-        # Modellverbindung und beendet laufende Unterprozesse.
         if not aufgabe.done():
             aufgabe.cancel()
         with contextlib.suppress(asyncio.CancelledError, Exception):

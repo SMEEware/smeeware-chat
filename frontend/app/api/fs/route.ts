@@ -3,17 +3,6 @@ import type { NextRequest } from "next/server";
 import { SESSION_COOKIE, SESSION_HEADER } from "@/lib/auth/session";
 import { FS_ENDPOINT } from "@/lib/chat/backend";
 
-/**
- * Der Verzeichnis-Browser fuer die Workspaces.
- *
- * Wie die uebrigen Proxy-Routen: die Adresse des Backends liegt
- * serverseitig, der Browser kennt nur diese Route, und die Sitzung wandert
- * aus dem httpOnly-Cookie in den Header, den das Backend liest. Ohne Sitzung
- * antwortet das Backend mit 401 -- und genau das soll die Oberflaeche sehen.
- *
- * Gezeigt werden die Ordner auf dem Rechner des Backends, nicht die des
- * Browsers: ein Workspace-Pfad muss dort gelten, wo der Agent arbeitet.
- */
 export async function GET(request: NextRequest) {
   const url = new URL(FS_ENDPOINT);
   for (const key of ["path", "all"]) {

@@ -54,8 +54,6 @@ async def write_prompt(
     _angemeldet(provider, session)
 
     prompt = provider.prompts.save(payload.name, payload.text)
-    # Der Agent traegt den Prompt-Text in sich. Ohne dieses Vergessen
-    # antwortete er weiter mit der alten Fassung.
     provider.vergiss_agenten(payload.name)
 
     return PromptDetail(**_summary(prompt).model_dump(), text=prompt.text)
@@ -74,8 +72,6 @@ async def delete_prompt(
 ) -> Response:
     _angemeldet(provider, session)
 
-    # Das Default darf nicht weg: ohne es haette jeder Chat ohne eigene
-    # Wahl keine Persona mehr, und das faellt erst beim naechsten Turn auf.
     if name == provider.settings.default_prompt:
         raise ValidationError(
             f"{name!r} is the default prompt and cannot be deleted. "

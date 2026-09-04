@@ -66,7 +66,6 @@ import {
 import type { ChatSummary } from "@/lib/chat/types";
 import { cn } from "@/lib/utils";
 
-/** /chat/<id> -- auf /chat (neuer Chat) ist nichts aktiv. */
 export function activeChatId(pathname: string): string | null {
   const treffer = /^\/chat\/([^/]+)/.exec(pathname);
   return treffer ? decodeURIComponent(treffer[1]) : null;
@@ -74,15 +73,6 @@ export function activeChatId(pathname: string): string | null {
 
 type Gruppe = { label: string; chats: ChatSummary[] };
 
-/**
- * Nach Alter buendeln, wie man einen Verlauf liest: was heute war, was
- * gestern war, der Rest der Woche, alles davor. Innerhalb einer Gruppe
- * kommt die Reihenfolge schon sortiert aus dem Backend (updated_at DESC).
- *
- * Die Ueberschrift traegt die Zeitangabe -- deshalb steht an der einzelnen
- * Zeile keine mehr. Ein Datum pro Zeile waere Rauschen fuer eine
- * Information, die die Gruppe schon gibt.
- */
 function gruppieren(chats: ChatSummary[]): Gruppe[] {
   const gruppen: Gruppe[] = [
     { label: "Today", chats: [] },
@@ -120,17 +110,9 @@ export function ChatSidebar() {
   const [suche, setSuche] = React.useState("");
   const [umbenennen, setUmbenennen] = React.useState<string | null>(null);
   const [loeschen, setLoeschen] = React.useState<ChatSummary | null>(null);
-  // Nur fuers erste Teilen: danach schaltet der Menueeintrag direkt um.
   const [teilen, setTeilen] = React.useState<ChatSummary | null>(null);
   const teilenMut = useSetChatPublic();
 
-  /**
-   * Teilen einschalten fragt nach, ausschalten nicht.
-   *
-   * Die eine Richtung macht einen Verlauf fuer jeden mit dem Link lesbar --
-   * und zwar auch alles, was danach noch geschrieben wird. Die andere nimmt
-   * nur etwas zurueck; dafuer ist eine Rueckfrage bloss im Weg.
-   */
   const teilenUmschalten = (chat: ChatSummary) => {
     if (chat.public) {
       teilenMut.mutate(
@@ -168,10 +150,6 @@ export function ChatSidebar() {
   const [hinweiseOffen, setHinweiseOffen] = React.useState(false);
   const [workspacesOffen, setWorkspacesOffen] = React.useState(false);
 
-  // Kommandos aus Palette und Slash-Menue, die hier ihre Heimat haben: der
-  // Einstellungsdialog und die Workspace-Verwaltung liegen ohnehin an dieser
-  // Stelle, die Tour setzt nur einen Merker. So bleibt der ganze
-  // Zustands-Kram an einem Ort statt ueber die Oberflaeche verstreut.
   React.useEffect(() => {
     const abEinst = onBefehl(BEFEHL.openSettingsDialog, () =>
       setEinstellungen(true),
@@ -180,8 +158,6 @@ export function ChatSidebar() {
       setWorkspacesOffen(true),
     );
     const abTour = onBefehl(BEFEHL.startTour, () => tourStarten());
-    // "Neue Persona" fuehrt in die Einstellungen -- dort werden Personas
-    // geschrieben.
     const abPersona = onBefehl(BEFEHL.newSystemPrompt, () =>
       setEinstellungen(true),
     );
@@ -209,7 +185,6 @@ export function ChatSidebar() {
 
   const gruppen = React.useMemo(() => gruppieren(gefiltert), [gefiltert]);
 
-  /** Leerer Titel heisst: doch nicht umbenennen. */
   const titelSpeichern = (chat: ChatSummary, titel: string) => {
     setUmbenennen(null);
     const sauber = titel.trim();
@@ -217,8 +192,6 @@ export function ChatSidebar() {
     rename.mutate({ id: chat.id, title: sauber.slice(0, 200) });
   };
 
-  // Loescht man den Chat, den man gerade liest, muss die Ansicht weg --
-  // sonst steht ein Verlauf auf dem Schirm, den es nicht mehr gibt.
   const loeschenBestaetigt = () => {
     if (!loeschen) return;
     const id = loeschen.id;
@@ -227,8 +200,6 @@ export function ChatSidebar() {
     if (id === aktiv) router.push("/chat");
   };
 
-  // Wie beim einzelnen Chat: liest man gerade einen, den es gleich nicht
-  // mehr gibt, muss die Ansicht weg.
   const entleerenBestaetigt = () => {
     setEntleerenOffen(false);
     entleeren.mutate();
@@ -242,16 +213,10 @@ export function ChatSidebar() {
         className="border border-sidebar-border/70 rounded-r-xl overflow-clip"
       >
         <SidebarHeader className="relative gap-3 border-b border-sidebar-border/70 p-3">
-          {/* Derselbe Schein wie in den Modalen. Die Sidebar hat
-              overflow-clip, er bleibt also im Rahmen. */}
           <span
             aria-hidden
             className="pointer-events-none absolute -top-20 left-1/2 size-56 -translate-x-1/2 rounded-full bg-primary/25 opacity-40 blur-3xl"
           />
-          {/* Ein Ziel, nicht zwei: Zeichen und Wortmarke sind dieselbe
-              Marke, also gehoeren sie in denselben Link. w-fit haelt die
-              Klickflaeche an der Schrift -- ohne das reichte sie bis an den
-              rechten Rand der Sidebar. */}
           <Link
             href="/"
             className="group relative flex h-7 w-fit items-center gap-2"
@@ -266,18 +231,11 @@ export function ChatSidebar() {
             <span className="font-heading text-[13px] font-semibold tracking-tight">
               SMEEware
             </span>
-            {/* Dasselbe Kuerzel wie in der Doku -- es sagt, in welchem Teil
-                man ist, ohne dafuer die Wortmarke zu verlaengern. */}
             <span className="rounded-md bg-sidebar-accent/60 px-1.5 py-0.5 font-mono text-[10px] tracking-wide text-muted-foreground/80">
               chat
             </span>
           </Link>
 
-          {/* Kein Farbblock und kein gefuellter Knopf: eine Haarlinie, die
-              beim Hover die Primaerfarbe annimmt. Was ihn traegt, sind drei
-              Bewegungen, die erst beim Ueberfahren entstehen -- ein Schimmer,
-              der einmal durchlaeuft, das Plus, das sich zum Kreuz dreht, und
-              der Pfeil, der von rechts hereinkommt. */}
           <Link
             href="/chat"
             data-tour="neu"
@@ -308,17 +266,12 @@ export function ChatSidebar() {
               className="h-9 w-full rounded-lg bg-sidebar-accent/40 pr-2.5 pl-8 text-[13px] outline-none transition-[background-color,box-shadow] placeholder:text-muted-foreground/50 hover:bg-sidebar-accent/70 focus-visible:bg-sidebar-accent/70 focus-visible:ring-1 focus-visible:ring-primary/40 focus-visible:ring-inset"
             />
           </div>
-          {/* Zaehler und Papierkorb sitzen ueber der Liste, auf die sie sich
-              beziehen -- nicht unter ihr. Der Zaehler bleibt beim Scrollen
-              stehen, weil die Kopfzeile stehen bleibt. */}
           <div className="flex h-6 items-center gap-1.5 text-[11px] text-muted-foreground/50">
             <MessageSquareIcon className="size-3.5 shrink-0 text-primary/60" />
             <span className="tabular-nums">
               {chats?.length ?? 0} {chats?.length === 1 ? "chat" : "chats"}
             </span>
 
-            {/* Erst wenn es etwas zu leeren gibt. Ein Papierkorb ueber einer
-                leeren Liste waere ein Knopf, der nichts tun kann. */}
             {(chats?.length ?? 0) > 0 ? (
               <button
                 type="button"
@@ -358,13 +311,9 @@ export function ChatSidebar() {
           ) : (
             gruppen.map((gruppe) => (
               <section key={gruppe.label}>
-                {/* Klebt beim Scrollen oben fest, damit man immer weiss,
-                    aus welchem Zeitraum die Zeilen unter dem Daumen sind. */}
                 <h3 className="sticky top-0 z-10 -mx-2 bg-sidebar/85 px-6 pt-4 pb-1.5 text-[10px] font-medium tracking-[0.09em] text-muted-foreground/45 uppercase backdrop-blur-sm">
                   {gruppe.label}
                 </h3>
-                {/* Die Haarlinie laeuft durch die ganze Gruppe; die einzelne
-                    Zeile setzt nur ihr Stueck davon in Farbe. */}
                 <ul className="relative flex flex-col before:absolute before:inset-y-0 before:left-0 before:w-px before:bg-sidebar-border/70">
                   {gruppe.chats.map((chat) => (
                     <ChatZeile
@@ -387,9 +336,6 @@ export function ChatSidebar() {
         </SidebarContent>
 
         <SidebarFooter className="gap-0 border-t border-sidebar-border/70 p-0">
-          {/* Alle Kuerzel an einer Stelle, statt verteilt ueber die
-              Oberflaeche. Nur am Desktop -- auf dem Handy gibt es keine
-              Tastatur, an der sie etwas nuetzen, und der Platz ist knapper. */}
           <div className="hidden flex-col px-3 pt-3 pb-2 md:flex">
             <h3 className="pb-1 text-[10px] font-medium tracking-[0.09em] text-muted-foreground/45 uppercase">
               Shortcuts
@@ -412,9 +358,6 @@ export function ChatSidebar() {
             </ul>
           </div>
 
-          {/* Wem die Sidebar gehoert -- ganz unten, wo man es sucht. Das
-              Zahnrad sitzt in derselben Zeile ganz rechts: die aeusserste
-              Ecke ist der Platz, an dem man Einstellungen sucht. */}
           <div className="flex items-center gap-2 px-3 py-2 md:border-t md:border-sidebar-border/70">
             <span className="text-[10px] text-muted-foreground/40">
               © {new Date().getFullYear()}{" "}
@@ -428,19 +371,6 @@ export function ChatSidebar() {
               </a>
             </span>
 
-            {/* Drei Knoepfe in der Reihenfolge, in der man sie braucht:
-                erst wieder gezeigt bekommen, wo was liegt, dann lesen, was
-                passiert ist, dann einstellen, was passieren soll.
-
-                Der Kompass steht hier und nicht in den Einstellungen: die
-                Tour zeigt auf Elemente der Oberflaeche, ein Dialog davor
-                muesste sich erst wieder schliessen. Beim Ueberfahren dreht
-                sich die Nadel -- die Scheibe ist rund, sichtbar bewegt sich
-                also genau das, was die Richtung angibt.
-
-                Auf dem Handy schliesst der Klick die Sidebar: sie liegt dort
-                ueber dem Chat, und die ersten drei Schritte zeigen auf den
-                Composer darunter. */}
             <button
               type="button"
               onClick={() => {
@@ -463,8 +393,6 @@ export function ChatSidebar() {
               className="group relative flex size-7 cursor-pointer items-center justify-center rounded-md text-muted-foreground/50 transition-colors hover:bg-primary/10 hover:text-primary"
             >
               <MegaphoneIcon className="size-4 transition-transform duration-300 group-hover:-rotate-12" />
-              {/* Ein Punkt, keine Zahl: wie viele es genau sind, steht im
-                  Modal -- hier zaehlt nur, dass etwas da ist. */}
               {(hinweise.data?.unread ?? 0) > 0 ? (
                 <span
                   aria-hidden
@@ -584,17 +512,9 @@ type ZeileProps = {
   onAbbrechen: () => void;
   onLoeschen: () => void;
   onOeffnen: () => void;
-  /** Teilen anstossen -- bestaetigt wird eine Ebene hoeher. */
   onTeilen: () => void;
 };
 
-/**
- * Eine Zeile, kein Knopf: keine Flaeche, kein Radius, keine Fuellung. Was
- * die Zeile traegt, ist das Stueck Schiene an ihrer linken Kante -- grau
- * beim Ueberfahren, in Primaerfarbe fuer den offenen Chat -- und das
- * Gewicht der Schrift. Das Menue erscheint erst beim Hover; sein Platz ist
- * dauerhaft reserviert (pr-7), sonst zuckt der Titel beim Ueberfahren.
- */
 function ChatZeile({
   chat,
   aktiv,
@@ -606,9 +526,6 @@ function ChatZeile({
   onOeffnen,
   onTeilen,
 }: ZeileProps) {
-  // Umbenennen passiert an Ort und Stelle: dieselbe Zeile, nur ein Feld
-  // statt des Titels. Ein Dialog dafuer waere zu viel Aufwand fuer einen
-  // Handgriff, den man dutzendfach macht.
   if (umbenennen) {
     return (
       <li>
@@ -644,15 +561,12 @@ function ChatZeile({
         title={chat.title}
         className={cn(
           "flex h-8 items-center rounded-r-md pr-7 pl-4 text-[13px] transition-colors",
-          // Rechts gerundet, links flach: die Zeile haengt sichtbar an der
-          // Schiene, statt als eigener Kasten daneben zu liegen.
           aktiv
             ? "bg-primary/[0.07] font-medium text-foreground"
             : "text-muted-foreground/90 hover:bg-primary/[0.035] hover:text-foreground",
         )}
       >
         <span className="truncate">{chat.title}</span>
-        {/* Ohne Menue sichtbar, welche Verlaeufe offen liegen. */}
         {chat.public ? (
           <Globe2Icon
             className="ms-auto size-3 shrink-0 text-muted-foreground/60"
@@ -666,7 +580,6 @@ function ChatZeile({
           className={cn(
             "absolute top-1/2 right-0.5 flex size-6 -translate-y-1/2 cursor-pointer items-center justify-center rounded-md text-muted-foreground/70 transition-[opacity,color]",
             "opacity-0 group-hover/zeile:opacity-100 hover:text-foreground focus-visible:opacity-100 data-popup-open:opacity-100 data-popup-open:text-foreground",
-            // Ohne Hover kein Menue -- auf dem Handy also dauerhaft sichtbar.
             "max-md:opacity-100",
           )}
         >
@@ -674,9 +587,6 @@ function ChatZeile({
           <span className="sr-only">Chat options</span>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" side="bottom" className="w-48">
-          {/* Einen Link kopieren heisst nicht, ihn veroeffentlichen zu
-              wollen -- die beiden Eintraege bleiben deshalb getrennt. Ohne
-              Teilen fuehrt der Link nur fuer angemeldete Leute irgendwohin. */}
           <DropdownMenuItem
             onClick={() => {
               void navigator.clipboard
@@ -711,17 +621,8 @@ function ChatZeile({
   );
 }
 
-/** Kleiner als die Vorgabe: neben 11px-Text waeren volle Kappen Kloetze. */
 const TASTE = "h-5 min-w-5 rounded-md bg-sidebar-accent/70 px-1 text-[10px]";
 
-/**
- * Eine Zeile der Kuerzel-Liste.
- *
- * Nur was auch etwas tut, wird ein Knopf -- "Command palette" laesst sich
- * anklicken, die uebrigen drei sind Beschriftung. Ein Hover-Zustand an einer
- * Zeile, die auf einen Klick nicht reagiert, waere ein Versprechen, das
- * niemand einloest.
- */
 function KuerzelZeile({
   label,
   tasten,

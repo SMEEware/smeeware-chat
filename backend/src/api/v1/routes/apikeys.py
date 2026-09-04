@@ -78,8 +78,6 @@ async def rename_key(
     _pruefe_sitzung(provider, session)
     if not await provider.api_keys.rename(key_id, payload.name.strip()):
         raise NotFoundError(f"API key {key_id!r} does not exist.")
-    # Neu laden statt den Namen von Hand zusammenbauen -- so ist der
-    # Zeitstempel garantiert der aus der Datenbank.
     for eintrag in await provider.api_keys.list():
         if eintrag.id == key_id:
             return ApiKeyItem(**asdict(eintrag))
