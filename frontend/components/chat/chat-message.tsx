@@ -21,6 +21,7 @@ import { Reasoning } from "@/components/chat/reasoning";
 import { ToolEvent } from "@/components/chat/tool-event";
 import { AttachmentChips } from "@/components/chat/attachment-chips";
 import { MessageComments } from "@/components/chat/message-comments";
+import { MessageContextMenu } from "@/components/chat/message-context-menu";
 import { useAccount } from "@/hooks/use-account";
 import { useSettings } from "@/lib/settings/store";
 import { UserMessage } from "@/components/chat/user-message";
@@ -75,14 +76,45 @@ export function ChatMessage({
   message,
   chatId,
   commentSignal = 0,
+  onHide,
+  readOnly = false,
 }: {
   message: ChatMessageType;
   chatId: string;
   /** Counts up when the palette wants a note on this message. */
   commentSignal?: number;
+  /** Aus dem Verlauf nehmen oder zurueckholen. */
+  onHide?: (messageId: string, versteckt: boolean) => void;
+  /** Die oeffentliche Leseansicht: kein Zitieren, kein Ausblenden, keine Notizen. */
+  readOnly?: boolean;
 }) {
   const konto = useAccount();
   const zeigeDenken = useSettings((zustand) => zustand.thinking);
+
+  /**
+   * Das Kontextmenue nur dort, wo es etwas bewirken kann. In der
+   * oeffentlichen Ansicht gibt es keinen Composer zum Zitieren und keinen
+   * Verlauf zum Aendern -- dann bleibt es beim Browsermenue.
+   */
+  const mitMenue = (kinder: React.ReactNode, klasse?: string) =>
+    readOnly ? (
+      kinder
+    ) : (
+      <MessageContextMenu
+        messageId={message.id}
+        role={message.role}
+        text={
+          message.role === "assistant"
+            ? stripToolScaffolding(message.content)
+            : message.content
+        }
+        hidden={message.hidden ?? false}
+        onHide={(versteckt) => onHide?.(message.id, versteckt)}
+        className={klasse}
+      >
+        {kinder}
+      </MessageContextMenu>
+    );
 
   if (message.role === "user") {
     return (
@@ -112,23 +144,27 @@ export function ChatMessage({
             anhaenge={message.attachments ?? []}
             className="justify-end"
           />
-          <UserMessage
-            content={message.content}
-            copySlot={
-              <CopyButton
-                text={message.content}
-                label="Copy message"
-                className="hover:text-foreground"
-              />
-            }
-          />
-          <MessageComments
-            chatId={chatId}
-            messageId={message.id}
-            comments={message.comments}
-            openSignal={commentSignal}
-            align="end"
-          />
+          {mitMenue(
+            <UserMessage
+              content={message.content}
+              copySlot={
+                <CopyButton
+                  text={message.content}
+                  label="Copy message"
+                  className="hover:text-foreground"
+                />
+              }
+            />,
+          )}
+          {readOnly ? null : (
+            <MessageComments
+              chatId={chatId}
+              messageId={message.id}
+              comments={message.comments}
+              openSignal={commentSignal}
+              align="end"
+            />
+          )}
         </MessageContent>
       </Message>
     );
@@ -152,9 +188,11 @@ export function ChatMessage({
   return (
     <Message align="start">
       <MessageContent className="gap-3">
-        {bootThinking && zeigeDenken ? (
-          <Reasoning reasoning="" streaming thinking />
-        ) : null}
+        {mitMenue(
+          <>
+            {bootThinking && zeigeDenken ? (
+              <Reasoning reasoning="" streaming thinking />
+            ) : null}
 
         {parts.map((part, index) => {
           const isLast = index === lastIndex;
@@ -200,7 +238,10 @@ export function ChatMessage({
               </BubbleContent>
             </Bubble>
           );
-        })}
+            })}
+          </>,
+          "flex flex-col gap-3",
+        )}
 
         {/* Die Fusszeile gibt es auch ohne Text, sobald der Turn
             unterbrochen wurde: bei einer Bilderzeugung besteht die halbe
@@ -238,12 +279,14 @@ export function ChatMessage({
           </MessageFooter>
         ) : null}
 
-        <MessageComments
-          chatId={chatId}
-          messageId={message.id}
-          comments={message.comments}
-          openSignal={commentSignal}
-        />
+        {readOnly ? null : (
+          <MessageComments
+            chatId={chatId}
+            messageId={message.id}
+            comments={message.comments}
+            openSignal={commentSignal}
+          />
+        )}
       </MessageContent>
     </Message>
   );

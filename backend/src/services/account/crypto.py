@@ -69,6 +69,31 @@ def neuer_datenschluessel() -> bytes:
     return AESGCM.generate_key(bit_length=256)
 
 
+# Fest, nicht zufaellig -- und das ist hier genau richtig.
+#
+# Ein Zufallssalz schuetzt davor, dass sich gleiche Passwoerter am gleichen
+# Hash erkennen lassen, und gegen vorberechnete Tabellen. Beides trifft auf
+# SECRET nicht zu: es gibt genau einen App-Schluessel, und SECRET ist
+# Konfiguration mit hoher Entropie, kein von Menschen gewaehltes Wort. Ein
+# Zufallssalz muesste dafuer selbst irgendwo liegen und beim Start gefunden
+# werden -- mehr bewegliche Teile ohne Gewinn.
+_APP_SALZ = b"smeeware:public-chats:v1"
+
+
+def app_schluessel(secret: str) -> bytes:
+    """Der Schluessel fuer Daten, die OHNE Sitzung lesbar sein muessen.
+
+    Geteilte Chats sind der Fall: sie werden von Leuten abgerufen, die nicht
+    angemeldet sind, also gibt es keinen Datenschluessel aus einem Passwort.
+    An seine Stelle tritt einer aus SECRET.
+
+    Das ist ausdruecklich eine schwaechere Zusage als beim privaten Verlauf:
+    wer SECRET und die Datenbank hat, liest geteilte Chats. Genau deshalb
+    bekommt sie nur, was jemand bewusst geteilt hat.
+    """
+    return _scrypt(secret, _APP_SALZ)
+
+
 def schluessel_einpacken(dek: bytes, passwort: str, salz: bytes) -> bytes:
     """DEK mit einem aus dem Passwort abgeleiteten Schluessel verschliessen."""
     return verschluesseln(dek, _scrypt(passwort, salz))

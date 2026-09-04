@@ -124,6 +124,37 @@ export async function deleteChat(id: string): Promise<void> {
   if (!response.ok) await fehler(response);
 }
 
+/**
+ * Einen Chat oeffentlich lesbar machen -- oder das zuruecknehmen.
+ *
+ * Das Backend legt beim Teilen eine zweite, mit dem App-Schluessel
+ * verschluesselte Kopie an; sie ist es, die Unangemeldete zu sehen bekommen.
+ * Zuruecknehmen loescht diese Kopie, der Chat selbst bleibt.
+ */
+export async function setChatPublic(
+  id: string,
+  oeffentlich: boolean,
+): Promise<void> {
+  const response = await fetch(`${BASE}/${encodeURIComponent(id)}/share`, {
+    method: oeffentlich ? "POST" : "DELETE",
+  });
+  if (!response.ok) await fehler(response);
+}
+
+/** Ein geteilter Verlauf -- ohne Anmeldung. */
+export async function fetchPublicChat(
+  id: string,
+  signal?: AbortSignal,
+): Promise<ChatDetail> {
+  const response = await fetch(`/api/public/chats/${encodeURIComponent(id)}`, {
+    signal,
+    cache: "no-store",
+  });
+  if (response.status === 404) throw new ChatNotFound(id);
+  if (!response.ok) await fehler(response);
+  return (await response.json()) as ChatDetail;
+}
+
 /** Leert die ganze Ablage und meldet, wie viele Chats verschwunden sind. */
 export async function deleteAllChats(): Promise<number> {
   const response = await fetch(BASE, { method: "DELETE" });

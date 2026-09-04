@@ -14,7 +14,7 @@ from typing import Any, TypeVar
 
 import httpx
 
-from src.core.config import Settings, get_settings
+from src.core.config import DEFAULT_SECRET, Settings, get_settings
 from src.core.exceptions import ConfigurationError
 from src.core.logging import get_logger
 from src.services.ai.agent import Agent
@@ -28,7 +28,7 @@ from src.services.ai.providers import (
     create_provider,
 )
 from src.services.ai.vision import VisionService
-from src.services.account import AccountStore, SessionStore
+from src.services.account import AccountStore, SessionStore, crypto
 from src.services.audio import (
     OpenAITranscribeService,
     TranscriptionService,
@@ -41,6 +41,7 @@ from src.services.events import EventBus
 from src.services.notifications import NotificationStore, VerschluesselteHinweise
 from src.services.apikeys import ApiKeyStore
 from src.services.chats.encrypted import EncryptedChatStore
+from src.services.chats.public import PublicChatStore
 from src.services.skills import SkillLibrary
 from src.services.tools.base import ToolBox
 from src.services.tools.composite import CompositeToolBox
@@ -329,6 +330,35 @@ class ServiceProvider:
         return EncryptedChatStore(speicher, sitzung.dek)
 
     @property
+    def public_chats(self) -> PublicChatStore | None:
+        """Geteilte Chats -- ohne Sitzung lesbar, deshalb eigener Schluessel.
+
+        Anders als ``chats_for`` haengt das hier an keiner Anmeldung: genau
+        das ist der Zweck. Wer diesen Speicher benutzt, liefert bewusst an
+        Unangemeldete aus.
+        """
+        if self.chats is None:
+            return None
+        return self._singleton(
+            "public_chats",
+            lambda: PublicChatStore(
+                self.settings.chats_db_path,
+                crypto.app_schluessel(self.settings.secret.get_secret_value()),
+            ),
+        )
+
+    @property
+    def teilen_moeglich(self) -> bool:
+        """Steht ein echtes SECRET -- oder noch der Wert aus dem Beispiel?
+
+        Der Schluessel fuer geteilte Chats stammt aus SECRET. Laeuft die
+        Instanz mit dem Vorgabewert, ist er aus einer Zeichenkette abgeleitet,
+        die im Repository steht -- die Verschluesselung waere dann Zierde.
+        Lieber das Teilen verweigern als eine Zusage geben, die nicht traegt.
+        """
+        return self.settings.secret.get_secret_value() not in ("", DEFAULT_SECRET)
+
+    @property
     def transcribe(self) -> TranscriptionService | None:
         """Spracheingabe im eingestellten Standard -- None, wenn abgeschaltet."""
         return self.transcribe_for(None)
@@ -604,6 +634,8 @@ class ServiceProvider:
             await self.accounts.ensure_schema()
             await self.notifications.ensure_schema()
             await self.api_keys.ensure_schema()
+            if (oeffentlich := self.public_chats) is not None:
+                await oeffentlich.ensure_schema()
         # Skill-Uebersicht rendern, BEVOR der Agent gebaut wird -- sonst
         # traegt sein System-Prompt die Skills noch nicht.
         if self.skills is not None:

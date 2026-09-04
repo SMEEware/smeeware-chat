@@ -3,10 +3,36 @@
 import Link from "next/link";
 
 import { ChatPanel } from "@/components/chat/chat-panel";
+import { PublicChatView } from "@/components/chat/public-chat-view";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useAccount } from "@/hooks/use-account";
 import { useChatDetail } from "@/hooks/use-chats";
 import { ChatNotFound } from "@/lib/chat/history";
+
+/**
+ * Die Weiche an dieser Adresse.
+ *
+ * Dieselbe URL bedient zwei sehr verschiedene Faelle: den eigenen Verlauf
+ * (angemeldet, bearbeitbar) und die Leseansicht eines geteilten Chats (nicht
+ * angemeldet). Entschieden wird am Konto, nicht an einem fehlgeschlagenen
+ * Ladeversuch -- ein 401 als Steuersignal zu benutzen hiesse, jeden anderen
+ * Fehler mit "dann eben oeffentlich" zu beantworten.
+ *
+ * Zwei Komponenten statt zweier Zweige in einer: die Hooks unterscheiden
+ * sich, und bedingt aufrufen darf man sie nicht.
+ */
+export function ChatView({ id }: { id: string }) {
+  const konto = useAccount();
+
+  // Erst entscheiden, wenn feststeht, wer da ist. Sonst blitzt fuer einen
+  // Moment die oeffentliche Ansicht auf, bevor der eigene Chat erscheint.
+  if (konto.isPending) return <VerlaufSkelett />;
+
+  if (!konto.data?.authenticated) return <PublicChatView id={id} />;
+
+  return <EigenerChat id={id} />;
+}
 
 /**
  * Haengt einen gespeicherten Verlauf ein.
@@ -17,7 +43,7 @@ import { ChatNotFound } from "@/lib/chat/history";
  * bliebe er leer; ohne key wuerde beim Wechsel von einem Chat zum
  * naechsten der alte Zustand stehen bleiben.
  */
-export function ChatView({ id }: { id: string }) {
+function EigenerChat({ id }: { id: string }) {
   const { data, isPending, isError, error } = useChatDetail(id);
 
   // Kein gespeicherter Chat unter dieser id: dann ist es ein neuer. Wer

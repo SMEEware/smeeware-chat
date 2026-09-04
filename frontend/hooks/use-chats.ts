@@ -15,6 +15,8 @@ import {
   deleteChat,
   fetchChat,
   fetchChats,
+  fetchPublicChat,
+  setChatPublic,
   leererChat,
   newChatId,
   renameChat,
@@ -108,6 +110,57 @@ export function oeffneNeuenChat(neuerChat: () => void) {
     event.preventDefault();
     neuerChat();
   };
+}
+
+/**
+ * Ein geteilter Verlauf, gelesen ohne Anmeldung.
+ *
+ * Eigener Schluesselraum: dieselbe id kann privat (mit Sitzung, bearbeitbar)
+ * und oeffentlich (ohne, nur lesbar) geladen werden, und die beiden duerfen
+ * sich im Cache nicht ueberschreiben.
+ */
+export function usePublicChat(id: string | null, enabled = true) {
+  return useQuery({
+    queryKey: ["chats", "public", id ?? "neu"] as const,
+    queryFn: ({ signal }) => fetchPublicChat(id!, signal),
+    enabled: Boolean(id) && enabled,
+    staleTime: 30_000,
+    retry: false,
+  });
+}
+
+/**
+ * Teilen und Zuruecknehmen.
+ *
+ * Der Zustand wird sofort in der Liste gesetzt, damit das Menue nicht erst
+ * nach der Runde umspringt -- und bei einem Fehler zurueckgedreht. Das ist
+ * hier wichtiger als bei einem Titel: "geteilt" ist eine Aussage darueber,
+ * wer mitlesen kann, und die darf nie falsch dastehen.
+ */
+export function useSetChatPublic() {
+  const client = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, public: oeffentlich }: { id: string; public: boolean }) =>
+      setChatPublic(id, oeffentlich),
+
+    onMutate: async ({ id, public: oeffentlich }) => {
+      await client.cancelQueries({ queryKey: chatKeys.list });
+      const vorher = client.getQueryData<ChatSummary[]>(chatKeys.list);
+      client.setQueryData<ChatSummary[]>(chatKeys.list, (liste) =>
+        (liste ?? []).map((chat) =>
+          chat.id === id ? { ...chat, public: oeffentlich } : chat,
+        ),
+      );
+      return { vorher };
+    },
+
+    onError: (_error, _variablen, context) => {
+      if (context?.vorher) client.setQueryData(chatKeys.list, context.vorher);
+    },
+
+    onSettled: () => invalidateChatList(client),
+  });
 }
 
 export function useRenameChat() {

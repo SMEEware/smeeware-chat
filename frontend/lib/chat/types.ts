@@ -117,6 +117,15 @@ export type ChatMessage = WireMessage & {
   attachments?: Attachment[];
   /** Private user notes on this message. */
   comments?: ChatComment[];
+  /**
+   * Aus dem Verlauf genommen -- unsichtbar in der Ansicht und nicht mehr
+   * Teil dessen, was ans Modell geht (siehe ``zuWireMessages``).
+   *
+   * Bewusst kein echtes Loeschen: die Nachricht bleibt in der Ablage und
+   * laesst sich zurueckholen. Ein fehlendes Feld heisst sichtbar, damit
+   * bestehende Verlaeufe keine Migration brauchen.
+   */
+  hidden?: boolean;
 };
 
 export type ChatRequestBody = {
@@ -200,6 +209,14 @@ export type ChatSummary = {
   message_count: number;
   created_at: string;
   updated_at: string;
+  /**
+   * Es gibt eine oeffentlich lesbare Kopie dieses Chats.
+   *
+   * Berechnet das Backend aus der Existenz dieser Kopie, nicht aus einem
+   * eigenen Flag -- so kann "geteilt" nie etwas anderes behaupten als das,
+   * was wirklich abrufbar ist.
+   */
+  public?: boolean;
 };
 
 /**

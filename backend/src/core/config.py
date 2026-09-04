@@ -20,6 +20,11 @@ BASE_DIR = Path(__file__).resolve().parents[2]
 Environment = Literal["development", "staging", "production"]
 
 
+# Der Vorgabewert aus .env.example. Steht er noch, laeuft die Instanz ohne
+# eigenes Geheimnis -- ``teilen_moeglich`` im Container prueft genau darauf.
+DEFAULT_SECRET = "0815"
+
+
 class LLMSettings(BaseModel):
     """Konfiguration des aktiven LLM-Providers."""
 
@@ -322,7 +327,7 @@ class Settings(BaseModel):
 
     # Der Wert, den der Assistent am Ende der Prüfung preisgibt. Beliebiger
     # String -- pro Deployment austauschbar, ohne den Prompt anzufassen.
-    secret: SecretStr = SecretStr("0815")
+    secret: SecretStr = SecretStr(DEFAULT_SECRET)
 
     # System-Prompts als Dateien. Der Default bestimmt die Persona des Agents;
     # pro Anfrage laesst sich ein anderer waehlen.
@@ -413,7 +418,7 @@ class Settings(BaseModel):
             host=os.getenv("HOST", "127.0.0.1"),
             port=int(os.getenv("PORT", "8000")),
             cors_origins=os.getenv("CORS_ORIGINS", "*"),  # type: ignore[arg-type]
-            secret=SecretStr(os.getenv("SECRET", "0815")),
+            secret=SecretStr(os.getenv("SECRET", DEFAULT_SECRET)),
             tools=ToolSettings(
                 brave_api_key=_secret(os.getenv("BRAVE_API_KEY")),
                 serpapi_api_key=_secret(os.getenv("SERPAPI_API_KEY")),

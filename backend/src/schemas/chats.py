@@ -53,6 +53,15 @@ class ChatUpsertRequest(BaseModel):
     }
 
 
+class ChatShareResponse(BaseModel):
+    """Antwort auf Teilen und Zuruecknehmen."""
+
+    id: str
+    public: bool
+    """Der Link, unter dem der Chat oeffentlich liegt -- nur wenn geteilt."""
+    url: str | None = None
+
+
 class ChatRenameRequest(BaseModel):
     title: Annotated[str, Field(min_length=1, max_length=200)]
 
@@ -64,6 +73,10 @@ class ChatSummary(BaseModel):
     message_count: int
     created_at: str
     updated_at: str
+    # Ob eine oeffentlich lesbare Kopie existiert. Berechnet, nicht
+    # gespeichert: die Kopie selbst ist die Wahrheit, ein zweites Flag am
+    # Chat koennte von ihr abweichen.
+    public: bool = False
 
 
 class ChatDetail(ChatSummary):

@@ -8,6 +8,8 @@ import { differenceInCalendarDays, isToday, isYesterday } from "date-fns";
 import {
   ArrowRightIcon,
   CompassIcon,
+  Globe2Icon,
+  LinkIcon,
   MegaphoneIcon,
   SettingsIcon,
   MessageSquareIcon,
@@ -17,6 +19,7 @@ import {
   SearchIcon,
   Trash2Icon,
 } from "lucide-react";
+import { toast } from "sonner";
 
 import {
   AlertDialog,
@@ -32,6 +35,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Kbd, KbdGroup } from "@/components/ui/kbd";
@@ -57,6 +61,7 @@ import {
   useDeleteChat,
   useNewChat,
   useRenameChat,
+  useSetChatPublic,
 } from "@/hooks/use-chats";
 import type { ChatSummary } from "@/lib/chat/types";
 import { cn } from "@/lib/utils";
@@ -115,6 +120,49 @@ export function ChatSidebar() {
   const [suche, setSuche] = React.useState("");
   const [umbenennen, setUmbenennen] = React.useState<string | null>(null);
   const [loeschen, setLoeschen] = React.useState<ChatSummary | null>(null);
+  // Nur fuers erste Teilen: danach schaltet der Menueeintrag direkt um.
+  const [teilen, setTeilen] = React.useState<ChatSummary | null>(null);
+  const teilenMut = useSetChatPublic();
+
+  /**
+   * Teilen einschalten fragt nach, ausschalten nicht.
+   *
+   * Die eine Richtung macht einen Verlauf fuer jeden mit dem Link lesbar --
+   * und zwar auch alles, was danach noch geschrieben wird. Die andere nimmt
+   * nur etwas zurueck; dafuer ist eine Rueckfrage bloss im Weg.
+   */
+  const teilenUmschalten = (chat: ChatSummary) => {
+    if (chat.public) {
+      teilenMut.mutate(
+        { id: chat.id, public: false },
+        {
+          onSuccess: () => toast.success("Chat is private again."),
+          onError: () => toast.error("Couldn't stop sharing."),
+        },
+      );
+      return;
+    }
+    setTeilen(chat);
+  };
+
+  const teilenBestaetigt = () => {
+    if (!teilen) return;
+    const ziel = teilen;
+    teilenMut.mutate(
+      { id: ziel.id, public: true },
+      {
+        onSuccess: () => {
+          void navigator.clipboard
+            .writeText(`${window.location.origin}/chat/${ziel.id}`)
+            .catch(() => undefined);
+          toast.success("Chat shared — link copied.");
+        },
+        onError: (fehler: Error) =>
+          toast.error(fehler.message || "Couldn't share this chat."),
+      },
+    );
+    setTeilen(null);
+  };
   const [entleerenOffen, setEntleerenOffen] = React.useState(false);
   const [einstellungen, setEinstellungen] = React.useState(false);
   const [hinweiseOffen, setHinweiseOffen] = React.useState(false);
@@ -328,6 +376,7 @@ export function ChatSidebar() {
                       onTitel={(titel) => titelSpeichern(chat, titel)}
                       onAbbrechen={() => setUmbenennen(null)}
                       onLoeschen={() => setLoeschen(chat)}
+                      onTeilen={() => teilenUmschalten(chat)}
                       onOeffnen={closeOnMobile}
                     />
                   ))}
@@ -497,6 +546,31 @@ export function ChatSidebar() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <AlertDialog
+        open={teilen !== null}
+        onOpenChange={(offen) => {
+          if (!offen) setTeilen(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Share this chat?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Anyone with the link can read &ldquo;{teilen?.title}&rdquo;
+              without signing in — including whatever you write in it from now
+              on. Hidden messages stay hidden. You can stop sharing at any
+              time.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={teilenBestaetigt}>
+              Share and copy link
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
@@ -510,6 +584,8 @@ type ZeileProps = {
   onAbbrechen: () => void;
   onLoeschen: () => void;
   onOeffnen: () => void;
+  /** Teilen anstossen -- bestaetigt wird eine Ebene hoeher. */
+  onTeilen: () => void;
 };
 
 /**
@@ -528,6 +604,7 @@ function ChatZeile({
   onAbbrechen,
   onLoeschen,
   onOeffnen,
+  onTeilen,
 }: ZeileProps) {
   // Umbenennen passiert an Ort und Stelle: dieselbe Zeile, nur ein Feld
   // statt des Titels. Ein Dialog dafuer waere zu viel Aufwand fuer einen
@@ -575,6 +652,13 @@ function ChatZeile({
         )}
       >
         <span className="truncate">{chat.title}</span>
+        {/* Ohne Menue sichtbar, welche Verlaeufe offen liegen. */}
+        {chat.public ? (
+          <Globe2Icon
+            className="ms-auto size-3 shrink-0 text-muted-foreground/60"
+            aria-label="Shared publicly"
+          />
+        ) : null}
       </Link>
 
       <DropdownMenu>
@@ -589,7 +673,30 @@ function ChatZeile({
           <MoreHorizontalIcon className="size-3.5" />
           <span className="sr-only">Chat options</span>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" side="bottom" className="w-40">
+        <DropdownMenuContent align="end" side="bottom" className="w-48">
+          {/* Einen Link kopieren heisst nicht, ihn veroeffentlichen zu
+              wollen -- die beiden Eintraege bleiben deshalb getrennt. Ohne
+              Teilen fuehrt der Link nur fuer angemeldete Leute irgendwohin. */}
+          <DropdownMenuItem
+            onClick={() => {
+              void navigator.clipboard
+                .writeText(`${window.location.origin}/chat/${chat.id}`)
+                .then(() => toast.success("Chat link copied."))
+                .catch(() =>
+                  toast.error("Couldn't copy — the clipboard is blocked here."),
+                );
+            }}
+          >
+            <LinkIcon />
+            Copy link
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={onTeilen}>
+            <Globe2Icon />
+            {chat.public ? "Stop sharing" : "Share chat"}
+          </DropdownMenuItem>
+
+          <DropdownMenuSeparator />
+
           <DropdownMenuItem onClick={onUmbenennen}>
             <PencilLineIcon />
             Rename

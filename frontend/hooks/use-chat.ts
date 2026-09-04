@@ -10,6 +10,7 @@ import {
   serverSchnappschuss,
   setzeVerlauf,
   setzeRueckgabe,
+  setzeVersteckt,
   starte,
   stoppe,
 } from "@/lib/chat/turn-runner";
@@ -190,6 +191,19 @@ export function useChat({ chatId, initialMessages }: UseChatOptions) {
     retry: false,
   });
 
+  /**
+   * Eine Nachricht aus dem Verlauf nehmen -- oder zurueckholen.
+   *
+   * Liegt hier und nicht in der Ansicht, weil der Speicher-Client schon hier
+   * haengt: die Ansicht soll sagen, WAS passieren soll, nicht wie es
+   * gespeichert wird.
+   */
+  const verstecke = React.useCallback(
+    (messageId: string, versteckt: boolean) =>
+      setzeVersteckt(chatId, messageId, versteckt, queryClient),
+    [chatId, queryClient],
+  );
+
   return {
     chatId,
     messages: stand.messages,
@@ -204,5 +218,6 @@ export function useChat({ chatId, initialMessages }: UseChatOptions) {
     error: stand.error,
     dismissError,
     health,
+    verstecke,
   };
 }

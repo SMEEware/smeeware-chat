@@ -8,6 +8,7 @@ import {
   BookOpenIcon,
   BracesIcon,
   BugPlay,
+  EyeIcon,
   KeyRoundIcon,
   RotateCcwIcon,
   SearchIcon,
@@ -57,7 +58,7 @@ import { SidebarTrigger, useSidebar } from "@/components/ui/sidebar";
 import { BackendStatus } from "@/components/chat/backend-status";
 import {
   BEFEHL,
-  dispatchInsert,
+  dispatchQuote,
   onBefehl,
   openChatCommand,
 } from "@/lib/chat/commands";
@@ -105,9 +106,14 @@ export function ChatPanel({ chatId, initialMessages }: ChatPanelProps) {
     error,
     dismissError,
     health,
+    verstecke,
   } = useChat({ chatId, initialMessages });
 
   const hasMessages = messages.length > 0;
+
+  // Versteckte Nachrichten werden zu Bloecken zusammengefasst: zehn einzelne
+  // Platzhalterzeilen waeren lauter als das, was sie ersetzen.
+  const eintraege = React.useMemo(() => gruppiereVersteckte(messages), [messages]);
 
   // Comment signal: the palette (or later a shortcut) triggers a note on
   // the last message. The value counts up so the same trigger arriving
@@ -180,22 +186,16 @@ export function ChatPanel({ chatId, initialMessages }: ChatPanelProps) {
   });
 
   React.useEffect(() => {
-    /** Text als Zitat (Blockzitat) ins Feld legen. */
-    const alsZitat = (text: string) => {
-      const zitat = text
-        .trim()
-        .split("\n")
-        .map((zeile) => `> ${zeile}`)
-        .join("\n");
-      dispatchInsert(`${zitat}\n\n`);
-    };
-
-    const letzteAntwort = (): string => {
-      const treffer = [...refs.current.messages]
+    /**
+     * Die letzte sichtbare Antwort.
+     *
+     * Versteckte fallen heraus: was aus dem Verlauf genommen wurde, soll
+     * nicht ueber den Umweg eines Zitats zurueckkommen.
+     */
+    const letzteAntwort = () =>
+      [...refs.current.messages]
         .reverse()
-        .find((m) => m.role === "assistant");
-      return treffer ? stripToolScaffolding(treffer.content).trim() : "";
-    };
+        .find((m) => m.role === "assistant" && !m.hidden) ?? null;
 
     const kopiere = async (text: string, erfolg: string) => {
       try {
@@ -231,22 +231,42 @@ export function ChatPanel({ chatId, initialMessages }: ChatPanelProps) {
     });
 
     const abQuoteMsg = onBefehl(BEFEHL.referenceMessage, () => {
-      const text = letzteAntwort();
-      if (!text) {
+      const antwort = letzteAntwort();
+      const text = antwort ? stripToolScaffolding(antwort.content).trim() : "";
+      if (!antwort || !text) {
         toast.info("No answer to quote yet.");
         return;
       }
-      alsZitat(text);
+      dispatchQuote({ text, role: "assistant", messageId: antwort.id });
     });
 
+    // Kein Rueckfall mehr auf die letzte Antwort.
+    //
+    // Der stand hier mal und war die Ursache dafuer, dass "Quote selection"
+    // die komplette letzte Antwort ins Feld legte: die Auswahl ist beim
+    // Ausloesen ueber Palette oder Slash-Menue immer leer -- beide ziehen den
+    // Fokus in ein Eingabefeld, und der Browser verwirft dabei die Markierung.
+    // Der Rueckfall hat den Fehler dann als Ergebnis getarnt.
+    //
+    // Ueber das Kontextmenue an der Nachricht (Rechtsklick) lebt die Auswahl
+    // noch; als Tastenkuerzel funktioniert es ebenfalls, weil dabei kein
+    // Fokuswechsel stattfindet.
     const abQuoteSel = onBefehl(BEFEHL.referenceContent, () => {
       const auswahl = window.getSelection?.()?.toString().trim() ?? "";
-      const text = auswahl || letzteAntwort();
-      if (!text) {
-        toast.info("Select some text first, then quote it.");
+      if (!auswahl) {
+        toast.info("Select some text in a message first, then quote it.");
         return;
       }
-      alsZitat(text);
+      // Aus welcher Nachricht die Auswahl stammt, weiss hier niemand -- das
+      // Kontextmenue schon, und darum ist es der bessere Weg. Fuers Kuerzel
+      // nehmen wir "Antwort" als Naeherung: markiert wird fast immer in
+      // einer Antwort, und die Rolle steuert nur die Beschriftung.
+      const antwort = letzteAntwort();
+      dispatchQuote({
+        text: auswahl,
+        role: "assistant",
+        messageId: antwort?.id ?? "",
+      });
     });
 
     const abRename = onBefehl(BEFEHL.renameChat, () => {
@@ -338,22 +358,47 @@ export function ChatPanel({ chatId, initialMessages }: ChatPanelProps) {
           <MessageScroller className="min-h-0 flex-1">
             <MessageScrollerViewport>
               <MessageScrollerContent className="mx-auto w-full max-w-3xl gap-7 px-4 py-8 md:px-6">
-                {messages.map((message) => (
-                  <MessageScrollerItem
-                    key={message.id}
-                    messageId={message.id}
-                    // Die Frage bleibt oben stehen, waehrend die Antwort waechst.
-                    scrollAnchor={message.role === "user"}
-                  >
-                    <ChatMessage
-                      message={message}
-                      chatId={chatId}
-                      commentSignal={
-                        message.id === lastMessageId ? commentSignal : 0
-                      }
-                    />
-                  </MessageScrollerItem>
-                ))}
+                {eintraege.map((eintrag) =>
+                  eintrag.art === "versteckt" ? (
+                    <MessageScrollerItem
+                      key={`hidden-${eintrag.ids[0]}`}
+                      messageId={`hidden-${eintrag.ids[0]}`}
+                    >
+                      <button
+                        type="button"
+                        onClick={() =>
+                          eintrag.ids.forEach((id) => verstecke(id, false))
+                        }
+                        className="mx-auto flex items-center gap-1.5 rounded-full border border-dashed border-border/60 px-3 py-1 text-[11px] text-muted-foreground/70 transition-colors hover:border-border hover:text-foreground"
+                      >
+                        <EyeIcon className="size-3" />
+                        {eintrag.ids.length === 1
+                          ? "1 hidden message"
+                          : `${eintrag.ids.length} hidden messages`}
+                        <span className="text-muted-foreground/50">·</span>
+                        show
+                      </button>
+                    </MessageScrollerItem>
+                  ) : (
+                    <MessageScrollerItem
+                      key={eintrag.message.id}
+                      messageId={eintrag.message.id}
+                      // Die Frage bleibt oben stehen, waehrend die Antwort waechst.
+                      scrollAnchor={eintrag.message.role === "user"}
+                    >
+                      <ChatMessage
+                        message={eintrag.message}
+                        chatId={chatId}
+                        commentSignal={
+                          eintrag.message.id === lastMessageId
+                            ? commentSignal
+                            : 0
+                        }
+                        onHide={verstecke}
+                      />
+                    </MessageScrollerItem>
+                  ),
+                )}
 
                 {error ? (
                   <MessageScrollerItem messageId="error">
@@ -554,7 +599,41 @@ export function ChatPanel({ chatId, initialMessages }: ChatPanelProps) {
  * das Werkzeug-Geruest bleiben draussen; kopiert wird, was auch in den
  * Blasen steht.
  */
-function transcriptToMarkdown(messages: ChatMessageTyp[]): string {
+/** Eine sichtbare Nachricht -- oder ein Block, der zusammen ausgeblendet ist. */
+type Eintrag =
+  | { art: "nachricht"; message: ChatMessageTyp }
+  | { art: "versteckt"; ids: string[] };
+
+/**
+ * Aufeinanderfolgende versteckte Nachrichten zu je einem Block zusammenziehen.
+ *
+ * Die Reihenfolge bleibt dabei erhalten -- ein Block steht genau dort, wo die
+ * Nachrichten standen, damit man sieht, an welcher Stelle des Gespraechs etwas
+ * fehlt, statt nur dass etwas fehlt.
+ */
+function gruppiereVersteckte(messages: ChatMessageTyp[]): Eintrag[] {
+  const eintraege: Eintrag[] = [];
+
+  for (const message of messages) {
+    if (!message.hidden) {
+      eintraege.push({ art: "nachricht", message });
+      continue;
+    }
+
+    const letzter = eintraege[eintraege.length - 1];
+    if (letzter?.art === "versteckt") {
+      letzter.ids.push(message.id);
+    } else {
+      eintraege.push({ art: "versteckt", ids: [message.id] });
+    }
+  }
+
+  return eintraege;
+}
+
+/** Der Verlauf als Markdown -- ohne die Nachrichten, die ausgeblendet sind. */
+function transcriptToMarkdown(alle: ChatMessageTyp[]): string {
+  const messages = alle.filter((m) => !m.hidden);
   const teile = messages
     .filter((m) => m.content.trim().length > 0)
     .map((m) => {

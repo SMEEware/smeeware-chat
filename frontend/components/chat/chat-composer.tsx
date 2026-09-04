@@ -11,6 +11,7 @@ import {
   MicIcon,
   PaperclipIcon,
   SquareIcon,
+  TextQuoteIcon,
   XIcon,
 } from "lucide-react";
 
@@ -33,7 +34,9 @@ import {
   istKuerzel,
   onBefehl,
   onInsert,
+  onQuote,
 } from "@/lib/chat/commands";
+import type { Zitat } from "@/lib/chat/commands";
 import {
   buildGeneratorTemplate,
   filterCommands,
@@ -73,6 +76,18 @@ type ChatComposerProps = {
    *  mitgeschleppter alter Stand wuerde parallele Uploads verschlucken. */
   onAttachmentsChange: React.Dispatch<React.SetStateAction<Attachment[]>>;
 };
+
+/**
+ * Ein Zitat als Markdown, mit einer Zeile darueber, wen es zitiert.
+ *
+ * Die Zuordnung steht IM Blockzitat, nicht davor: sonst liest ein Modell die
+ * Zeile als eigene Aussage des Fragenden und nicht als Teil des Zitats.
+ */
+function alsBlockzitat({ text, role }: Zitat): string {
+  const wer = role === "assistant" ? "Quoting your earlier answer" : "Quoting my earlier message";
+  return [`> **${wer}:**`, ">", ...text.split("\n").map((zeile) => `> ${zeile}`)]
+    .join("\n");
+}
 
 export function ChatComposer({
   value,
@@ -151,6 +166,25 @@ export function ChatComposer({
         textareaRef.current?.focus();
       }),
     [onValueChange],
+  );
+
+  /**
+   * Das Zitat, an dem der naechste Prompt haengt.
+   *
+   * Als eigener Zustand neben dem Feld statt als Text darin: so bleibt der
+   * Entwurf tippbar, das Zitat laesst sich mit einem Klick wieder verwerfen,
+   * und niemand muss ``> ``-Zeilen aus seinem Text loeschen. Genau eines --
+   * ein zweites Zitat ersetzt das erste.
+   */
+  const [zitat, setZitat] = React.useState<Zitat | null>(null);
+
+  React.useEffect(
+    () =>
+      onQuote((neu) => {
+        setZitat(neu);
+        textareaRef.current?.focus();
+      }),
+    [],
   );
 
   /** Das Transkript hinten anhaengen, nicht ersetzen. */
@@ -329,14 +363,18 @@ export function ChatComposer({
   const submit = () => {
     if (!canSend) return;
     playSend();
-    onSubmit(value);
+    // Das Zitat wird erst hier zu Text. Im Feld stand es nie -- das Modell
+    // bekommt trotzdem gewoehnliches Markdown und kein Sonderformat.
+    onSubmit(zitat ? `${alsBlockzitat(zitat)}\n\n${value}` : value);
+    setZitat(null);
   };
 
   const traegtDateien = (event: React.DragEvent) =>
     event.dataTransfer.types.includes("Files");
 
   const meldung = fehler ?? stimme.fehler;
-  const zeigtEtwas = attachments.length > 0 || laedt || meldung !== null;
+  const zeigtEtwas =
+    attachments.length > 0 || laedt || meldung !== null || zitat !== null;
 
   const slashMatches =
     slashQuery !== null ? filterCommands(slashQuery, "slash") : [];
@@ -426,6 +464,40 @@ export function ChatComposer({
             align="block-start"
             className="flex-col items-start gap-2"
           >
+            {zitat ? (
+              <div className="group/zitat relative flex w-full gap-2.5 rounded-xl border border-border/60 bg-muted/40 py-2 pe-9 ps-3">
+                {/* Derselbe Streifen links wie am Blockquote im Verlauf --
+                    Zitat im Feld und Zitat in der Antwort sollen sichtbar
+                    dasselbe sein. */}
+                <span
+                  aria-hidden
+                  className="absolute inset-y-2 inset-s-0 w-0.5 rounded-full bg-primary/50"
+                />
+                <TextQuoteIcon className="mt-0.5 size-3.5 shrink-0 text-muted-foreground/70" />
+                <div className="min-w-0 flex-1">
+                  <span className="text-[11px] font-medium text-muted-foreground/80">
+                    {zitat.role === "assistant" ? "Answer" : "Your message"}
+                  </span>
+                  {/* Sechs Zeilen reichen, um wiederzuerkennen, was zitiert
+                      wird. In den Prompt geht der volle Text -- die Kuerzung
+                      ist Anzeige, keine Datenaenderung. */}
+                  <p className="line-clamp-6 whitespace-pre-wrap text-xs leading-relaxed text-muted-foreground">
+                    {zitat.text}
+                  </p>
+                </div>
+                <InputGroupButton
+                  type="button"
+                  variant="ghost"
+                  size="icon-xs"
+                  aria-label="Remove quote"
+                  className="absolute inset-e-1.5 top-1.5 text-muted-foreground/60 hover:text-foreground"
+                  onClick={() => setZitat(null)}
+                >
+                  <XIcon />
+                </InputGroupButton>
+              </div>
+            ) : null}
+
             <AttachmentChips anhaenge={attachments} onEntfernen={entfernen} />
 
             {laedt ? (
@@ -514,6 +586,15 @@ export function ChatComposer({
                 closeSlash();
                 return;
               }
+              return;
+            }
+
+            // Escape verwirft das Zitat -- aber nur, wenn es eines gibt und
+            // das Slash-Menue nicht offen ist (das hat Escape oben schon fuer
+            // sich beansprucht). So kommt man ohne Mausweg wieder heraus.
+            if (event.key === "Escape" && zitat) {
+              event.preventDefault();
+              setZitat(null);
               return;
             }
 

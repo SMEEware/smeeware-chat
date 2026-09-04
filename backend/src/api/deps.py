@@ -14,6 +14,7 @@ from src.core.container import ServiceProvider
 from src.core.exceptions import ConfigurationError, UnauthorizedError
 from src.services.ai.agent import Agent
 from src.services.chats import ChatStore
+from src.services.chats.public import PublicChatStore
 
 
 def get_provider(request: Request) -> ServiceProvider:
@@ -52,6 +53,21 @@ def get_chats(
     if (chats := provider.chats_for(session)) is None:
         raise UnauthorizedError("Not signed in.")
     return chats
+
+
+def get_public_chats(
+    provider: Annotated[ServiceProvider, Depends(get_provider)],
+) -> PublicChatStore:
+    """Die geteilten Chats -- **ohne** Anmeldung.
+
+    Das Fehlen eines Session-Headers ist hier kein Versehen, sondern der
+    Zweck: geteilte Chats werden von Leuten gelesen, die kein Konto haben.
+    Wer diese Dependency benutzt, liefert bewusst oeffentlich aus. Fuer alles
+    andere gilt weiterhin ``get_chats``.
+    """
+    if (oeffentlich := provider.public_chats) is None:
+        raise ConfigurationError("Chat history is disabled (CHATS_ENABLED=false).")
+    return oeffentlich
 
 
 def _bearer(authorization: str | None) -> str | None:
@@ -99,4 +115,5 @@ ProviderDep = Annotated[ServiceProvider, Depends(get_provider)]
 SettingsDep = Annotated[Settings, Depends(get_settings_dep)]
 AgentDep = Annotated[Agent, Depends(get_agent)]
 ChatStoreDep = Annotated[ChatStore, Depends(get_chats)]
+PublicChatStoreDep = Annotated[PublicChatStore, Depends(get_public_chats)]
 ApiAccessDep = Annotated[None, Depends(require_api_access)]

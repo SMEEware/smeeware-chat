@@ -21,7 +21,6 @@ import {
   PaperclipIcon,
   PencilLineIcon,
   PlusIcon,
-  QuoteIcon,
   SparklesIcon,
   SunMoonIcon,
   SettingsIcon,
@@ -433,24 +432,23 @@ export const COMMANDS: CommandEntry[] = [
     befehl: BEFEHL.referenceMessage,
     trigger: "quote",
     label: "Quote last answer",
-    description: "Drop the last reply into the box as a quote",
-    hint: "Blockquotes the model's last answer so you can reply to a specific part.",
+    description: "Attach the last reply to your next message",
+    hint: "Quotes the model's last answer. To quote just a part of it, select the text and right-click it.",
     icon: TextQuoteIcon,
     group: "context",
-    keywords: ["reference", "cite", "refer", "message"],
+    keywords: ["reference", "cite", "refer", "message", "selection", "snippet"],
   },
-  {
-    id: "reference-content",
-    kind: "action",
-    befehl: BEFEHL.referenceContent,
-    label: "Quote selection",
-    description: "Quote whatever text you have selected",
-    hint: "Select any text on the page, then run this to quote it into the box.",
-    icon: QuoteIcon,
-    group: "context",
-    surfaces: ["palette"],
-    keywords: ["snippet", "excerpt", "selection", "reference"],
-  },
+  // "Quote selection" stand hier und ist bewusst weg.
+  //
+  // Der Eintrag konnte nie funktionieren: Palette wie Slash-Menue ziehen den
+  // Fokus in ein Eingabefeld, und der Browser verwirft dabei die Markierung.
+  // Bis der Befehl lief, war nichts mehr ausgewaehlt -- er quotete dann die
+  // ganze letzte Antwort und sah dabei aus wie Absicht.
+  //
+  // Das Ereignis (BEFEHL.referenceContent) gibt es weiter, und der Hoerer im
+  // Chat-Panel auch: ueber ein Tastenkuerzel bliebe der Fokus stehen und die
+  // Auswahl erhalten. Der Weg fuer Menschen ist der Rechtsklick auf die
+  // Markierung in einer Nachricht.
 
   // --- Input -----------------------------------------------------------
   {

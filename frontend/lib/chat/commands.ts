@@ -104,6 +104,21 @@ export type BefehlName = (typeof BEFEHL)[keyof typeof BEFEHL];
  *  signalfreien ``BEFEHL`` kollidieren. */
 const NAV_EVENT = "smeeware:navigate";
 const INSERT_EVENT = "smeeware:insert-text";
+const QUOTE_EVENT = "smeeware:quote";
+
+/**
+ * Ein Zitat auf dem Weg zum Composer.
+ *
+ * Eigener Kanal statt ``dispatchInsert``: ein Zitat ist kein Text im Feld,
+ * sondern ein eigener Zustand daneben -- er laesst sich wieder verwerfen,
+ * ohne dass jemand ``> ``-Zeilen aus seinem Entwurf loeschen muss, und er
+ * traegt mit, von wem zitiert wird.
+ */
+export type Zitat = {
+  text: string;
+  role: "user" | "assistant";
+  messageId: string;
+};
 
 /** Ein signalfreies Kommando feuern. */
 export function dispatchCommand(name: BefehlName) {
@@ -121,6 +136,13 @@ export function dispatchNavigate(href: string) {
 export function dispatchInsert(text: string) {
   if (typeof window !== "undefined") {
     window.dispatchEvent(new CustomEvent(INSERT_EVENT, { detail: { text } }));
+  }
+}
+
+/** "Zitiere das hier." Der Composer haengt es ueber sein Feld. */
+export function dispatchQuote(zitat: Zitat) {
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent(QUOTE_EVENT, { detail: zitat }));
   }
 }
 
@@ -178,6 +200,14 @@ export function onInsert(handler: (text: string) => void) {
     handler((event as CustomEvent<{ text: string }>).detail.text);
   window.addEventListener(INSERT_EVENT, listener);
   return () => window.removeEventListener(INSERT_EVENT, listener);
+}
+
+/** Auf "zitiere das hier" hoeren. */
+export function onQuote(handler: (zitat: Zitat) => void) {
+  const listener = (event: Event) =>
+    handler((event as CustomEvent<Zitat>).detail);
+  window.addEventListener(QUOTE_EVENT, listener);
+  return () => window.removeEventListener(QUOTE_EVENT, listener);
 }
 
 /**

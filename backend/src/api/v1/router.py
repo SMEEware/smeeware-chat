@@ -15,6 +15,7 @@ from src.api.v1.routes import (
     models,
     notifications,
     prompts,
+    public,
     tools,
     transcribe,
     tts,
@@ -32,6 +33,9 @@ router.include_router(notifications.router)
 router.include_router(chat.router)
 # /chat und /chats kollidieren nicht -- getrennte Prefixe.
 router.include_router(chats.router)
+# Geteilte Chats. Liegt unter /public/chats und nicht unter /chats, damit an
+# der Adresse ablesbar ist, dass hier keine Anmeldung verlangt wird.
+router.include_router(public.router)
 router.include_router(models.router)
 router.include_router(tools.router)
 router.include_router(vision.router)

@@ -89,9 +89,16 @@ const neueId = () =>
  * und das Backend braucht trotzdem kein Feld ausser ``content``.
  */
 function toWire(
-  messages: ChatMessage[],
+  alleMessages: ChatMessage[],
   workspace: Workspace | null = null,
 ): WireMessage[] {
+  // Versteckte Nachrichten fallen VOR allem anderen heraus. Die Reihenfolge
+  // ist nicht beliebig: ``letzterNutzer`` unten ist ein Index in genau dieses
+  // Array. Wuerde erst spaeter gefiltert, zeigte er auf eine Position im
+  // ungefilterten Verlauf und der Workspace-Block landete an der falschen
+  // Nachricht -- oder an einer, die gar nicht mitreist.
+  const messages = alleMessages.filter((m) => !m.hidden);
+
   // Der Workspace-Block reist nur an der LETZTEN Nutzernachricht mit -- so
   // sieht das Modell immer den gerade aktiven Kontext, ohne ihn in jeder
   // Zeile zu wiederholen. Der Index wird vorab gesucht, damit die Karte
@@ -323,6 +330,31 @@ export function removeComment(
             ),
           }
         : message,
+    ),
+  });
+  sichern(chatId, l, client);
+}
+
+/**
+ * Eine Nachricht aus dem Verlauf nehmen -- oder zurueckholen.
+ *
+ * Derselbe Weg wie die Notizen: ueber ``aendere`` und ``sichern``, damit ein
+ * Neuladen den Zustand wiederfindet. Die Nachricht bleibt vollstaendig
+ * erhalten, sie traegt nur ein Feld mehr; entfernt wird sie erst auf dem Weg
+ * zum Modell in ``toWire``.
+ */
+export function setzeVersteckt(
+  chatId: string,
+  messageId: string,
+  versteckt: boolean,
+  client: QueryClient,
+): void {
+  const l = laeufe.get(chatId);
+  if (!l) return;
+
+  aendere(l, {
+    messages: l.schnapp.messages.map((message) =>
+      message.id === messageId ? { ...message, hidden: versteckt } : message,
     ),
   });
   sichern(chatId, l, client);

@@ -23,6 +23,17 @@ export const CHATS_ENDPOINT =
   CHAT_STREAM_ENDPOINT.replace(/\/chat\/stream\/?$/, "/chats");
 
 /**
+ * Geteilte Chats -- derselbe api_prefix, aber ein eigener Zweig.
+ *
+ * ``/public/`` steht bewusst in der Adresse: an ihr ist ablesbar, dass dieser
+ * Endpunkt ohne Anmeldung antwortet. Wer eine Route hierher legt, tut es
+ * absichtlich.
+ */
+export const PUBLIC_CHATS_ENDPOINT =
+  process.env.LLM_PUBLIC_CHATS_URL ??
+  CHAT_STREAM_ENDPOINT.replace(/\/chat\/stream\/?$/, "/public/chats");
+
+/**
  * Anhaenge liegen wieder unter demselben api_prefix. Dieselbe Ableitung wie
  * oben, damit eine einzige Env-Variable alle vier Endpunkte umzieht.
  */
