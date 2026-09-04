@@ -8,12 +8,19 @@ BACKEND_DIR="/home/smee/smeeware-chat/backend"
 FRONTEND_DIR="/home/smee/smeeware-chat/frontend"
 MODE="dev"
 
+# Liest das Frontend zur Laufzeit (lib/chat/backend.ts). Von aussen ueberschreibbar:
+#   LLM_STREAM_URL=http://... ./start.sh -build
+export LLM_STREAM_URL="${LLM_STREAM_URL:-http://127.0.0.1:8000/api/v1/chat/stream}"
+
 usage() {
   cat <<'EOF'
 Usage: start.sh [-dev|-build]
 
-  -dev     Backend + "npm run dev"   (Default)
-  -build   Backend + "npm run build && npm run start"
+  -dev     Backend + "next dev"                 (Default)
+  -build   Backend + "next build && next start"
+
+Env:
+  LLM_STREAM_URL   Default: http://127.0.0.1:8000/api/v1/chat/stream
 EOF
 }
 
@@ -62,11 +69,12 @@ fi
 
 # ---------- Frontend ----------
 echo ">> Frontend: $FRONTEND_DIR (Modus: $MODE)"
+echo ">> LLM_STREAM_URL=$LLM_STREAM_URL"
 cd "$FRONTEND_DIR"
 
 if [[ "$MODE" == "build" ]]; then
-  npm run build
-  npm run start
+  npx next build
+  npx next start
 else
-  npm run dev
+  npx next dev
 fi
