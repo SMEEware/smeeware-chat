@@ -1,7 +1,10 @@
 "use client";
 
+import * as React from "react";
+import Image from "next/image";
 import Link from "next/link";
-import { Globe2Icon, MessageSquareIcon } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
+import { Globe2Icon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -27,15 +30,49 @@ import { usePublicChat } from "@/hooks/use-chats";
  */
 export function PublicChatView({ id }: { id: string }) {
   const { data, isPending, isError } = usePublicChat(id);
+  const router = useRouter();
+  const pfad = usePathname();
 
-  if (isPending) return <LeseSkelett />;
+  /**
+   * Nicht geteilt heisst: hier gibt es fuer Unangemeldete nichts, wohl aber
+   * fuer die Person, der er gehoert. Deshalb zur Anmeldung statt in eine
+   * Sackgasse -- mit ``next``, damit man nach dem Anmelden genau hier
+   * herauskommt.
+   *
+   * Der Grund fuer das 404 bleibt dabei absichtlich offen: es koennte den
+   * Chat nicht geben oder er ist bloss privat. Beides gleich zu behandeln
+   * ist dieselbe Zurueckhaltung wie im Backend, das fuer beides denselben
+   * Status liefert.
+   */
+  React.useEffect(() => {
+    if (!isError) return;
+    router.replace(`/login?next=${encodeURIComponent(pfad)}`);
+  }, [isError, router, pfad]);
 
-  if (isError || !data) return <NichtGeteilt />;
+  // Waehrend der Weiterleitung weiter das Skelett: die Fehlermeldung waere
+  // fuer einen Sekundenbruchteil zu sehen und dann weg.
+  if (isPending || isError || !data) return <LeseSkelett />;
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <header className="shrink-0 border-b border-border/60">
         <div className="mx-auto flex w-full max-w-3xl items-center gap-3 px-4 py-4 md:px-6">
+          {/* Fuer jemanden ohne Konto ist das hier der einzige Hinweis
+              darauf, wo er gelandet ist -- und der einzige Weg dorthin. */}
+          <Link
+            href="/"
+            aria-label="SMEEware Chat"
+            className="group flex size-11 shrink-0 items-center justify-center"
+          >
+            <Image
+              src="/assets/img/icon.svg"
+              height={44}
+              width={44}
+              alt=""
+              className="h-auto w-full transition-transform duration-300 group-hover:scale-110"
+            />
+          </Link>
+
           <div className="min-w-0 flex-1">
             <div className="mb-1 flex items-center gap-1.5 text-[11px] font-medium tracking-wide text-muted-foreground/70 uppercase">
               <Globe2Icon className="size-3" />
@@ -90,28 +127,6 @@ export function PublicChatView({ id }: { id: string }) {
           </MessageScrollerViewport>
         </MessageScroller>
       </MessageScrollerProvider>
-    </div>
-  );
-}
-
-/**
- * Nicht geteilt und gar nicht vorhanden sehen hier gleich aus -- so wie im
- * Backend, das fuer beides denselben 404 liefert. Eine Unterscheidung waere
- * die Auskunft, welche ids es gibt.
- */
-function NichtGeteilt() {
-  return (
-    <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 px-6 text-center">
-      <MessageSquareIcon className="size-8 text-muted-foreground/40" />
-      <p className="font-heading text-lg">Nothing shared here.</p>
-      <p className="max-w-sm text-sm text-muted-foreground">
-        This conversation is private, or the link is no longer valid.
-      </p>
-      <Button
-        variant="outline"
-        size="sm"
-        render={<Link href="/login?next=%2Fchat">Sign in</Link>}
-      />
     </div>
   );
 }

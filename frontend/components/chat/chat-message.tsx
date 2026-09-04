@@ -7,7 +7,6 @@ import { Bubble, BubbleContent } from "@/components/ui/bubble";
 import { Button } from "@/components/ui/button";
 import {
   Message,
-  MessageAvatar,
   MessageContent,
   MessageFooter,
 } from "@/components/ui/message";
@@ -22,7 +21,6 @@ import { ToolEvent } from "@/components/chat/tool-event";
 import { AttachmentChips } from "@/components/chat/attachment-chips";
 import { MessageComments } from "@/components/chat/message-comments";
 import { MessageContextMenu } from "@/components/chat/message-context-menu";
-import { useAccount } from "@/hooks/use-account";
 import { useSettings } from "@/lib/settings/store";
 import { UserMessage } from "@/components/chat/user-message";
 import type {
@@ -31,7 +29,6 @@ import type {
 } from "@/lib/chat/types";
 import { stripToolScaffolding } from "@/lib/chat/sanitize";
 import { cn } from "@/lib/utils";
-import Image from "next/image";
 
 function CopyButton({
   text,
@@ -88,7 +85,6 @@ export function ChatMessage({
   /** Die oeffentliche Leseansicht: kein Zitieren, kein Ausblenden, keine Notizen. */
   readOnly?: boolean;
 }) {
-  const konto = useAccount();
   const zeigeDenken = useSettings((zustand) => zustand.thinking);
 
   // Zwei Wege fuehren zur Notiz: die Palette (ueber ``commentSignal``, nur an
@@ -127,23 +123,9 @@ export function ChatMessage({
   if (message.role === "user") {
     return (
       <Message align="end">
-        <MessageAvatar className="rounded-full bg-transparent">
-          <Image
-            // Das eigene Bild, sobald eines hinterlegt ist. Der Zeitstempel
-            // haengt dran, damit der Browser nach einem Wechsel wirklich das
-            // neue holt statt des zwischengespeicherten alten.
-            src={
-              konto.data?.has_avatar
-                ? `/api/account/avatar?v=${konto.dataUpdatedAt}`
-                : "https://storage.smeeware.com/assets/profile_placeholder.png"
-            }
-            alt="Profile"
-            height={32}
-            width={32}
-            unoptimized={Boolean(konto.data?.has_avatar)}
-          />
-          {/* <ZapIcon size={15} /> */}
-        </MessageAvatar>
+        {/* Kein Avatar an der eigenen Nachricht: die Blase steht rechts und
+            sagt damit schon, von wem sie ist. Ein Bild daneben wiederholt das
+            nur -- in jeder Zeile, den ganzen Verlauf hinunter. */}
         <MessageContent className="flex flex-col items-end gap-2">
           {/* Ueber der Blase, nicht darin: die Dateien gehoerten zur Frage,
               standen aber nie in ihrem Text -- der Block dafuer entsteht
