@@ -703,7 +703,7 @@ export function ChatComposer({
                 aria-label="Manage plugins"
                 title="Plugins — which tools the model may use"
                 className={cn(
-                  "gap-1.5 rounded-full",
+                  "cursor-pointer gap-1.5 rounded-full transition-all active:scale-90",
                   aktivePlugins > 0
                     ? "text-primary hover:bg-primary/10"
                     : "text-muted-foreground hover:bg-muted hover:text-foreground",

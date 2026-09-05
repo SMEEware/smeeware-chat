@@ -18,6 +18,7 @@ import {
 import { Markdown } from "@/components/chat/markdown";
 import { Reasoning } from "@/components/chat/reasoning";
 import { ToolEvent } from "@/components/chat/tool-event";
+import { AskCard, alsRueckfrage } from "@/components/chat/ask-card";
 import { AttachmentChips } from "@/components/chat/attachment-chips";
 import { MessageComments } from "@/components/chat/message-comments";
 import { MessageContextMenu } from "@/components/chat/message-context-menu";
@@ -75,12 +76,16 @@ export function ChatMessage({
   commentSignal = 0,
   onHide,
   readOnly = false,
+  onAnswer,
+  answeredWith = null,
 }: {
   message: ChatMessageType;
   chatId: string;
   commentSignal?: number;
   onHide?: (messageId: string, versteckt: boolean) => void;
   readOnly?: boolean;
+  onAnswer?: (antwort: string) => void;
+  answeredWith?: string | null;
 }) {
   const zeigeDenken = useSettings((zustand) => zustand.thinking);
 
@@ -167,6 +172,21 @@ export function ChatMessage({
           const isLast = index === lastIndex;
 
           if (part.type === "tool") {
+            const frage =
+              part.tool === "ask_user" ? alsRueckfrage(part.arguments) : null;
+
+            if (frage) {
+              return (
+                <AskCard
+                  key={part.callId}
+                  frage={frage}
+                  beantwortet={answeredWith}
+                  disabled={readOnly || streaming || !onAnswer}
+                  onAntwort={(antwort) => onAnswer?.(antwort)}
+                />
+              );
+            }
+
             return (
               <ToolEvent
                 key={part.callId}

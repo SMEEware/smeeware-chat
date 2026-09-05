@@ -63,15 +63,17 @@ def create_notify_toolbox(
     bus: "EventBus",
     hinweise: "HinweisQuelle | None" = None,
 ) -> LocalToolBox:
-    """Nur der Hinweis -- die Toolbox fuer abgeschaltete Werkzeuge.
+    """Die Toolbox fuer abgeschaltete Werkzeuge -- nicht ganz leer.
 
-    Statt gar keiner Box: ``notify_user`` ruft nichts ab und veraendert
-    nichts, es sagt nur etwas. Es abzuschalten hiesse, dem Modell die
-    Stimme zu nehmen, nicht eine Faehigkeit.
+    Zwei bleiben: ``notify_user`` ruft nichts ab und veraendert nichts, es
+    sagt nur etwas. ``ask_user`` haelt an und fragt. Beides ist keine
+    Faehigkeit, die man abwaehlen wuerde, sondern Gespraechsfuehrung; sie
+    abzuschalten hiesse, dem Modell die Stimme zu nehmen.
     """
+    from src.services.tools.local.ask import AskUserTool
     from src.services.tools.local.notify import NotifyUserTool
 
-    return LocalToolBox([NotifyUserTool(bus, hinweise)])
+    return LocalToolBox([NotifyUserTool(bus, hinweise), AskUserTool()])
 
 
 def create_local_toolbox(
@@ -93,9 +95,12 @@ def create_local_toolbox(
         headers={"User-Agent": settings.user_agent},
         follow_redirects=True,
     )
+    from src.services.tools.local.ask import AskUserTool
+
     locations = LocationService(client)
 
     tools: list[LocalTool] = [
+        AskUserTool(),
         ContextTool(locations),
         WeatherTool(client, locations),
         *create_web_tools(client, settings),

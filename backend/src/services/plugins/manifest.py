@@ -34,6 +34,16 @@ CATEGORY_LABELS: dict[Category, str] = {
 }
 
 
+IMMER_VERFUEGBAR = frozenset({"notify_user", "ask_user"})
+"""Werkzeuge, die kein Plugin sind und nie gefiltert werden.
+
+Keine Faehigkeiten, sondern Gespraechsfuehrung: eine Einblendung und eine
+Rueckfrage. Sie abwaehlbar zu machen hiesse, dem Modell die Stimme zu nehmen
+-- und ausgerechnet wenn wenig installiert ist, braucht es die Rueckfrage am
+ehesten, um nicht ins Blaue zu raten.
+"""
+
+
 @dataclass(frozen=True, slots=True)
 class PluginManifest:
     """Die Selbstbeschreibung eines Plugins.

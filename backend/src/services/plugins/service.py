@@ -18,7 +18,7 @@ from dataclasses import dataclass
 
 from src.core.logging import get_logger
 from src.services.plugins.catalog import KATALOG, mcp_manifest, unbekannte_werkzeuge
-from src.services.plugins.manifest import PluginManifest
+from src.services.plugins.manifest import IMMER_VERFUEGBAR, PluginManifest
 from src.services.tools.base import NAME_SEPARATOR
 
 logger = get_logger(__name__)
@@ -125,15 +125,19 @@ def erlaubte_werkzeuge(
     dessen Schluessel fehlt, traegt nichts bei, statt einen Namen anzubieten,
     hinter dem nichts steht.
     """
-    return frozenset(
+    aus_plugins = frozenset(
         werkzeug
         for eintrag in zustand(vorhandene_werkzeuge, installiert)
         if eintrag.installed
         for werkzeug in eintrag.available_tools
     )
+    immer = IMMER_VERFUEGBAR & set(vorhandene_werkzeuge)
+    return aus_plugins | immer
 
 
-def prompt_block(zustaende: Sequence[PluginZustand]) -> str:
+def prompt_block(
+    zustaende: Sequence[PluginZustand], immer: Sequence[str] = ()
+) -> str:
     """Was das Modell ueber seine eigene Ausstattung wissen muss.
 
     Ohne diesen Abschnitt glaubt es, alles zu koennen: der System-Prompt
@@ -162,8 +166,17 @@ def prompt_block(zustaende: Sequence[PluginZustand]) -> str:
     else:
         zeilen.append("")
         zeilen.append(
-            "**Es ist kein einziges Werkzeug installiert.** Du hast in diesem "
-            "Gespräch keine Werkzeuge zur Verfügung."
+            "**Es ist kein Plugin installiert.** Du hast in diesem Gespräch "
+            "keine abrufenden oder verändernden Werkzeuge."
+        )
+
+    if immer:
+        zeilen.append("")
+        zeilen.append(
+            "Immer verfügbar, unabhängig von den Plugins: "
+            + ", ".join(f"`{w}`" for w in sorted(immer))
+            + ". Gerade wenn sonst wenig installiert ist, frag lieber mit "
+            "`ask_user` nach, statt zu raten."
         )
 
     if aus:

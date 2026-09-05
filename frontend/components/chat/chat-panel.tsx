@@ -110,6 +110,8 @@ export function ChatPanel({ chatId, initialMessages }: ChatPanelProps) {
     [messages],
   );
 
+  const antworten = React.useMemo(() => antwortenZuFragen(messages), [messages]);
+
   const [commentSignal, setCommentSignal] = React.useState(0);
   React.useEffect(
     () => onBefehl(BEFEHL.comment, () => setCommentSignal((z) => z + 1)),
@@ -345,6 +347,10 @@ export function ChatPanel({ chatId, initialMessages }: ChatPanelProps) {
                             : 0
                         }
                         onHide={verstecke}
+                        onAnswer={(antwort) =>
+                          send(antwort, activeModel || null)
+                        }
+                        answeredWith={antworten.get(eintrag.message.id) ?? null}
                       />
                     </MessageScrollerItem>
                   ),
@@ -532,6 +538,25 @@ export function ChatPanel({ chatId, initialMessages }: ChatPanelProps) {
       </AlertDialog>
     </div>
   );
+}
+
+function antwortenZuFragen(messages: ChatMessageTyp[]): Map<string, string> {
+  const heraus = new Map<string, string>();
+
+  messages.forEach((message, index) => {
+    if (message.role !== "assistant") return;
+    const fragt = message.parts?.some(
+      (part) => part.type === "tool" && part.tool === "ask_user",
+    );
+    if (!fragt) return;
+
+    const antwort = messages
+      .slice(index + 1)
+      .find((spaeter) => spaeter.role === "user" && !spaeter.hidden);
+    if (antwort) heraus.set(message.id, antwort.content);
+  });
+
+  return heraus;
 }
 
 type Eintrag =

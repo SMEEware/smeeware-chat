@@ -43,6 +43,7 @@ from src.services.apikeys import ApiKeyStore
 from src.services.chats.encrypted import EncryptedChatStore
 from src.services.chats.public import PublicChatStore
 from src.services.plugins import FilteredToolBox, PluginStore
+from src.services.plugins.manifest import IMMER_VERFUEGBAR
 from src.services.plugins.service import (
     erlaubte_werkzeuge,
     fingerabdruck,
@@ -350,9 +351,10 @@ class ServiceProvider:
         vorhanden = [spec.name for spec in await self.toolbox.specs()]
         installiert = await self.plugins.installiert()
         zustaende = zustand(vorhanden, installiert)
+        immer = sorted(IMMER_VERFUEGBAR & set(vorhanden))
         return (
             erlaubte_werkzeuge(vorhanden, installiert),
-            prompt_block(zustaende),
+            prompt_block(zustaende, immer),
         )
 
     @property

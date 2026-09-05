@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable, Sequence
 
-from src.services.plugins.manifest import PluginManifest
+from src.services.plugins.manifest import IMMER_VERFUEGBAR, PluginManifest
 
 KATALOG: tuple[PluginManifest, ...] = (
     PluginManifest(
@@ -176,12 +176,13 @@ KATALOG: tuple[PluginManifest, ...] = (
         slug="system-status",
         title="System & Notifications",
         category="system",
-        summary="Check backend health and send you notices.",
+        summary="Check the health of the backend and its model providers.",
         description=(
-            "Lets the model report on the state of the backend and its model "
-            "providers, and leave you a notification that survives a reload."
+            "Lets the model report on the state of the backend, the reachable "
+            "providers and the local models. Notifications are not part of "
+            "this: notify_user is always available and cannot be switched off."
         ),
-        tools=("system_check", "notify_user"),
+        tools=("system_check",),
         icon="Activity",
     ),
     PluginManifest(
@@ -260,4 +261,4 @@ def unbekannte_werkzeuge(
     im Katalog vergessen. Es waere dann fuer niemanden erreichbar, ohne dass
     irgendwo etwas schiefliefe.
     """
-    return set(vorhanden) - werkzeuge_im_katalog(manifeste)
+    return set(vorhanden) - werkzeuge_im_katalog(manifeste) - IMMER_VERFUEGBAR
