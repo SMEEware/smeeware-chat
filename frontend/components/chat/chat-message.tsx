@@ -162,10 +162,11 @@ export function ChatMessage({
                 <CopyButton
                   text={message.content}
                   label="Copy message"
-                  className="hover:text-foreground"
+                  className="size-6 opacity-0 transition-opacity group-hover/message:opacity-60 hover:opacity-100! focus-visible:opacity-100"
                 />
               }
             />,
+            "flex w-full flex-col items-end",
           )}
           {readOnly ? null : (
             <MessageComments
