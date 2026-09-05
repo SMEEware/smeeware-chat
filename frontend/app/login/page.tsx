@@ -33,15 +33,15 @@ export default function LoginPage() {
 
 function Geruest() {
   return (
-    <main className="flex min-h-[100svh] items-center justify-center px-6">
+    <main className="flex min-h-svh items-center justify-center px-6">
       <div className="w-full max-w-sm">
         <div className="mb-8 flex flex-col items-center gap-3">
           <Image
-            src="/assets/img/icon.svg"
-            height={44}
-            width={44}
+            src="/assets/img/clip.gif"
+            height={125}
+            width={125}
             alt="SMEEware"
-            className="size-11 opacity-60"
+            className="h-22 w-auto"
           />
           <div className="h-5 w-40 animate-pulse rounded-md bg-muted/60" />
         </div>
@@ -122,8 +122,7 @@ function Anmeldeformular() {
         try {
           const nutzlast = await antwort.json();
           meldung = nutzlast?.error?.message ?? meldung;
-        } catch {
-        }
+        } catch {}
         throw new Error(meldung);
       }
 
@@ -133,8 +132,7 @@ function Anmeldeformular() {
 
       try {
         sessionStorage.setItem(LOGIN_CHIME_FLAG, "1");
-      } catch {
-      }
+      } catch {}
 
       window.location.assign(weiter);
       return;
@@ -150,15 +148,15 @@ function Anmeldeformular() {
   };
 
   return (
-    <main className="flex min-h-[100svh] items-center justify-center px-6">
+    <main className="flex min-h-svh items-center justify-center px-6">
       <div className="w-full max-w-sm">
         <div className="mb-8 flex flex-col items-center gap-3 text-center">
           <Image
-            src="/assets/img/icon.svg"
-            height={44}
-            width={44}
+            src="/assets/img/clip.gif"
+            height={125}
+            width={125}
             alt="SMEEware"
-            className="size-11"
+            className="h-22 w-auto"
           />
           <div>
             <h1 className="font-heading text-xl font-semibold tracking-tight">
@@ -228,8 +226,8 @@ function Anmeldeformular() {
         {einrichten ? (
           <p className="mt-4 px-1 text-[11px] leading-relaxed text-muted-foreground/60">
             The password is never stored — only a hash of it. Your chats are
-            encrypted with a key derived from it, so a forgotten password
-            means the chats are gone for good.
+            encrypted with a key derived from it, so a forgotten password means
+            the chats are gone for good.
           </p>
         ) : null}
       </div>
