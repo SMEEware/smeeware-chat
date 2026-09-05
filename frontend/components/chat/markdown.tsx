@@ -96,6 +96,10 @@ const components: Components = {
         target={inPage ? undefined : "_blank"}
         rel={inPage ? undefined : "noopener noreferrer"}
         {...props}
+        className={cn(
+          "font-medium underline decoration-primary/35 underline-offset-3 transition-colors hover:decoration-primary",
+          props.className,
+        )}
       >
         {children}
       </a>
@@ -137,21 +141,28 @@ export const Markdown = React.memo(function Markdown({
     <div
       className={cn(
         "min-w-0 [&>*:first-child]:mt-0 [&>*:last-child]:mb-0",
-        "[&_h1]:mt-5 [&_h1]:mb-2 [&_h1]:text-base [&_h1]:font-semibold",
-        "[&_h2]:mt-5 [&_h2]:mb-2 [&_h2]:text-base [&_h2]:font-semibold",
+        "[&_h1]:mt-6 [&_h1]:mb-2.5 [&_h1]:text-lg [&_h1]:font-semibold [&_h1]:tracking-tight [&_h1]:text-primary",
+        "[&_h2]:mt-5 [&_h2]:mb-2 [&_h2]:border-b [&_h2]:border-border/50 [&_h2]:pb-1.5 [&_h2]:text-[15px] [&_h2]:font-semibold [&_h2]:tracking-tight [&_h2]:text-primary",
         "[&_h3]:mt-4 [&_h3]:mb-1.5 [&_h3]:text-sm [&_h3]:font-semibold",
+        "[&_h4]:mt-3 [&_h4]:mb-1 [&_h4]:text-[13px] [&_h4]:font-medium [&_h4]:text-muted-foreground",
         "[&_p]:my-2",
-        "[&_ul]:my-2 [&_ul]:list-disc [&_ul]:ps-5",
-        "[&_ol]:my-2 [&_ol]:list-decimal [&_ol]:ps-5",
-        "[&_li]:my-0.5 [&_li]:marker:text-muted-foreground",
-        "[&_a]:font-medium [&_a]:underline [&_a]:underline-offset-3",
-        "[&_strong]:font-semibold",
-        "[&_hr]:my-4 [&_hr]:border-border",
-        "[&_blockquote]:my-2 [&_blockquote]:border-s-2 [&_blockquote]:border-border [&_blockquote]:ps-3 [&_blockquote]:text-muted-foreground",
+        "[&_ul]:my-2.5 [&_ul]:list-disc [&_ul]:ps-5",
+        "[&_ol]:my-2.5 [&_ol]:list-decimal [&_ol]:ps-5",
+        "[&_li]:my-1 [&_li]:ps-0.5",
+        "[&_ul>li]:marker:text-primary/60",
+        "[&_ol>li]:marker:font-medium [&_ol>li]:marker:tabular-nums [&_ol>li]:marker:text-muted-foreground",
+        "[&_li_ul]:my-1 [&_li_ol]:my-1",
+        "[&_li:has(>input[type=checkbox])]:list-none [&_li:has(>input[type=checkbox])]:-ms-4",
+        "[&_input[type=checkbox]]:me-1.5 [&_input[type=checkbox]]:align-[-0.08em] [&_input[type=checkbox]]:accent-primary",
+        "[&_strong]:font-semibold [&_strong]:text-foreground",
+        "[&_hr]:my-5 [&_hr]:border-border/60",
+        "[&_blockquote]:my-3 [&_blockquote]:border-s-2 [&_blockquote]:border-primary/30 [&_blockquote]:ps-3.5 [&_blockquote]:text-muted-foreground",
         "[&_:not(pre)>code]:rounded-md [&_:not(pre)>code]:bg-foreground/10 [&_:not(pre)>code]:px-1.5 [&_:not(pre)>code]:py-0.5 [&_:not(pre)>code]:font-mono [&_:not(pre)>code]:text-[0.85em]",
-        "[&_table]:my-3 [&_table]:block [&_table]:w-full [&_table]:overflow-x-auto [&_table]:text-xs",
-        "[&_th]:border [&_th]:border-border [&_th]:px-2 [&_th]:py-1 [&_th]:text-start [&_th]:font-semibold",
-        "[&_td]:border [&_td]:border-border [&_td]:px-2 [&_td]:py-1",
+        "[&_table]:my-3 [&_table]:block [&_table]:w-full [&_table]:overflow-x-auto [&_table]:border-separate [&_table]:border-spacing-0 [&_table]:text-xs",
+        "[&_thead]:bg-muted/60",
+        "[&_th]:border-b [&_th]:border-border [&_th]:px-2.5 [&_th]:py-1.5 [&_th]:text-start [&_th]:font-semibold [&_th]:whitespace-nowrap",
+        "[&_td]:border-b [&_td]:border-border/50 [&_td]:px-2.5 [&_td]:py-1.5",
+        "[&_tbody_tr:last-child_td]:border-b-0",
         className,
       )}
     >
