@@ -3,17 +3,19 @@
 import * as React from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import {
   ImageIcon,
   Loader2Icon,
   LogOutIcon,
   Trash2Icon,
-  UserIcon,
+  XIcon,
 } from "lucide-react";
 
 import {
   useAccount,
   useDeleteAccount,
+  useClearAvatar,
   useSetAvatar,
   useUpdateAccount,
 } from "@/hooks/use-account";
@@ -24,6 +26,7 @@ export function AccountSection() {
   const router = useRouter();
   const konto = useAccount();
   const avatar = useSetAvatar();
+  const avatarWeg = useClearAvatar();
   const aendern = useUpdateAccount();
 
   const bildRef = React.useRef<HTMLInputElement>(null);
@@ -36,6 +39,7 @@ export function AccountSection() {
   const [abmelden, setAbmelden] = React.useState(false);
 
   const benutzer = konto.data?.username ?? "";
+  const initiale = benutzer.trim().charAt(0).toUpperCase() || "?";
   const name = nameEntwurf ?? benutzer;
 
   const melde = (text: string) => {
@@ -108,41 +112,63 @@ export function AccountSection() {
       />
 
       <SectionCard className="flex items-center gap-4">
-        <button
-          type="button"
-          onClick={() => bildRef.current?.click()}
-          disabled={avatar.isPending}
-          className="group relative size-16 shrink-0 cursor-pointer overflow-hidden rounded-full ring-1 ring-border/70 transition-colors ring-inset hover:ring-primary/45 disabled:opacity-50"
-          aria-label="Change profile picture"
-        >
-          {konto.data?.has_avatar ? (
-            <Image
-              key={konto.dataUpdatedAt}
-              src={`/api/account/avatar?v=${konto.dataUpdatedAt}`}
-              alt=""
-              height={64}
-              width={64}
-              unoptimized
-              className="size-full object-cover"
-            />
-          ) : (
-            <span className="flex size-full items-center justify-center bg-primary/10 text-primary/70">
-              <UserIcon className="size-6" />
-            </span>
-          )}
-          <span className="absolute inset-0 flex items-center justify-center bg-background/70 opacity-0 transition-opacity group-hover:opacity-100">
-            {avatar.isPending ? (
-              <Loader2Icon className="size-4 animate-spin text-primary" />
+        <div className="group/bild relative size-16 shrink-0">
+          <button
+            type="button"
+            onClick={() => bildRef.current?.click()}
+            disabled={avatar.isPending || avatarWeg.isPending}
+            className="group relative size-16 cursor-pointer overflow-hidden rounded-full ring-1 ring-border/70 transition-colors ring-inset hover:ring-primary/45 disabled:opacity-50"
+            aria-label="Change profile picture"
+          >
+            {konto.data?.has_avatar ? (
+              <Image
+                key={konto.dataUpdatedAt}
+                src={`/api/account/avatar?v=${konto.dataUpdatedAt}`}
+                alt=""
+                height={64}
+                width={64}
+                unoptimized
+                className="size-full object-cover"
+              />
             ) : (
-              <ImageIcon className="size-4 text-foreground" />
+              <span className="flex size-full items-center justify-center bg-primary/10 text-xl font-semibold text-primary">
+                {initiale}
+              </span>
             )}
-          </span>
-        </button>
+            <span className="absolute inset-0 flex items-center justify-center bg-background/70 opacity-0 transition-opacity group-hover:opacity-100">
+              {avatar.isPending || avatarWeg.isPending ? (
+                <Loader2Icon className="size-4 animate-spin text-primary" />
+              ) : (
+                <ImageIcon className="size-4 text-foreground" />
+              )}
+            </span>
+          </button>
+
+          {konto.data?.has_avatar ? (
+            <button
+              type="button"
+              onClick={() => {
+                avatarWeg.mutate(undefined, {
+                  onSuccess: () => toast.success("Profile picture removed."),
+                  onError: (fehler: Error) => toast.error(fehler.message),
+                });
+              }}
+              disabled={avatarWeg.isPending}
+              aria-label="Remove profile picture"
+              title="Remove profile picture"
+              className="absolute -top-0.5 -end-0.5 flex size-5 cursor-pointer items-center justify-center rounded-full bg-background text-muted-foreground opacity-0 ring-1 ring-border transition-[opacity,color] hover:text-destructive hover:ring-destructive/40 focus-visible:opacity-100 group-hover/bild:opacity-100 disabled:opacity-50 max-md:opacity-100"
+            >
+              <XIcon className="size-3" />
+            </button>
+          ) : null}
+        </div>
 
         <div className="flex min-w-0 flex-col">
           <span className="truncate text-sm font-medium">{benutzer}</span>
           <span className="text-[12px] text-muted-foreground/60">
-            Click the picture to change it
+            {konto.data?.has_avatar
+              ? "Click to change it, or × to go back to your initial"
+              : "Click the circle to add a picture"}
           </span>
         </div>
 

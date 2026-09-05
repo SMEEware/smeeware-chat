@@ -51,6 +51,27 @@ export function useSetAvatar() {
   });
 }
 
+export function useClearAvatar() {
+  const client = useQueryClient();
+
+  return useMutation<void, Error, void>({
+    mutationFn: async () => {
+      const antwort = await fetch("/api/account/avatar", { method: "DELETE" });
+      if (antwort.ok) return;
+
+      let meldung = `HTTP ${antwort.status}`;
+      try {
+        const nutzlast = await antwort.json();
+        meldung = nutzlast?.error?.message ?? meldung;
+      } catch {
+        meldung = `HTTP ${antwort.status}`;
+      }
+      throw new Error(meldung);
+    },
+    onSuccess: () => client.invalidateQueries({ queryKey: accountKey }),
+  });
+}
+
 export function useDeleteAccount() {
   return useMutation<void, Error, void>({
     mutationFn: async () => {

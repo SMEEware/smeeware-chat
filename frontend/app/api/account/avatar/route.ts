@@ -11,6 +11,10 @@ export async function PUT(request: NextRequest) {
   return weiter(request, "PUT", await request.formData());
 }
 
+export async function DELETE(request: NextRequest) {
+  return weiter(request, "DELETE");
+}
+
 async function weiter(request: NextRequest, method: string, body?: FormData) {
   const sitzung = request.cookies.get(SESSION_COOKIE)?.value;
 
@@ -30,6 +34,8 @@ async function weiter(request: NextRequest, method: string, body?: FormData) {
       { status: 502 },
     );
   }
+
+  if (upstream.status === 204) return new Response(null, { status: 204 });
 
   return new Response(upstream.body, {
     status: upstream.status,

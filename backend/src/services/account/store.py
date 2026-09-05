@@ -227,6 +227,16 @@ class AccountStore:
                 (bild, medientyp),
             )
 
+    async def clear_avatar(self) -> None:
+        """Das Profilbild entfernen -- der Anfangsbuchstabe tritt an seine Stelle."""
+        await asyncio.to_thread(self._clear_avatar)
+
+    def _clear_avatar(self) -> None:
+        with self._open() as conn:
+            conn.execute(
+                "UPDATE account SET avatar = NULL, avatar_type = NULL WHERE id = 1"
+            )
+
     async def get_avatar(self) -> tuple[bytes, str] | None:
         return await asyncio.to_thread(self._get_avatar)
 

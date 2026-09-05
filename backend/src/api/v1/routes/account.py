@@ -214,6 +214,27 @@ async def set_avatar(
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
+@router.delete(
+    "/avatar",
+    status_code=status.HTTP_204_NO_CONTENT,
+    response_class=Response,
+    summary="Remove the profile picture",
+)
+async def clear_avatar(
+    provider: ProviderDep, session: SitzungHeader = None
+) -> Response:
+    """Kein 404, wenn keins gesetzt war.
+
+    Das Ziel ist "danach ohne Bild", und das gilt dann bereits -- ein Fehler
+    waere hier nur laut, nicht nuetzlich.
+    """
+    if provider.sessions.holen(session) is None:
+        raise UnauthorizedError("Not signed in.")
+
+    await provider.accounts.clear_avatar()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
 @router.get("/avatar", summary="The profile picture")
 async def get_avatar(provider: ProviderDep, session: SitzungHeader = None) -> Response:
     if provider.sessions.holen(session) is None:
