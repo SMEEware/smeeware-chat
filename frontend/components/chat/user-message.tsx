@@ -1,10 +1,8 @@
 "use client";
 
 import * as React from "react";
-import { ChevronDownIcon } from "lucide-react";
 
 import { Bubble, BubbleContent } from "@/components/ui/bubble";
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 const COLLAPSED_MAX_PX = 46;
@@ -40,37 +38,44 @@ export function UserMessage({
 
   return (
     <Bubble
-      variant="outline"
+      variant="muted"
       align="end"
       className="min-w-[min(13rem,100%)]"
     >
-      <BubbleContent className="px-4 py-3">
-        <span
-          className="block overflow-hidden transition-[max-height] duration-200"
-          style={collapsed ? { maxHeight: COLLAPSED_MAX_PX } : undefined}
-        >
+      <BubbleContent className="rounded-ee-lg px-4 py-3">
+        <span className="relative block">
           <span
-            ref={innerRef}
-            className="block whitespace-pre-wrap wrap-break-words"
+            className="block overflow-hidden transition-[max-height] duration-300 ease-out"
+            style={collapsed ? { maxHeight: COLLAPSED_MAX_PX } : undefined}
           >
-            {content}
+            <span
+              ref={innerRef}
+              className="block whitespace-pre-wrap wrap-break-words"
+            >
+              {content}
+            </span>
           </span>
+
+          {collapsed ? (
+            <span
+              aria-hidden
+              className="pointer-events-none absolute inset-x-0 bottom-0 h-8 bg-gradient-to-t from-muted to-transparent"
+            />
+          ) : null}
         </span>
 
         {overflows ? (
-          <span className="mt-2 flex items-center gap-1 border-t pt-1.5">
-            <Button
+          <span className="mt-1.5 flex items-center gap-1">
+            <button
               type="button"
-              variant="ghost"
-              size="sm"
               onClick={() => setExpanded((previous) => !previous)}
-              className="-ms-2 h-7 gap-1 px-2 text-xs text-muted-foreground hover:text-foreground"
+              className={cn(
+                "cursor-pointer text-[11px] font-medium text-muted-foreground/70 transition-colors",
+                "hover:text-foreground",
+              )}
             >
-              <ChevronDownIcon
-                className={cn("transition-transform", expanded && "rotate-180")}
-              />
-              {expanded ? "Collapse" : "Expand"}
-            </Button>
+              {expanded ? "Show less" : "Show more"}
+            </button>
 
             <span className="-me-2 ms-auto">{copySlot}</span>
           </span>

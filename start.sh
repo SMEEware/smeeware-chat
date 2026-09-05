@@ -2,8 +2,17 @@
 
 set -euo pipefail
 
-BACKEND_DIR="/home/smee/smeeware-chat/backend"
-FRONTEND_DIR="/home/smee/smeeware-chat/frontend"
+PROJEKT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SERVER_PROJEKT="/home/smee/smeeware-chat"
+
+if [[ -d "$PROJEKT/backend" && -d "$PROJEKT/frontend" ]]; then
+  WURZEL="$PROJEKT"
+else
+  WURZEL="$SERVER_PROJEKT"
+fi
+
+BACKEND_DIR="${BACKEND_DIR:-$WURZEL/backend}"
+FRONTEND_DIR="${FRONTEND_DIR:-$WURZEL/frontend}"
 MODE="dev"
 
 export LLM_STREAM_URL="${LLM_STREAM_URL:-http://127.0.0.1:8000/api/v1/chat/stream}"
@@ -20,20 +29,26 @@ Usage: start.sh [-dev|-build]
 
   -dev     Backend + "next dev"                 (Default)
   -build   Backend + "next build && next start"
-  -shell   SHELL_ENABLED=true fuer diesen Lauf -- das Modell darf Befehle
-           ausfuehren. Kombinierbar, z.B.: ./start.sh -build -shell
+  -shell   SHELL_ENABLED=true für diesen Lauf -- das Modell darf Befehle ausführen. Kombinierbar, z.B.: ./start.sh -build -shell
   -ollama [MODELL]
-           OLLAMA_ENABLED=true fuer diesen Lauf. Ein Modell dahinter setzt
+           OLLAMA_ENABLED=true für diesen Lauf. Ein Modell dahinter setzt
            zugleich OLLAMA_MODEL, z.B.: ./start.sh -build -ollama qwen3:8b
            Ohne Angabe gilt OLLAMA_MODEL aus backend/.env; steht dort nichts,
            bricht der Start ab -- angeschaltet ohne Modell zeigt Ollama nicht.
 
-Fuer den Server immer -dev NICHT benutzen: der Dev-Server liefert seine
+Für den Server immer -dev NICHT benutzen: der Dev-Server liefert seine
 Chunks nur an localhost aus und antwortet hinter einer Domain mit 403.
+
+Die Verzeichnisse findet das Script selbst: liegen neben ihm ein backend/
+und ein frontend/, nimmt es die. Sonst fällt es auf /home/smee/smeeware-chat
+zurück. Damit läuft dieselbe Datei lokal wie auf dem Server, und jede Flag
+gilt an beiden Orten.
 
 Env:
   LLM_STREAM_URL   Default: http://127.0.0.1:8000/api/v1/chat/stream
-  SKIP_DEPS=1      "npm ci" ueberspringen
+  SKIP_DEPS=1      "npm ci" überspringen
+  BACKEND_DIR      Verzeichnis erzwingen, statt es zu finden
+  FRONTEND_DIR     dito
 EOF
 }
 
@@ -170,6 +185,7 @@ if [[ "$OLLAMA" == "1" ]]; then
   echo ">> OLLAMA_ENABLED=true, Modell: $wirksames_modell"
 fi
 
+echo ">> Projekt: $WURZEL"
 echo ">> Backend: $BACKEND_DIR"
 cd "$BACKEND_DIR"
 

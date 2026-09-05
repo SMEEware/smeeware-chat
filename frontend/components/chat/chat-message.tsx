@@ -7,6 +7,7 @@ import { Bubble, BubbleContent } from "@/components/ui/bubble";
 import { Button } from "@/components/ui/button";
 import {
   Message,
+  MessageAvatar,
   MessageContent,
   MessageFooter,
 } from "@/components/ui/message";
@@ -22,6 +23,7 @@ import { AskCard, alsRueckfrage } from "@/components/chat/ask-card";
 import { AttachmentChips } from "@/components/chat/attachment-chips";
 import { MessageComments } from "@/components/chat/message-comments";
 import { MessageContextMenu } from "@/components/chat/message-context-menu";
+import { useAccount } from "@/hooks/use-account";
 import { useSettings } from "@/lib/settings/store";
 import { UserMessage } from "@/components/chat/user-message";
 import type {
@@ -30,6 +32,36 @@ import type {
 } from "@/lib/chat/types";
 import { stripToolScaffolding } from "@/lib/chat/sanitize";
 import { cn } from "@/lib/utils";
+import Image from "next/image";
+
+function EigenesBild({
+  konto,
+}: {
+  konto: ReturnType<typeof useAccount>;
+}) {
+  const name = konto.data?.username?.trim() ?? "";
+  const initiale = name.charAt(0).toUpperCase() || "?";
+
+  return (
+    <MessageAvatar className="size-7 self-end bg-transparent ring-1 ring-border/60">
+      {konto.data?.has_avatar ? (
+        <Image
+          key={konto.dataUpdatedAt}
+          src={`/api/account/avatar?v=${konto.dataUpdatedAt}`}
+          alt=""
+          height={28}
+          width={28}
+          unoptimized
+          className="size-full object-cover"
+        />
+      ) : (
+        <span className="flex size-full items-center justify-center bg-muted text-[11px] font-semibold text-muted-foreground">
+          {initiale}
+        </span>
+      )}
+    </MessageAvatar>
+  );
+}
 
 function CopyButton({
   text,
@@ -88,6 +120,7 @@ export function ChatMessage({
   answeredWith?: string | null;
 }) {
   const zeigeDenken = useSettings((zustand) => zustand.thinking);
+  const konto = useAccount();
 
   const [notizZaehler, setNotizZaehler] = React.useState(0);
   const notizSignal = commentSignal + notizZaehler;
@@ -116,6 +149,7 @@ export function ChatMessage({
   if (message.role === "user") {
     return (
       <Message align="end">
+        {readOnly ? null : <EigenesBild konto={konto} />}
         <MessageContent className="flex flex-col items-end gap-2">
           <AttachmentChips
             anhaenge={message.attachments ?? []}
