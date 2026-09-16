@@ -20,7 +20,7 @@ export const metadata: Metadata = {
   applicationName: "SMEEware Chat",
   appleWebApp: {
     capable: true,
-    title: "SMEEware",
+    title: "SMEE Chat",
     statusBarStyle: "black-translucent",
   },
   icons: {

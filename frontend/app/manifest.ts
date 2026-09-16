@@ -4,7 +4,7 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     id: "/",
     name: "SMEEware Chat",
-    short_name: "SMEEware",
+    short_name: "SMEE Chat",
     description: "Connect your AI to the tools that matter.",
     start_url: "/chat",
     scope: "/",
