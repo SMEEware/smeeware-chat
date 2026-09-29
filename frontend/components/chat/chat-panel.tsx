@@ -73,7 +73,10 @@ import { useModelOverride } from "@/lib/chat/model-store";
 import { stripToolScaffolding } from "@/lib/chat/sanitize";
 import type { ChatMessage as ChatMessageTyp } from "@/lib/chat/types";
 import { useModels } from "@/hooks/use-models";
+import { useIsDesktop } from "@/hooks/use-mobile";
 import { useSuggestions } from "@/hooks/use-suggestions";
+import { QueuedMessages } from "@/components/chat/queued-messages";
+import { VoiceCall } from "@/components/chat/voice-call";
 import { SuggestionSkeleton } from "@/components/chat/suggestion-skeleton";
 import Image from "next/image";
 import Link from "next/link";
@@ -97,6 +100,8 @@ export function ChatPanel({ chatId, initialMessages }: ChatPanelProps) {
     retry,
     stop,
     isStreaming,
+    queued,
+    withdraw,
     error,
     dismissError,
     health,
@@ -113,6 +118,11 @@ export function ChatPanel({ chatId, initialMessages }: ChatPanelProps) {
   const antworten = React.useMemo(() => antwortenZuFragen(messages), [messages]);
 
   const [commentSignal, setCommentSignal] = React.useState(0);
+  // Das Telefonat liegt hier und nicht im Layout: es braucht genau diesen
+  // Chat -- seine Nachrichten, sein Senden, sein Stoppen.
+  const [anruf, setAnruf] = React.useState(false);
+  React.useEffect(() => onBefehl(BEFEHL.voiceCall, () => setAnruf(true)), []);
+
   React.useEffect(
     () => onBefehl(BEFEHL.comment, () => setCommentSignal((z) => z + 1)),
     [],
@@ -128,7 +138,11 @@ export function ChatPanel({ chatId, initialMessages }: ChatPanelProps) {
   const defaultModel = models.data?.default ?? "";
   const activeModel = modelOverride ?? defaultModel;
 
-  const suggestions = useSuggestions(!hasMessages);
+  // Auf dem Handy gibt es keine Vorschlaege: dort fehlt der Platz unter dem
+  // Composer, und jeder Satz Vorschlaege kostet einen Modellaufruf. Deshalb
+  // wird er dort gar nicht erst angefragt, nicht nur ausgeblendet.
+  const istDesktop = useIsDesktop();
+  const suggestions = useSuggestions(!hasMessages && istDesktop);
   const suggestionItems = suggestions.data ?? [];
 
   const { data: chatListe } = useChats();
@@ -436,6 +450,15 @@ export function ChatPanel({ chatId, initialMessages }: ChatPanelProps) {
 
       <div className="shrink-0 px-4 pb-4 md:px-6">
         <div className="mx-auto flex w-full max-w-3xl flex-col gap-3">
+          <QueuedMessages items={queued} onWithdraw={withdraw} />
+          <VoiceCall
+            open={anruf}
+            onClose={() => setAnruf(false)}
+            messages={messages}
+            isStreaming={isStreaming}
+            send={(text) => send(text, activeModel || null)}
+            stop={stop}
+          />
           <ChatComposer
             value={input}
             onValueChange={setInput}
@@ -450,24 +473,29 @@ export function ChatPanel({ chatId, initialMessages }: ChatPanelProps) {
             onAttachmentsChange={setAttachments}
           />
 
+          {/* ``hidden md:block`` zusaetzlich zum Hook: so blitzt auf dem Handy
+              auch waehrend der Hydrierung kein Platzhalter auf, und am Desktop
+              steht das Geruest schon im vorgerenderten HTML. */}
           {!hasMessages ? (
-            suggestionItems.length === 0 ? (
-              <SuggestionSkeleton />
-            ) : (
-              <div className="flex flex-wrap justify-center gap-2">
-                {suggestionItems.map((suggestion) => (
-                  <Button
-                    key={suggestion}
-                    variant="outline"
-                    size="sm"
-                    className="rounded-full text-muted-foreground cursor-pointer animate-in fade-in-0 zoom-in-95 duration-300 opacity-40 hover:opacity-100"
-                    onClick={() => send(suggestion, activeModel || null)}
-                  >
-                    {suggestion}
-                  </Button>
-                ))}
-              </div>
-            )
+            <div className="hidden md:block">
+              {suggestionItems.length === 0 ? (
+                <SuggestionSkeleton />
+              ) : (
+                <div className="flex flex-wrap justify-center gap-2">
+                  {suggestionItems.map((suggestion) => (
+                    <Button
+                      key={suggestion}
+                      variant="outline"
+                      size="sm"
+                      className="rounded-full text-muted-foreground cursor-pointer animate-in fade-in-0 zoom-in-95 duration-300 opacity-40 hover:opacity-100"
+                      onClick={() => send(suggestion, activeModel || null)}
+                    >
+                      {suggestion}
+                    </Button>
+                  ))}
+                </div>
+              )}
+            </div>
           ) : null}
         </div>
       </div>

@@ -12,6 +12,8 @@ type Einstellungen = {
   ttsModel: string | null;
   voiceId: string;
   tourGesehen: boolean;
+  /** Die Stimme des Telefonats. null = die Vorgabe des Backends. */
+  callVoice: string | null;
 
   setThinking: (wert: boolean) => void;
   setTools: (wert: boolean) => void;
@@ -21,6 +23,7 @@ type Einstellungen = {
   setTtsModel: (wert: string | null) => void;
   setVoiceId: (wert: string) => void;
   setTourGesehen: (wert: boolean) => void;
+  setCallVoice: (wert: string | null) => void;
 };
 
 export const useSettings = create<Einstellungen>()(
@@ -34,6 +37,7 @@ export const useSettings = create<Einstellungen>()(
       ttsModel: null,
       voiceId: "",
       tourGesehen: true,
+      callVoice: null,
 
       setThinking: (thinking) => set({ thinking }),
       setTools: (tools) => set({ tools }),
@@ -43,6 +47,7 @@ export const useSettings = create<Einstellungen>()(
       setTtsModel: (ttsModel) => set({ ttsModel }),
       setVoiceId: (voiceId) => set({ voiceId }),
       setTourGesehen: (tourGesehen) => set({ tourGesehen }),
+      setCallVoice: (callVoice) => set({ callVoice }),
     }),
     { name: "smeeware:settings" },
   ),

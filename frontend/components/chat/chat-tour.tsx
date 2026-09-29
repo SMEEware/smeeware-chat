@@ -11,6 +11,7 @@ import {
   FolderPlusIcon,
   MessageSquareIcon,
   MicIcon,
+  PhoneIcon,
   SettingsIcon,
   SparklesIcon,
   XIcon,
@@ -74,6 +75,20 @@ const SCHRITTE: Schritt[] = [
       <>
         Attach a file — or just drop it anywhere on the box. The microphone
         writes down what you say in any language; you never pick one first.
+      </>
+    ),
+    seite: "oben",
+    radius: 999,
+  },
+  {
+    id: "anruf",
+    ziele: ["anruf"],
+    icon: PhoneIcon,
+    titel: "Or just call it",
+    text: (
+      <>
+        Talk hands-free: it listens, answers aloud with a free voice, and every
+        turn lands in this chat. Start talking while it speaks to interrupt.
       </>
     ),
     seite: "oben",

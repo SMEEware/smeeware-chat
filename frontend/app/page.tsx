@@ -1,9 +1,11 @@
 import Link from "next/link";
 import {
   ArrowRightIcon,
+  FolderGit2Icon,
   KeyRoundIcon,
   LockIcon,
   MicIcon,
+  PhoneIcon,
   ServerIcon,
   ShieldCheckIcon,
   SparklesIcon,
@@ -20,8 +22,15 @@ import { docsNavigation } from "@/lib/docs/navigation";
 const features = [
   {
     icon: SparklesIcon,
-    title: "Streaming built in",
-    text: "Reasoning, tool calls and the answer arrive as they happen — not in one lump at the end.",
+    title: "Streaming — and steerable",
+    text: "Reasoning, tool calls and the answer arrive as they happen. Keep typing while it works: your note joins the running task at the next step.",
+    href: "/docs/chat/steering",
+  },
+  {
+    icon: PhoneIcon,
+    title: "Just call it",
+    text: "Talk hands-free. A free neural voice answers while the text is still being written — start talking to interrupt it.",
+    href: "/docs/chat/voice-call",
   },
   {
     icon: ServerIcon,
@@ -34,9 +43,15 @@ const features = [
     text: "Chats and notices are encrypted with a key derived from your password. The key lives in memory only, never on disk.",
   },
   {
+    icon: FolderGit2Icon,
+    title: "Works on your project",
+    text: "Point a workspace at a folder on the machine the agent runs on — every question carries that context along.",
+    href: "/docs/chat/workspaces",
+  },
+  {
     icon: MicIcon,
     title: "Files, voice, tools",
-    text: "Attach a file, speak your question in any language, and let the model search, fetch and look at things itself.",
+    text: "Attach a file, dictate in any language, and let the model search, fetch and look at things with the tools you switch on.",
   },
 ];
 
@@ -105,7 +120,7 @@ export default function LandingPage() {
       <Hero />
 
       <section className="border-b">
-        <div className="mx-auto grid w-full max-w-6xl grid-cols-1 gap-px overflow-hidden px-6 py-16 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mx-auto grid w-full max-w-6xl grid-cols-1 gap-px overflow-hidden px-6 py-16 sm:grid-cols-2 lg:grid-cols-3">
           {features.map((feature) => (
             <div key={feature.title} className="flex flex-col gap-3 p-6">
               <feature.icon className="size-5 text-primary" />
@@ -113,6 +128,15 @@ export default function LandingPage() {
               <p className="text-sm leading-relaxed text-muted-foreground">
                 {feature.text}
               </p>
+              {"href" in feature && feature.href ? (
+                <Link
+                  href={feature.href}
+                  className="mt-auto inline-flex w-fit items-center gap-1 text-[13px] font-medium text-primary-text hover:underline"
+                >
+                  How it works
+                  <ArrowRightIcon className="size-3.5" />
+                </Link>
+              ) : null}
             </div>
           ))}
         </div>
@@ -131,7 +155,7 @@ Nothing to sign up for
             </p>
             <Link
               href="/docs/getting-started"
-              className="inline-flex w-fit items-center gap-1.5 text-sm font-medium text-primary hover:underline"
+              className="inline-flex w-fit items-center gap-1.5 text-sm font-medium text-primary-text hover:underline"
             >
               To the quickstart
               <ArrowRightIcon className="size-3.5" />
@@ -153,7 +177,7 @@ Nothing to sign up for
             />
             <div className="relative grid grid-cols-1 items-center gap-10 lg:grid-cols-2">
               <div className="flex min-w-0 flex-col gap-4">
-                <span className="flex w-fit items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary">
+                <span className="flex w-fit items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary-text">
                   <ShieldCheckIcon className="size-3.5" />
                   API keys
                 </span>
@@ -181,7 +205,7 @@ Nothing to sign up for
                   />
                   <Link
                     href="/docs/authentication"
-                    className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline"
+                    className="inline-flex items-center gap-1.5 text-sm font-medium text-primary-text hover:underline"
                   >
                     How authentication works
                     <ArrowRightIcon className="size-3.5" />

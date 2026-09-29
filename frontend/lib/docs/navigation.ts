@@ -205,6 +205,16 @@ export const docsNavigation: DocGroup[] = [
         title: "Workspaces",
         description: "Give the model a project and path to work from.",
       },
+      {
+        slug: "chat/steering",
+        title: "Steering a running answer",
+        description: "Add to a turn while it runs — and recover from any stop.",
+      },
+      {
+        slug: "chat/voice-call",
+        title: "Voice call",
+        description: "Talk hands-free with a free neural voice.",
+      },
     ],
   },
   {

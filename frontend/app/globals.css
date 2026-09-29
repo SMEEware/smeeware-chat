@@ -35,6 +35,10 @@
   --color-secondary: var(--secondary);
   --color-primary-foreground: var(--primary-foreground);
   --color-primary: var(--primary);
+  /* Fuer kleinen Text in der Markenfarbe: im Dunkeln erreicht das reine Rot
+     auf fast schwarzem Grund nur 3.4-3.7:1 -- zu wenig fuer 12-14px (WCAG
+     verlangt 4.5:1). Aufgehellt kommt es auf mindestens 5:1. */
+  --color-primary-text: var(--primary-text);
   --color-popover-foreground: var(--popover-foreground);
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
@@ -59,6 +63,7 @@
   --popover-foreground: oklch(0.18 0.012 55);
 
   --primary: oklch(20.311% 0.00248 145.916);
+  --primary-text: var(--primary);
   --primary-foreground: oklch(98.382% 0.00805 286.051);
   --secondary: oklch(0.955 0.006 60);
   --secondary-foreground: oklch(0.25 0.012 55);
@@ -100,6 +105,7 @@
   --popover-foreground: oklch(0.98 0.004 60);
 
   --primary: oklch(0.56 0.216 27);
+  --primary-text: color-mix(in srgb, var(--primary) 70%, white);
   --primary-foreground: oklch(0.99 0.012 20);
   --secondary: oklch(0.272 0.009 55);
   --secondary-foreground: oklch(0.98 0.004 60);

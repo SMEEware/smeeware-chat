@@ -53,6 +53,9 @@ export async function POST(request: NextRequest) {
         tools: body.tools,
         voice_id: body.voice_id || undefined,
         tts_model: body.tts_model ?? undefined,
+        // Ohne sie oeffnet das Backend kein Postfach, und jede waehrend des
+        // Turns nachgeschobene Nachricht liefe ins Leere (409).
+        stream_id: body.stream_id || undefined,
       }),
       signal: request.signal,
       cache: "no-store",

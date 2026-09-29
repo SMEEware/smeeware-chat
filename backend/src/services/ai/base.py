@@ -14,7 +14,7 @@ from typing import Any, Literal
 from src.services.tools.base import ToolCall, ToolResult, ToolSpec
 
 Role = Literal["system", "user", "assistant", "tool"]
-ChunkKind = Literal["reasoning", "content", "tool_call", "tool_result"]
+ChunkKind = Literal["reasoning", "content", "tool_call", "tool_result", "steer"]
 
 
 @dataclass(frozen=True, slots=True)
@@ -98,6 +98,9 @@ class StreamChunk:
     tool_name: str | None = None
     tool_call_id: str | None = None
     is_error: bool = False
+    # Nur bei ``steer``: die id, unter der der Client die eingeschobene
+    # Nachricht in seiner Warteschlange fuehrt.
+    ref: str | None = None
 
 
 class LLMProvider(ABC):

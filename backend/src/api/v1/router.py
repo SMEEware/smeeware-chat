@@ -22,6 +22,7 @@ from src.api.v1.routes import (
     tts,
     uploads,
     vision,
+    voice,
 )
 
 router = APIRouter()
@@ -40,6 +41,7 @@ router.include_router(vision.router)
 router.include_router(uploads.router)
 router.include_router(transcribe.router)
 router.include_router(tts.router)
+router.include_router(voice.router)
 router.include_router(prompts.router)
 router.include_router(plugins.router)
 

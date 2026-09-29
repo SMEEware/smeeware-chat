@@ -71,14 +71,14 @@ function HeroCopy() {
   return (
     <div className="flex min-w-0 flex-col items-center text-center lg:items-start lg:text-left">
       <Link
-        href="/docs/changelog"
+        href="/docs/chat/voice-call"
         className="group inline-flex items-center gap-2 rounded-full border bg-card/70 py-1 pr-3 pl-2.5 text-xs text-muted-foreground shadow-sm backdrop-blur-sm transition-colors hover:bg-accent hover:text-foreground"
       >
         <span className="relative flex size-1.5">
           <span className="absolute inline-flex size-full animate-ping rounded-full bg-primary opacity-70" />
           <span className="relative inline-flex size-1.5 rounded-full bg-primary" />
         </span>
-        Version 0.3.0 — streaming, tools, local models
+        New — voice calls & steering mid-answer
         <ArrowRightIcon className="size-3 transition-transform group-hover:translate-x-0.5" />
       </Link>
 

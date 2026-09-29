@@ -61,11 +61,8 @@ export function SiteFooter() {
       </div>
 
       <div className="border-t">
-        <div className="mx-auto flex w-full max-w-6xl flex-col gap-2 px-6 py-6 text-sm text-muted-foreground sm:flex-row sm:items-center">
-          <span>© {new Date().getFullYear()} Smeeware</span>
-          <span className="sm:ml-auto">
-            All placeholder — nothing final yet.
-          </span>
+        <div className="mx-auto flex w-full max-w-6xl justify-center px-6 py-6 text-sm text-muted-foreground">
+          <span>© {new Date().getFullYear()} SMEEware</span>
         </div>
       </div>
     </footer>

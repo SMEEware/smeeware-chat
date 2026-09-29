@@ -8,12 +8,13 @@ einem Fake-Provider ohne Netzwerk pruefbar.
 from __future__ import annotations
 
 import json
-from collections.abc import AsyncIterator, Sequence
+from collections.abc import AsyncIterator, Callable, Sequence
 
 from src.core.exceptions import ValidationError
 from src.core.logging import get_logger
 from dataclasses import replace
 
+from src.services.ai.steering import Einschub
 from src.services.tools.base import NullToolBox, ToolBox, ToolCall, ToolResult
 from src.services.ai.base import (
     Completion,
@@ -85,7 +86,17 @@ class Agent:
         self,
         messages: Sequence[Message],
         options: CompletionOptions | None = None,
+        *,
+        steer: Callable[[], Sequence[Einschub]] | None = None,
     ) -> AsyncIterator[StreamChunk]:
+        """Wie ``complete``, aber als Strom -- und offen fuer Einschuebe.
+
+        ``steer`` liefert, was der Nutzer waehrend des Turns nachgeschoben
+        hat. Abgefragt wird an jeder Rundengrenze: nach den
+        Werkzeugergebnissen, bevor das Modell wieder dran ist. Jeder Einschub
+        wird als Nutzernachricht angehaengt und mit einem ``steer``-Fragment
+        quittiert, damit der Client ihn aus seiner Warteschlange nimmt.
+        """
         working = self._prepare(messages)
         merged = await self._with_tools(self._merge(options))
 
@@ -133,7 +144,12 @@ class Agent:
                 )
                 working.append(Message.from_tool_result(result))
 
+            for chunk in _einschuebe(steer, working):
+                yield chunk
+
         logger.warning("Werkzeug-Budget erschoepft, erzwinge Antwort")
+        for chunk in _einschuebe(steer, working):
+            yield chunk
         async for chunk in self._provider.stream(working, replace(merged, tools=())):
             yield chunk
 
@@ -187,6 +203,24 @@ class Agent:
             stop=options.stop,
             extra=options.extra or None,
         )
+
+
+def _einschuebe(
+    steer: Callable[[], Sequence[Einschub]] | None,
+    working: list[Message],
+) -> list[StreamChunk]:
+    """Wartende Einschuebe an den Verlauf haengen und quittieren."""
+    if steer is None:
+        return []
+    quittungen: list[StreamChunk] = []
+    for einschub in steer():
+        text = einschub.text.strip()
+        if not text:
+            continue
+        logger.info("Einschub aufgenommen (%d Zeichen)", len(text))
+        working.append(Message(role="user", content=text))
+        quittungen.append(StreamChunk(kind="steer", text=text, ref=einschub.id))
+    return quittungen
 
 
 def _assistant_turn(completion: Completion) -> Message:

@@ -52,3 +52,8 @@ export const TTS_ENDPOINT =
 export const FS_ENDPOINT =
   process.env.LLM_FS_URL ??
   CHAT_STREAM_ENDPOINT.replace(/\/chat\/stream\/?$/, "/fs");
+
+/** Die Stimme des Telefonats -- dieselbe Ableitung wie die uebrigen. */
+export const VOICE_ENDPOINT =
+  process.env.LLM_VOICE_URL ??
+  CHAT_STREAM_ENDPOINT.replace(/\/chat\/stream\/?$/, "/voice");

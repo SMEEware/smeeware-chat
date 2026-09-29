@@ -6,10 +6,12 @@ import {
   ArrowUpIcon,
   CheckIcon,
   CornerDownLeftIcon,
+  CornerDownRightIcon,
   FolderGit2Icon,
   Loader2Icon,
   MicIcon,
   PaperclipIcon,
+  PhoneIcon,
   SquareIcon,
   WrenchIcon,
   TextQuoteIcon,
@@ -239,8 +241,10 @@ export function ChatComposer({
     return () => window.removeEventListener("keydown", aufTaste);
   }, [stimme]);
 
+  // Auch waehrend einer laufenden Antwort: dann wird die Nachricht
+  // eingeschoben und an der naechsten Rundengrenze aufgenommen.
   const canSend =
-    value.trim().length > 0 && !isStreaming && !disabled && !laedt && !nimmtAuf;
+    value.trim().length > 0 && !disabled && !laedt && !nimmtAuf;
 
   const annehmen = React.useCallback(
     async (dateien: File[]) => {
@@ -505,9 +509,11 @@ export function ChatComposer({
               ? "Listening…"
               : stimme.zustand === "transcribing"
                 ? "Writing it down…"
-                : attachments.length > 0
-                  ? "Ask about the attached file…"
-                  : "Ask anything…"
+                : isStreaming
+                  ? "Add something — it's picked up after the current step…"
+                  : attachments.length > 0
+                    ? "Ask about the attached file…"
+                    : "Ask anything…"
           }
           disabled={disabled}
           className={cn(
@@ -665,6 +671,24 @@ export function ChatComposer({
                 </InputGroupButton>
               ) : null}
 
+              {/* Das Telefonat braucht dieselbe Transkription wie das
+                  Mikrofon -- ohne sie bliebe es taub, also nur mit ihr. */}
+              {stimme.verfuegbar ? (
+                <InputGroupButton
+                  type="button"
+                  size="icon-sm"
+                  variant="ghost"
+                  disabled={disabled}
+                  data-tour="anruf"
+                  aria-label="Start a voice call"
+                  title="Voice call — talk hands-free"
+                  className="cursor-pointer rounded-full text-muted-foreground transition-all hover:bg-emerald-500/10 hover:text-emerald-600 active:scale-90 dark:hover:text-emerald-400"
+                  onClick={() => dispatchCommand(BEFEHL.voiceCall)}
+                >
+                  <PhoneIcon />
+                </InputGroupButton>
+              ) : null}
+
               <InputGroupButton
                 type="button"
                 size={workspace ? "sm" : "icon-sm"}
@@ -761,30 +785,55 @@ export function ChatComposer({
                 />
               </span>
 
-              <InputGroupButton
-                type={isStreaming ? "button" : "submit"}
-                size="icon-sm"
-                variant={isStreaming ? "secondary" : "default"}
-                disabled={!isStreaming && !canSend}
-                aria-label={isStreaming ? "Stop response" : "Send message"}
-                className={cn(
-                  "relative ml-0.5 size-8 shrink-0 cursor-pointer rounded-full",
-                  "transition-all duration-200 active:scale-90",
-                  "disabled:opacity-100",
-                  isStreaming
-                    ? "bg-muted text-foreground hover:bg-muted/80"
-                    : canSend
+              {/* Waehrend einer Antwort stehen zwei Knoepfe: Stopp bleibt
+                  immer erreichbar, und sobald etwas getippt ist, kommt der
+                  Senden-Knopf dazu -- er schiebt die Nachricht in den
+                  laufenden Turn, statt ihn abzubrechen. */}
+              {isStreaming ? (
+                <InputGroupButton
+                  type="button"
+                  size="icon-sm"
+                  variant="secondary"
+                  aria-label="Stop response"
+                  title="Stop response"
+                  className="relative ml-0.5 size-8 shrink-0 cursor-pointer rounded-full bg-muted text-foreground transition-all duration-200 hover:bg-muted/80 active:scale-90"
+                  onClick={onStop}
+                >
+                  <SquareIcon className="size-3 fill-current" />
+                </InputGroupButton>
+              ) : null}
+
+              {!isStreaming || canSend ? (
+                <InputGroupButton
+                  type="submit"
+                  size="icon-sm"
+                  variant="default"
+                  disabled={!canSend}
+                  aria-label={
+                    isStreaming ? "Add to the running answer" : "Send message"
+                  }
+                  title={
+                    isStreaming
+                      ? "Add to the running answer — picked up after the current step"
+                      : undefined
+                  }
+                  className={cn(
+                    "relative ml-0.5 size-8 shrink-0 cursor-pointer rounded-full",
+                    "transition-all duration-200 active:scale-90",
+                    "disabled:opacity-100",
+                    canSend
                       ? "bg-primary text-primary-foreground shadow-lg shadow-primary/30 hover:brightness-110"
                       : "bg-muted/60 text-muted-foreground/40",
-                )}
-                onClick={isStreaming ? onStop : undefined}
-              >
-                {isStreaming ? (
-                  <SquareIcon className="size-3 fill-current" />
-                ) : (
-                  <ArrowUpIcon className="size-4" />
-                )}
-              </InputGroupButton>
+                    isStreaming && "animate-in fade-in zoom-in-90 duration-150",
+                  )}
+                >
+                  {isStreaming ? (
+                    <CornerDownRightIcon className="size-4" />
+                  ) : (
+                    <ArrowUpIcon className="size-4" />
+                  )}
+                </InputGroupButton>
+              ) : null}
             </>
           )}
         </InputGroupAddon>

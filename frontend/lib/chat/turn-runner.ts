@@ -11,6 +11,8 @@ import type {
   Attachment,
   ChatMessage,
   MessagePart,
+  QueuedMessage,
+  StreamFrame,
   WireMessage,
 } from "@/lib/chat/types";
 import { workspaceBlock } from "@/lib/workspaces/store";
@@ -22,7 +24,11 @@ export type Schnappschuss = {
   messages: ChatMessage[];
   streaming: boolean;
   error: Error | null;
+  /** Waehrend des Turns nachgeschoben, vom Agenten noch nicht aufgenommen. */
+  queued: QueuedMessage[];
 };
+
+type TurnOptionen = Omit<TurnArgs, "chatId" | "history">;
 
 type Lauf = {
   schnapp: Schnappschuss;
@@ -41,21 +47,49 @@ type Lauf = {
   dirty: boolean;
   frame: number | null;
   letzterHalt: number;
+
+  /** Unter dieser id nimmt das Backend Einschuebe fuer den Turn an. */
+  streamId: string | null;
+  /** Womit der laufende Turn gestartet wurde -- fuer den Anschluss-Turn. */
+  optionen: TurnOptionen | null;
 };
 
 const laeufe = new Map<string, Lauf>();
+
+const KEINE_WARTENDEN: QueuedMessage[] = [];
 
 const LEER: Schnappschuss = {
   messages: [],
   streaming: false,
   error: null,
+  queued: KEINE_WARTENDEN,
 };
+
+/** Laenger als das geht keine Einzelnachricht zurueck ans Modell. */
+const MAX_ZEICHEN = 60_000;
+/** So viele Nachrichten reisen hoechstens mit -- die juengsten. */
+const MAX_NACHRICHTEN = 120;
 
 const neueId = () =>
   typeof crypto !== "undefined" && "randomUUID" in crypto
     ? crypto.randomUUID()
     : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
+/**
+ * Den Verlauf so aufbereiten, dass ihn jeder Anbieter annimmt -- auch nach
+ * Stopps, Abbruechen und Fehlern.
+ *
+ * Frueher ging der Verlauf fast roh hinaus, und ein einziger schiefer Eintrag
+ * machte den Chat fuer immer unbrauchbar: eine beim Denken gestoppte Antwort
+ * ohne Text wurde mit 422 abgelehnt, jede weitere Frage schickte sie wieder
+ * mit. Deshalb hier:
+ *
+ * - gestoppte und abgeschnittene Antworten tragen einen Vermerk -- das Modell
+ *   soll wissen, dass es nicht zu Ende gesprochen hat,
+ * - leere Nachrichten fallen weg, gleiche Rollen hintereinander werden eins,
+ * - ueberlange Nachrichten werden in der Mitte gekuerzt,
+ * - es reisen nur die juengsten Nachrichten, beginnend mit einer Frage.
+ */
 function toWire(
   alleMessages: ChatMessage[],
   workspace: Workspace | null = null,
@@ -65,20 +99,64 @@ function toWire(
   const letzterNutzer = messages.map((m) => m.role).lastIndexOf("user");
   const wsBlock = workspaceBlock(workspace);
 
-  return messages.map(({ role, content, attachments }, index) => {
-    if (role === "assistant") {
-      return { role, content: stripToolScaffolding(content) };
+  const sauber: WireMessage[] = [];
+  messages.forEach((message, index) => {
+    let content: string;
+    if (message.role === "assistant") {
+      content = stripToolScaffolding(message.content).trim();
+      if (message.aborted) {
+        content = content
+          ? `${content}\n\n[Stopped by the user before the answer was complete.]`
+          : "[Stopped by the user before answering.]";
+      } else if (message.interrupted) {
+        // Auch ohne Text als Vermerk behalten: fiele die Antwort weg, wuerden
+        // die Frage davor und die naechste zu einer verschmolzen -- und das
+        // Modell beantwortete die abgebrochene statt der neuen.
+        content = content
+          ? `${content}\n\n[This answer was cut off.]`
+          : "[This answer was cut off before any text arrived.]";
+      }
+    } else {
+      const bloecke = [anhangBlock(message.attachments ?? [])];
+      if (index === letzterNutzer && wsBlock) bloecke.push(wsBlock);
+      const anhang = bloecke.filter(Boolean).join("\n\n");
+      content = (
+        anhang ? `${message.content}\n\n${anhang}` : message.content
+      ).trim();
     }
-    const bloecke = [anhangBlock(attachments ?? [])];
-    if (index === letzterNutzer && wsBlock) bloecke.push(wsBlock);
-    const anhang = bloecke.filter(Boolean).join("\n\n");
-    return { role, content: anhang ? `${content}\n\n${anhang}` : content };
+    if (!content) return;
+
+    const vorige = sauber.at(-1);
+    if (vorige && vorige.role === message.role) {
+      vorige.content = `${vorige.content}\n\n${content}`;
+      return;
+    }
+    sauber.push({ role: message.role, content });
   });
+
+  let fenster = sauber.slice(-MAX_NACHRICHTEN);
+  while (fenster.length > 0 && fenster[0].role !== "user") {
+    fenster = fenster.slice(1);
+  }
+  return fenster.map((m) => ({ ...m, content: kuerzen(m.content) }));
+}
+
+function kuerzen(text: string): string {
+  if (text.length <= MAX_ZEICHEN) return text;
+  const kopf = Math.floor(MAX_ZEICHEN * 0.7);
+  const schwanz = MAX_ZEICHEN - kopf;
+  const weg = text.length - MAX_ZEICHEN;
+  return `${text.slice(0, kopf)}\n\n[… ${weg} characters omitted …]\n\n${text.slice(-schwanz)}`;
 }
 
 function neuerLauf(messages: ChatMessage[]): Lauf {
   return {
-    schnapp: { messages, streaming: false, error: null },
+    schnapp: {
+      messages,
+      streaming: false,
+      error: null,
+      queued: KEINE_WARTENDEN,
+    },
     hoerer: new Set(),
     aufraeumen: null,
     rueckgabe: null,
@@ -93,6 +171,8 @@ function neuerLauf(messages: ChatMessage[]): Lauf {
     dirty: false,
     frame: null,
     letzterHalt: 0,
+    streamId: null,
+    optionen: null,
   };
 }
 
@@ -286,6 +366,53 @@ export function laeuftGerade(chatId: string): boolean {
   return laeufe.get(chatId)?.schnapp.streaming ?? false;
 }
 
+/**
+ * Eine Nachricht in den laufenden Turn schieben -- wie in Claude.
+ *
+ * Der Agent nimmt sie an der naechsten Rundengrenze auf (nach den
+ * Werkzeugergebnissen) und quittiert mit einem ``steer``-Frame; dann wandert
+ * sie aus der Warteschlange in den Verlauf. Kommt keine Rundengrenze mehr,
+ * geht sie nach dem Turn als eigene Frage hinaus. Liefert false, wenn gar
+ * nichts laeuft -- dann ist es eine ganz normale neue Nachricht.
+ */
+export function schiebeEin(chatId: string, text: string): boolean {
+  const l = laeufe.get(chatId);
+  const sauber = text.trim();
+  if (!l || !l.schnapp.streaming || !l.streamId || !sauber) return false;
+
+  const eintrag: QueuedMessage = { id: neueId(), text: sauber };
+  aendere(l, { queued: [...l.schnapp.queued, eintrag] });
+
+  // Schlaegt das fehl (Turn gerade zu Ende, Netz weg), bleibt der Eintrag in
+  // der Warteschlange und geht nach dem Turn als Frage hinaus -- verloren
+  // geht er nicht.
+  void fetch("/api/chat/steer", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      stream_id: l.streamId,
+      id: eintrag.id,
+      content: sauber,
+    }),
+  }).catch(() => {});
+  return true;
+}
+
+/** Einen noch nicht aufgenommenen Einschub zuruecknehmen. */
+export function zieheZurueck(chatId: string, id: string): void {
+  const l = laeufe.get(chatId);
+  if (!l) return;
+  const rest = l.schnapp.queued.filter((q) => q.id !== id);
+  if (rest.length === l.schnapp.queued.length) return;
+  aendere(l, { queued: rest.length ? rest : KEINE_WARTENDEN });
+
+  if (!l.streamId) return;
+  const params = new URLSearchParams({ stream_id: l.streamId, id });
+  void fetch(`/api/chat/steer?${params}`, { method: "DELETE" }).catch(
+    () => {},
+  );
+}
+
 function sichern(
   chatId: string,
   l: Lauf,
@@ -376,13 +503,15 @@ export function starte({
   ttsModel,
   workspace,
   client,
-}: TurnArgs): void {
+}: TurnArgs): boolean {
   const l = lauf(chatId);
-  if (l.schnapp.streaming) return;
+  if (l.schnapp.streaming) return false;
 
   const id = neueId();
   l.aktivId = id;
   l.model = model;
+  l.streamId = neueId();
+  l.optionen = { model, prompt, tools, voiceId, ttsModel, workspace, client };
   l.parts = [];
   l.content = "";
   l.tail = "";
@@ -419,6 +548,7 @@ export function starte({
     { model, prompt, tools, voiceId, ttsModel, workspace },
     client,
   );
+  return true;
 }
 
 async function durchlauf(
@@ -450,6 +580,7 @@ async function durchlauf(
         tools: optionen.tools,
         voice_id: optionen.voiceId || undefined,
         tts_model: optionen.ttsModel ?? undefined,
+        stream_id: l.streamId ?? undefined,
       }),
       signal: controller.signal,
     });
@@ -487,6 +618,9 @@ async function durchlauf(
         }
       } else if (frame.type === "reasoning") {
         if (frame.delta.length > 0) haengeAn(l, "reasoning", frame.delta);
+      } else if (frame.type === "steer") {
+        teileBeiEinschub(chatId, l, frame, client);
+        continue;
       } else if (frame.type === "tool_call") {
         l.parts.push({
           type: "tool",
@@ -523,6 +657,12 @@ async function durchlauf(
   } catch (ausnahme) {
     if (controller.signal.aborted) {
       abgebrochen = true;
+    } else if (ausnahme instanceof TypeError) {
+      // Der Browser meldet eine abgerissene Verbindung als nacktes
+      // "network error" / "Failed to fetch" -- fuer den Nutzer nichtssagend.
+      fehler = new Error(
+        "The connection to the backend was lost. Try again.",
+      );
     } else {
       fehler =
         ausnahme instanceof Error ? ausnahme : new Error("The turn failed.");
@@ -532,10 +672,71 @@ async function durchlauf(
   beende(chatId, l, history, client, { abgebrochen, fehler });
 }
 
+/**
+ * Der Agent hat einen Einschub aufgenommen. Die Antwort wird an genau dieser
+ * Stelle geteilt: was bisher kam, ist fertig; dann steht die nachgeschobene
+ * Nachricht als eigene Frage im Verlauf; der Rest des Turns laeuft in eine
+ * neue Antwort. So liest sich der Verlauf danach wie ein normales Gespraech
+ * -- und reist beim naechsten Turn auch genau so zum Modell.
+ */
+function teileBeiEinschub(
+  chatId: string,
+  l: Lauf,
+  frame: Extract<StreamFrame, { type: "steer" }>,
+  client: QueryClient,
+): void {
+  if (l.frame !== null) {
+    cancelAnimationFrame(l.frame);
+    l.frame = null;
+  }
+  l.dirty = true;
+  flush(l);
+
+  const bisher = l.aktivId;
+  const neu = neueId();
+  const jetzt = performance.now();
+  const dauer = Math.round(jetzt - l.startedAt);
+
+  l.aktivId = neu;
+  l.parts = [];
+  l.content = "";
+  l.tail = "";
+  l.startedAt = jetzt;
+
+  const frage: ChatMessage = {
+    id: frame.id,
+    role: "user",
+    content: frame.content,
+  };
+  const antwort: ChatMessage = {
+    id: neu,
+    role: "assistant",
+    content: "",
+    parts: [],
+    streaming: true,
+    model: l.model ?? undefined,
+  };
+
+  const rest = l.schnapp.queued.filter((q) => q.id !== frame.id);
+  aendere(l, {
+    queued: rest.length ? rest : KEINE_WARTENDEN,
+    messages: [
+      ...l.schnapp.messages.map((message) =>
+        message.id === bisher
+          ? { ...message, streaming: false, durationMs: dauer }
+          : message,
+      ),
+      frage,
+      antwort,
+    ],
+  });
+  sichern(chatId, l, client, { zwischenstand: true });
+}
+
 function beende(
   chatId: string,
   l: Lauf,
-  history: ChatMessage[],
+  _history: ChatMessage[],
   client: QueryClient,
   ergebnis: { abgebrochen: boolean; fehler: Error | null },
 ): void {
@@ -544,35 +745,68 @@ function beende(
     cancelAnimationFrame(l.frame);
     l.frame = null;
   }
+
+  const { abgebrochen } = ergebnis;
+  let { fehler } = ergebnis;
+
+  // Ein Werkzeug, das beim Stopp oder Abriss noch lief, laeuft nicht weiter.
+  // Stehen geblieben waere ein Kringel, der sich fuer immer dreht.
+  if (abgebrochen || fehler) {
+    l.parts = l.parts.map((part) =>
+      part.type === "tool" && part.status === "running"
+        ? {
+            ...part,
+            status: "error",
+            preview: abgebrochen ? "Stopped before it finished." : "Interrupted.",
+          }
+        : part,
+    );
+  }
   l.dirty = true;
   flush(l);
 
   const id = l.aktivId;
   l.aktivId = null;
+  const optionen = l.optionen;
+  l.streamId = null;
   if (!id) return;
 
   const durationMs = Math.round(performance.now() - l.startedAt);
-  const { abgebrochen, fehler } = ergebnis;
 
   const nachricht = l.schnapp.messages.find((m) => m.id === id);
   const hatEtwas =
     (nachricht?.parts?.length ?? 0) > 0 ||
     (nachricht?.content.trim().length ?? 0) > 0;
 
+  // Sauber zu Ende, aber nichts gesagt: fuer den Nutzer sieht das aus wie ein
+  // Haenger. Lieber ein Fehler mit "Try again" als eine leere Blase.
+  if (!fehler && !abgebrochen && !hatEtwas) {
+    fehler = new Error("The model returned an empty answer. Try again.");
+  }
+
+  // Was noch in der Warteschlange steht, wurde nicht aufgenommen.
+  const wartend = l.schnapp.queued;
+
   if ((fehler || abgebrochen) && !hatEtwas) {
-    const letzte = history.at(-1);
     const ohnePlatzhalter = l.schnapp.messages.filter((m) => m.id !== id);
+    const letzte = ohnePlatzhalter.at(-1);
+    const frageZurueck = abgebrochen && letzte?.role === "user";
 
     aendere(l, {
       streaming: false,
       error: fehler,
-      messages: abgebrochen ? ohnePlatzhalter.slice(0, -1) : ohnePlatzhalter,
+      queued: KEINE_WARTENDEN,
+      messages: frageZurueck ? ohnePlatzhalter.slice(0, -1) : ohnePlatzhalter,
     });
 
-    if (abgebrochen && letzte?.role === "user") {
+    const texte = [
+      ...(frageZurueck && letzte ? [letzte.content] : []),
+      ...wartend.map((q) => q.text),
+    ];
+    if (texte.length > 0) {
       l.rueckgabe?.({
-        text: letzte.content,
-        attachments: letzte.attachments ?? [],
+        text: texte.join("\n\n"),
+        attachments: frageZurueck ? (letzte?.attachments ?? []) : [],
       });
     }
 
@@ -584,6 +818,7 @@ function beende(
   aendere(l, {
     streaming: false,
     error: fehler,
+    queued: KEINE_WARTENDEN,
     messages: l.schnapp.messages.map((message) =>
       message.id === id
         ? {
@@ -598,6 +833,32 @@ function beende(
   });
 
   sichern(chatId, l, client);
+
+  if (wartend.length > 0) {
+    // Sauber zu Ende: die nicht aufgenommenen Einschuebe gehen als naechste
+    // Frage hinaus -- der Nutzer hat sie ja abgeschickt. Nach einem Stopp
+    // oder Fehler dagegen zurueck ins Feld: da soll er selbst entscheiden.
+    if (!fehler && !abgebrochen && optionen) {
+      starte({
+        ...optionen,
+        chatId,
+        history: [
+          ...l.schnapp.messages,
+          {
+            id: wartend[0].id,
+            role: "user",
+            content: wartend.map((q) => q.text).join("\n\n"),
+          },
+        ],
+      });
+      return;
+    }
+    l.rueckgabe?.({
+      text: wartend.map((q) => q.text).join("\n\n"),
+      attachments: [],
+    });
+  }
+
   raeumeAufWennFrei(chatId, l);
 }
 

@@ -53,6 +53,13 @@ class NotFoundError(AppError):
     code = "not_found"
 
 
+class ConflictError(AppError):
+    """Die Anfrage passt nicht (mehr) zum Zustand der Ressource."""
+
+    status_code = 409
+    code = "conflict"
+
+
 class UnauthorizedError(AppError):
     """Authentifizierung fehlt oder ist ungueltig."""
 

@@ -80,6 +80,85 @@ const requestTabs: DocBlock = {
 };
 
 export const docsContent: Record<string, DocBlock[]> = {
+  "chat/steering": [
+    {
+      type: "lead",
+      text: "You don't have to wait for an answer to finish. Keep typing while the model works — your message joins the running turn at the next step, the way a colleague takes a note mid-task.",
+    },
+    { type: "heading", id: "how", title: "How it works" },
+    {
+      type: "steps",
+      steps: [
+        {
+          title: "Type while it answers",
+          text: "Press Enter as usual. The message appears above the box as queued — nothing is interrupted.",
+        },
+        {
+          title: "Picked up at the next step",
+          text: "Between tool calls the agent checks for new messages. Yours is added to the conversation and the model continues with it in mind — changing course, adding a detail, or answering both.",
+        },
+        {
+          title: "Or sent right after",
+          text: "If the model is already writing its final answer, there is no next step to join. Your message then goes out as the next question the moment the answer is done.",
+        },
+      ],
+    },
+    {
+      type: "callout",
+      variant: "info",
+      title: "Changed your mind?",
+      text: "Queued messages can be withdrawn with the × until the agent picks them up. Pressing stop puts anything still queued back into the input box.",
+    },
+    { type: "heading", id: "api", title: "Over the API" },
+    {
+      type: "paragraph",
+      text: "Pass a stream_id of your choice with POST /chat/stream. While that stream runs, POST /chat/stream/{stream_id}/steer with an id and content slips a message in; the stream acknowledges it with a steer frame. A 409 means the turn already ended — send the message as a normal next turn instead. DELETE /chat/stream/{stream_id}/steer/{id} withdraws one that was not picked up yet.",
+    },
+    {
+      type: "code",
+      language: "text",
+      filename: "stream frames",
+      code: `data: {"type": "tool_call", ...}
+data: {"type": "tool_result", ...}
+data: {"type": "steer", "id": "q1", "content": "Use Rio instead of London."}
+data: {"type": "reasoning", "delta": "..."}`,
+    },
+    { type: "heading", id: "recovery", title: "Stops, errors and cut-offs" },
+    {
+      type: "paragraph",
+      text: "A chat stays usable whatever happens to a turn. Answers stopped while thinking, answers cut off by a lost connection, and very long answers are all tidied up before the next question goes out — empty replies are dropped or marked, consecutive questions are merged, and oversized messages are shortened in the middle. A connection that drops mid-answer is shown as interrupted with a Try again button, instead of silently looking finished.",
+    },
+  ],
+  "chat/voice-call": [
+    {
+      type: "lead",
+      text: "Talk to the chat like a phone call. It listens, notices when you have finished, and answers aloud while the answer is still being written. Every turn lands in the chat as text.",
+    },
+    { type: "heading", id: "start", title: "Start a call" },
+    {
+      type: "paragraph",
+      text: "Click the phone next to the microphone, type /call, or run Voice call from the palette. Press the green button to begin — your browser asks for the microphone once. Esc or the red button hangs up.",
+    },
+    { type: "heading", id: "voices", title: "Voices and transcription" },
+    {
+      type: "params",
+      rows: [
+        { name: "Voice", type: "free", text: "Neural voices without a key or quota. The multilingual ones (Seraphina, Florian, Ava, Andrew) switch languages mid-sentence without changing voice. If the voice service is unreachable, the browser's own voice takes over." },
+        { name: "Transcription", type: "settings", text: "Whatever transcriber you picked in the settings — the same one the microphone button uses." },
+      ],
+    },
+    { type: "heading", id: "interrupt", title: "Interrupting" },
+    {
+      type: "paragraph",
+      text: "Start talking while it speaks — or while it is still thinking — and it stops, listens, and treats what you said as the next question, first word included. The hand button and a tap on the orb stop it too.",
+    },
+    {
+      type: "callout",
+      variant: "info",
+      title: "Headphones help",
+      text: "With speakers, the browser's echo cancellation keeps the voice from hearing itself. On some setups a loud voice can still trigger an interruption; headphones avoid that entirely, and the mute button pauses listening at any time.",
+    },
+  ],
   "chat/commands": [
     {
       type: "lead",

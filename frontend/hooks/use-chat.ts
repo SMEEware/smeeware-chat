@@ -11,8 +11,10 @@ import {
   setzeVerlauf,
   setzeRueckgabe,
   setzeVersteckt,
+  schiebeEin,
   starte,
   stoppe,
+  zieheZurueck,
 } from "@/lib/chat/turn-runner";
 import type { Attachment, ChatMessage } from "@/lib/chat/types";
 import { useSettings } from "@/lib/settings/store";
@@ -66,7 +68,15 @@ export function useChat({ chatId, initialMessages }: UseChatOptions) {
   const send = React.useCallback(
     (text: string, model: string | null = null) => {
       const sauber = text.trim();
-      if (!sauber || stand.streaming) return;
+      if (!sauber) return;
+
+      // Laeuft schon ein Turn, wird die Nachricht eingeschoben statt
+      // abgewiesen: der Agent nimmt sie an der naechsten Rundengrenze auf.
+      // Anhaenge bleiben liegen -- sie gehen mit der naechsten eigenen Frage.
+      if (stand.streaming) {
+        if (schiebeEin(chatId, sauber)) setInput("");
+        return;
+      }
 
       setInput("");
       const angehaengt = attachments;
@@ -140,6 +150,10 @@ export function useChat({ chatId, initialMessages }: UseChatOptions) {
   );
 
   const stop = React.useCallback(() => stoppe(chatId), [chatId]);
+  const withdraw = React.useCallback(
+    (id: string) => zieheZurueck(chatId, id),
+    [chatId],
+  );
   const dismissError = React.useCallback(() => fehlerWeg(chatId), [chatId]);
 
   const health = useQuery({
@@ -174,6 +188,8 @@ export function useChat({ chatId, initialMessages }: UseChatOptions) {
     retry,
     stop,
     isStreaming: stand.streaming,
+    queued: stand.queued,
+    withdraw,
     error: stand.error,
     dismissError,
     health,

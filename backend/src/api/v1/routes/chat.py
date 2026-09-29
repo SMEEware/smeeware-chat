@@ -4,20 +4,23 @@ import asyncio
 import contextlib
 import json
 from collections.abc import AsyncIterator
+from typing import Annotated
 
-from fastapi import APIRouter, status
+from fastapi import APIRouter, Path, status
 from fastapi.responses import StreamingResponse
+from pydantic import BaseModel, Field
 
 from dataclasses import replace
 
 from src.api.deps import ApiAccessDep, ProviderDep
-from src.core.exceptions import AppError
+from src.core.exceptions import AppError, ConflictError
 from src.core.container import ServiceProvider
 from src.core.logging import get_logger
-from src.schemas.chat import ChatRequest, ChatResponse, UsageResponse
+from src.schemas.chat import MAX_ZEICHEN, ChatRequest, ChatResponse, UsageResponse
 from src.services.ai.agent import Agent
 from src.services.ai.base import CompletionOptions, StreamChunk
 from src.services.ai.catalog import resolve
+from src.services.ai.steering import STEERING, Einschub
 from src.services.speech.runtime import setze_wahl
 
 logger = get_logger(__name__)
@@ -25,6 +28,14 @@ logger = get_logger(__name__)
 TOOL_PREVIEW = 240
 
 HERZSCHLAG = 15.0
+
+# Sicherheitsnetz: kommt so lange gar nichts -- kein Token, kein Werkzeug-
+# ergebnis --, haengt der Turn. Dann lieber ein sichtbarer Fehler, den der
+# Nutzer wiederholen kann, als ein Strom, der fuer immer Keepalives schickt.
+# Grosszuegig, weil ein einzelnes Werkzeug (Bilderzeugung) Minuten brauchen darf.
+LEERLAUF_MAX = 600.0
+
+ID_MUSTER = r"^[A-Za-z0-9_-]+$"
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 
@@ -142,9 +153,16 @@ async def _sse(
     """
     schlange: asyncio.Queue[tuple[str, object]] = asyncio.Queue(maxsize=256)
 
+    stream_id = payload.stream_id
+    if stream_id:
+        STEERING.oeffnen(stream_id)
+    steer = (lambda: STEERING.leeren(stream_id)) if stream_id else None
+
     async def erzeugen() -> None:
         try:
-            async for chunk in agent.stream(payload.to_domain_messages(), options):
+            async for chunk in agent.stream(
+                payload.to_domain_messages(), options, steer=steer
+            ):
                 await schlange.put(("chunk", chunk))
         except asyncio.CancelledError:
             raise
@@ -156,6 +174,7 @@ async def _sse(
             await schlange.put(("ende", None))
 
     aufgabe = asyncio.create_task(erzeugen())
+    still = 0.0
     try:
         while True:
             try:
@@ -163,8 +182,23 @@ async def _sse(
                     schlange.get(), timeout=HERZSCHLAG
                 )
             except TimeoutError:
+                still += HERZSCHLAG
+                if still >= LEERLAUF_MAX:
+                    logger.warning("Stream seit %.0fs still -- breche ab", still)
+                    yield _frame(
+                        event="error",
+                        data={
+                            "type": "error",
+                            "error": {
+                                "code": "stalled",
+                                "message": "The model stopped responding. Try again.",
+                            },
+                        },
+                    )
+                    break
                 yield ": keepalive\n\n"
                 continue
+            still = 0.0
 
             if art == "chunk":
                 yield _frame(data=_frame_of(wert))  # type: ignore[arg-type]
@@ -197,6 +231,8 @@ async def _sse(
         raise
 
     finally:
+        if stream_id:
+            STEERING.schliessen(stream_id)
         if not aufgabe.done():
             aufgabe.cancel()
         with contextlib.suppress(asyncio.CancelledError, Exception):
@@ -220,6 +256,8 @@ def _frame_of(chunk: StreamChunk) -> dict[str, object]:
             "call_id": chunk.tool_call_id,
             "arguments": _args(chunk.text),
         }
+    if chunk.kind == "steer":
+        return {"type": "steer", "id": chunk.ref, "content": chunk.text}
     if chunk.kind == "tool_result":
         text = chunk.text or ""
         return {
@@ -249,3 +287,41 @@ def _preview(text: str) -> str:
 def _frame(*, data: dict[str, object], event: str | None = None) -> str:
     prefix = f"event: {event}\n" if event else ""
     return f"{prefix}data: {json.dumps(data, ensure_ascii=False)}\n\n"
+
+
+class SteerIn(BaseModel):
+    id: Annotated[str, Field(min_length=1, max_length=64, pattern=ID_MUSTER)]
+    content: Annotated[str, Field(min_length=1, max_length=MAX_ZEICHEN)]
+
+
+@router.post(
+    "/stream/{stream_id}/steer",
+    status_code=status.HTTP_202_ACCEPTED,
+    summary="Slip a message into a running turn",
+)
+async def steer_in(
+    payload: SteerIn,
+    stream_id: Annotated[str, Path(max_length=64, pattern=ID_MUSTER)],
+    _: ApiAccessDep = None,
+) -> dict[str, bool]:
+    """Eine Nachricht in einen laufenden Turn schieben.
+
+    Sie wird an der naechsten Rundengrenze aufgenommen und im Strom mit einem
+    ``steer``-Frame quittiert. 409 heisst: der Turn ist schon vorbei -- der
+    Client schickt die Nachricht dann als normalen naechsten Turn.
+    """
+    if not STEERING.einwerfen(stream_id, Einschub(id=payload.id, text=payload.content)):
+        raise ConflictError("This turn is no longer running.")
+    return {"accepted": True}
+
+
+@router.delete(
+    "/stream/{stream_id}/steer/{einschub_id}",
+    summary="Withdraw a slipped-in message that was not picked up yet",
+)
+async def steer_out(
+    stream_id: Annotated[str, Path(max_length=64, pattern=ID_MUSTER)],
+    einschub_id: Annotated[str, Path(max_length=64, pattern=ID_MUSTER)],
+    _: ApiAccessDep = None,
+) -> dict[str, bool]:
+    return {"withdrawn": STEERING.zurueckziehen(stream_id, einschub_id)}

@@ -11,7 +11,16 @@ export async function* parseSseStream(
   try {
     while (true) {
       const { done, value } = await reader.read();
-      if (done) break;
+      // Ohne ``[DONE]`` zu Ende heisst: die Verbindung ist abgerissen --
+      // Backend neu gestartet, Netz weg, ein Proxy hat zugemacht. Das als
+      // normales Ende zu werten liess eine halbe Antwort als fertig stehen,
+      // ohne dass der Nutzer je erfuhr, dass etwas fehlt.
+      if (done) {
+        if (signal?.aborted) return;
+        throw new Error(
+          "The connection closed before the answer was complete.",
+        );
+      }
 
       buffer += decoder.decode(value, { stream: true });
 

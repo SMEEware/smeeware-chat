@@ -29,6 +29,7 @@ export const BEFEHL = {
   summarizeChat: "smeeware:summarize-chat",
 
   recordVoice: "smeeware:start-recording",
+  voiceCall: "smeeware:voice-call",
   attachments: "smeeware:attach-files",
   comment: "smeeware:comment-message",
   shareChatHistory: "smeeware:share-chat-history",

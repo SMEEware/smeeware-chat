@@ -23,7 +23,13 @@ export type StreamFrame =
       preview?: string;
       length?: number;
     }
+  // Eine waehrend des Turns nachgeschobene Nachricht wurde aufgenommen --
+  // ``id`` ist die, unter der sie in der Warteschlange stand.
+  | { type: "steer"; id: string; content: string }
   | { type: "error"; error: { code?: string; message: string } };
+
+/** Eine Nachricht, die waehrend eines laufenden Turns nachgeschoben wurde. */
+export type QueuedMessage = { id: string; text: string };
 
 export type WireMessage = {
   role: "user" | "assistant";
@@ -80,6 +86,8 @@ export type ChatRequestBody = {
   tools?: boolean;
   voice_id?: string;
   tts_model?: string;
+  /** Unter dieser id nimmt das Backend Einschuebe fuer den Turn an. */
+  stream_id?: string;
 };
 
 export type Model = {
