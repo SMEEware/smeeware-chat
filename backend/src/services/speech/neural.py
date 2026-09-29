@@ -19,8 +19,6 @@ from __future__ import annotations
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
 
-import edge_tts
-
 from src.core.logging import get_logger
 from src.services.speech.base import SpeechError
 
@@ -64,6 +62,19 @@ async def sprechen(text: str, *, stimme: str | None = None, tempo: int = 0) -> A
         raise SpeechError("Nothing to speak.")
     if len(text) > MAX_ZEICHEN:
         text = text[:MAX_ZEICHEN]
+
+    # Erst hier importiert, nicht oben in der Datei: fehlt das Paket (Server
+    # nach einem Pull, ohne neu zu installieren), soll nur das Telefonat auf
+    # die Browser-Stimme ausweichen -- nicht das ganze Backend beim Start
+    # abstuerzen, weil der Router dieses Modul laedt.
+    try:
+        import edge_tts
+    except ImportError as exc:
+        logger.error("Paket 'edge-tts' fehlt -- pip install -r requirements.txt")
+        raise SpeechError(
+            "The call voice needs the 'edge-tts' package "
+            "(pip install -r requirements.txt)."
+        ) from exc
 
     wahl = stimme if stimme in _ERLAUBT else STANDARD
     tempo = max(-30, min(30, int(tempo)))

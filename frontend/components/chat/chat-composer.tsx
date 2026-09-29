@@ -72,6 +72,8 @@ type ChatComposerProps = {
   onSubmit: (value: string) => void;
   onStop: () => void;
   isStreaming: boolean;
+  /** Ein Telefonat laeuft -- dann holt sich das Feld nie selbst den Fokus. */
+  callActive?: boolean;
   disabled?: boolean;
   models: Model[];
   modelGroups?: string[];
@@ -93,6 +95,7 @@ export function ChatComposer({
   onSubmit,
   onStop,
   isStreaming,
+  callActive = false,
   disabled,
   models,
   modelGroups,
@@ -190,9 +193,15 @@ export function ChatComposer({
     textarea.style.height = `${Math.min(textarea.scrollHeight, MAX_HEIGHT)}px`;
   }, [value]);
 
+  // Nach einer Antwort zurueck ins Feld -- aber nur mit Maus und Tastatur.
+  // Auf dem Handy oeffnete das jedes Mal die Bildschirmtastatur, die dann
+  // genau die Antwort verdeckt, die man lesen will; und im Telefonat braucht
+  // es gar keine.
   React.useEffect(() => {
-    if (!isStreaming) textareaRef.current?.focus();
-  }, [isStreaming]);
+    if (isStreaming || callActive) return;
+    if (!window.matchMedia("(pointer: fine)").matches) return;
+    textareaRef.current?.focus();
+  }, [isStreaming, callActive]);
 
   const dateiwahl = React.useCallback(() => dateiRef.current?.click(), []);
 

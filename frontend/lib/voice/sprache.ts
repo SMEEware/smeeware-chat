@@ -39,6 +39,15 @@ export function sprechbar(text: string): string {
     .replace(/(\*|_)(.+?)\1/g, "$2")
     .replace(/~~(.+?)~~/g, "$1")
     .replace(EMOJI, "")
+    // Klammern werden zur Sprechpause statt vorgelesen zu werden, Pfeile und
+    // Gedankenstriche ebenso; uebrige Zeichen, die keiner ausspricht, fallen weg.
+    .replace(/\s*[([{]\s*/g, ", ")
+    .replace(/\s*[)\]}]\s*/g, ", ")
+    .replace(/\s*(→|⇒|->|=>|—|–)\s*/g, ", ")
+    .replace(/[*#_~|<>^\\•·]/g, " ")
+    .replace(/,\s*([.,!?;:])/g, "$1")
+    .replace(/(,\s*){2,}/g, ", ")
+    .replace(/^\s*,\s*/g, "")
     .replace(/[ \t]+/g, " ")
     .replace(/\s+([.,!?;:])/g, "$1")
     // Ein Zeilenumbruch ist beim Sprechen eine Pause: ohne Satzzeichen davor
@@ -125,4 +134,32 @@ export function istEchteAussage(text: string): boolean {
   const t = text.trim();
   if (t.length < 2) return false;
   return !HALLUZINATIONEN.some((muster) => muster.test(t));
+}
+
+function woerter(text: string): string[] {
+  return text
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/[^\p{L}\p{N}\s]/gu, " ")
+    .split(/\s+/)
+    .filter((w) => w.length > 1);
+}
+
+/**
+ * Hat das Mikrofon nur die eigene Stimme gehoert?
+ *
+ * Ohne Echo-Unterdrueckung (viele Android-Browser) laeuft die Stimme aus dem
+ * Lautsprecher zurueck ins Mikrofon und saehe aus wie ein Dazwischenreden.
+ * Verraten tut sie sich am Inhalt: das Transkript besteht dann fast nur aus
+ * Woertern, die sie selbst gerade gesagt hat. Ein echter Einwurf ("Nein,
+ * nicht Berlin, Paris!") teilt hoechstens ein paar Woerter mit ihr.
+ */
+export function istEcho(transkript: string, gesprochen: string[]): boolean {
+  const gehoert = woerter(transkript);
+  if (gehoert.length === 0) return false;
+  const vorrat = new Set(gesprochen.flatMap(woerter));
+  if (vorrat.size === 0) return false;
+  const treffer = gehoert.filter((w) => vorrat.has(w)).length;
+  return treffer / gehoert.length >= 0.6;
 }

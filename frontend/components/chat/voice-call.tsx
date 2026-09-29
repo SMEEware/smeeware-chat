@@ -4,6 +4,7 @@ import * as React from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   AudioLinesIcon,
+  ChevronDownIcon,
   HandIcon,
   Loader2Icon,
   MicIcon,
@@ -13,6 +14,17 @@ import {
   XIcon,
 } from "lucide-react";
 
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useVoiceCall } from "@/hooks/use-voice-call";
 import type { CallPhase } from "@/hooks/use-voice-call";
 import type { ChatMessage } from "@/lib/chat/types";
@@ -102,17 +114,27 @@ function CallFenster({
 
   React.useEffect(() => {
     const aufTaste = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        event.preventDefault();
-        beenden();
-      }
+      if (event.key !== "Escape") return;
+      // Esc in einem offenen Menue (Stimmenwahl) schliesst nur das Menue --
+      // nicht gleich das ganze Telefonat.
+      if ((event.target as Element | null)?.closest?.('[role="menu"]')) return;
+      event.preventDefault();
+      beenden();
     };
     window.addEventListener("keydown", aufTaste);
     return () => window.removeEventListener("keydown", aufTaste);
   }, [beenden]);
 
+  // Beim Oeffnen die Tastatur schliessen: der Fokus lag womoeglich noch im
+  // Eingabefeld, und im Telefonat braucht niemand eine Tastatur.
+  React.useEffect(() => {
+    (document.activeElement as HTMLElement | null)?.blur();
+  }, []);
+
   const laeuft = call.phase !== "ready" && call.phase !== "error";
   const gewaehlt = stimme ?? stimmen.data?.default ?? "";
+  const gewaehlterName =
+    stimmen.data?.voices.find((v) => v.id === gewaehlt)?.name ?? "Voice";
 
   return (
     <div
@@ -133,26 +155,44 @@ function CallFenster({
         </span>
 
         {stimmen.data ? (
-          <label className="ms-auto flex items-center gap-2 text-xs text-muted-foreground">
-            <span className="hidden sm:inline">Voice</span>
-            <select
-              value={gewaehlt}
-              onChange={(event) =>
-                setStimme(
-                  event.target.value === stimmen.data.default
-                    ? null
-                    : event.target.value,
-                )
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={
+                <button
+                  type="button"
+                  aria-label={`Voice: ${gewaehlterName}`}
+                  className="ms-auto inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-full border bg-card/60 ps-3 pe-2.5 text-xs font-medium text-foreground backdrop-blur-sm transition-colors hover:bg-muted data-popup-open:bg-muted"
+                />
               }
-              className="cursor-pointer rounded-full border bg-card/70 px-3 py-1.5 text-xs text-foreground outline-none focus:ring-2 focus:ring-primary/40"
             >
-              {stimmen.data.voices.map((v) => (
-                <option key={v.id} value={v.id}>
-                  {v.name} — {v.description}
-                </option>
-              ))}
-            </select>
-          </label>
+              {gewaehlterName}
+              <ChevronDownIcon className="size-3.5 text-muted-foreground" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" sideOffset={6} className="w-52">
+              <DropdownMenuGroup>
+                <DropdownMenuLabel>Voice</DropdownMenuLabel>
+                <DropdownMenuRadioGroup
+                  value={gewaehlt}
+                  onValueChange={(wert) =>
+                    setStimme(wert === stimmen.data.default ? null : String(wert))
+                  }
+                >
+                  {stimmen.data.voices.map((v) => (
+                    <DropdownMenuRadioItem key={v.id} value={v.id}>
+                      {v.name}
+                    </DropdownMenuRadioItem>
+                  ))}
+                </DropdownMenuRadioGroup>
+              </DropdownMenuGroup>
+              <DropdownMenuSeparator />
+              <DropdownMenuCheckboxItem
+                checked={call.dazwischenErlaubt}
+                onCheckedChange={(wert) => call.setDazwischenErlaubt(Boolean(wert))}
+              >
+                Interrupt by talking
+              </DropdownMenuCheckboxItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         ) : (
           <span className="ms-auto" />
         )}
@@ -172,7 +212,11 @@ function CallFenster({
           phase={call.phase}
           stumm={call.stumm}
           levelRef={call.levelRef}
-          onTap={call.phase === "speaking" ? call.unterbrechen : undefined}
+          onTap={
+            call.phase === "speaking" || call.phase === "thinking"
+              ? call.unterbrechen
+              : undefined
+          }
         />
 
         <div className="flex min-h-28 w-full max-w-xl flex-col items-center gap-3 text-center">
@@ -197,13 +241,22 @@ function CallFenster({
           ) : call.phase === "ready" ? (
             <p className="max-w-sm text-sm leading-relaxed text-pretty text-muted-foreground/80">
               Talk hands-free. Every question and answer lands in this chat.
-              Start talking while it speaks to interrupt.
+              {call.dazwischenErlaubt
+                ? " Start talking while it speaks to interrupt."
+                : " Tap the orb while it speaks to interrupt."}
             </p>
           ) : null}
 
           {call.fehler ? (
             <p role="alert" className="text-sm text-destructive">
               {call.fehler}
+            </p>
+          ) : null}
+          {call.echoHinweis ? (
+            <p className="max-w-sm text-[13px] leading-relaxed text-pretty text-muted-foreground">
+              The voice was hearing itself, so talking over it is off on this
+              device. Tap the orb to interrupt — with headphones you can switch
+              it back on in the voice menu.
             </p>
           ) : null}
           {!call.verfuegbar && call.phase === "ready" ? (

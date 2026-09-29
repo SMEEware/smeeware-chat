@@ -76,6 +76,8 @@ export type ChatMessage = WireMessage & {
   attachments?: Attachment[];
   comments?: ChatComment[];
   hidden?: boolean;
+  /** Im Telefonat gesprochen -- das Modell antwortet dann sprechbar. */
+  viaCall?: boolean;
 };
 
 export type ChatRequestBody = {
@@ -88,6 +90,8 @@ export type ChatRequestBody = {
   tts_model?: string;
   /** Unter dieser id nimmt das Backend Einschuebe fuer den Turn an. */
   stream_id?: string;
+  /** "call": im Telefonat gesprochen -- das Backend passt den System-Prompt an. */
+  mode?: "chat" | "call";
 };
 
 export type Model = {

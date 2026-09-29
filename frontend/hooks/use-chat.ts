@@ -66,7 +66,11 @@ export function useChat({ chatId, initialMessages }: UseChatOptions) {
   }, [chatId]);
 
   const send = React.useCallback(
-    (text: string, model: string | null = null) => {
+    (
+      text: string,
+      model: string | null = null,
+      extra: { viaCall?: boolean } = {},
+    ) => {
       const sauber = text.trim();
       if (!sauber) return;
 
@@ -91,6 +95,7 @@ export function useChat({ chatId, initialMessages }: UseChatOptions) {
             role: "user",
             content: sauber,
             attachments: angehaengt.length > 0 ? angehaengt : undefined,
+            viaCall: extra.viaCall || undefined,
           },
         ],
         model,

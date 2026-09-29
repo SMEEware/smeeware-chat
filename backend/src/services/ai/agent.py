@@ -51,8 +51,10 @@ class Agent:
         self,
         messages: Sequence[Message],
         options: CompletionOptions | None = None,
+        *,
+        zusatz: str | None = None,
     ) -> Completion:
-        working = self._prepare(messages)
+        working = self._prepare(messages, zusatz)
         merged = await self._with_tools(self._merge(options))
 
         logger.info(
@@ -88,6 +90,7 @@ class Agent:
         options: CompletionOptions | None = None,
         *,
         steer: Callable[[], Sequence[Einschub]] | None = None,
+        zusatz: str | None = None,
     ) -> AsyncIterator[StreamChunk]:
         """Wie ``complete``, aber als Strom -- und offen fuer Einschuebe.
 
@@ -96,8 +99,11 @@ class Agent:
         Werkzeugergebnissen, bevor das Modell wieder dran ist. Jeder Einschub
         wird als Nutzernachricht angehaengt und mit einem ``steer``-Fragment
         quittiert, damit der Client ihn aus seiner Warteschlange nimmt.
+
+        ``zusatz`` ergaenzt den System-Prompt fuer diesen einen Turn (etwa die
+        Sprechregeln im Telefonat) -- die Persona bleibt, wie sie ist.
         """
-        working = self._prepare(messages)
+        working = self._prepare(messages, zusatz)
         merged = await self._with_tools(self._merge(options))
 
         logger.info(
@@ -182,15 +188,33 @@ class Agent:
             logger.warning("Werkzeug %s meldet Fehler: %s", call.name, result.content[:160])
         return result
 
-    def _prepare(self, messages: Sequence[Message]) -> list[Message]:
+    def _prepare(
+        self, messages: Sequence[Message], zusatz: str | None = None
+    ) -> list[Message]:
         if not messages:
             raise ValidationError("messages must not be empty.")
 
-        has_system = any(message.role == "system" for message in messages)
+        system: Role = "system"
+        working = list(messages)
+        has_system = any(message.role == "system" for message in working)
         if self._system_prompt and not has_system:
-            system: Role = "system"
-            return [Message(role=system, content=self._system_prompt), *messages]
-        return list(messages)
+            working.insert(0, Message(role=system, content=self._system_prompt))
+
+        # Der Zusatz wird Teil DES System-Prompts, nicht eine zweite
+        # System-Nachricht: manche Anbieter nehmen nur eine, und so steht er
+        # direkt hinter der Persona, die er ergaenzt.
+        if zusatz:
+            erste = next(
+                (i for i, m in enumerate(working) if m.role == "system"), None
+            )
+            if erste is None:
+                working.insert(0, Message(role=system, content=zusatz))
+            else:
+                alt = working[erste]
+                working[erste] = Message(
+                    role=system, content=f"{alt.content}\n\n{zusatz}"
+                )
+        return working
 
     def _merge(self, options: CompletionOptions | None) -> CompletionOptions:
         if options is None:

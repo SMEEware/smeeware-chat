@@ -456,7 +456,7 @@ export function ChatPanel({ chatId, initialMessages }: ChatPanelProps) {
             onClose={() => setAnruf(false)}
             messages={messages}
             isStreaming={isStreaming}
-            send={(text) => send(text, activeModel || null)}
+            send={(text) => send(text, activeModel || null, { viaCall: true })}
             stop={stop}
           />
           <ChatComposer
@@ -465,6 +465,7 @@ export function ChatPanel({ chatId, initialMessages }: ChatPanelProps) {
             onSubmit={(text) => send(text, activeModel || null)}
             onStop={stop}
             isStreaming={isStreaming}
+            callActive={anruf}
             models={modelList}
             modelGroups={modelGroups}
             model={activeModel}

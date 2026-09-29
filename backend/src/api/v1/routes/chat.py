@@ -20,6 +20,7 @@ from src.schemas.chat import MAX_ZEICHEN, ChatRequest, ChatResponse, UsageRespon
 from src.services.ai.agent import Agent
 from src.services.ai.base import CompletionOptions, StreamChunk
 from src.services.ai.catalog import resolve
+from src.services.ai.modi import zusatz_fuer
 from src.services.ai.steering import STEERING, Einschub
 from src.services.speech.runtime import setze_wahl
 
@@ -84,7 +85,9 @@ async def chat(
     payload: ChatRequest, provider: ProviderDep, _: ApiAccessDep = None
 ) -> ChatResponse:
     agent, options = await _fuer(provider, payload)
-    completion = await agent.complete(payload.to_domain_messages(), options)
+    completion = await agent.complete(
+        payload.to_domain_messages(), options, zusatz=zusatz_fuer(payload.mode)
+    )
 
     return ChatResponse(
         content=completion.content,
@@ -161,7 +164,10 @@ async def _sse(
     async def erzeugen() -> None:
         try:
             async for chunk in agent.stream(
-                payload.to_domain_messages(), options, steer=steer
+                payload.to_domain_messages(),
+                options,
+                steer=steer,
+                zusatz=zusatz_fuer(payload.mode),
             ):
                 await schlange.put(("chunk", chunk))
         except asyncio.CancelledError:

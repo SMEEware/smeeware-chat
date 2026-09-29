@@ -6,7 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { stripToolScaffolding } from "@/lib/chat/sanitize";
 import type { ChatMessage } from "@/lib/chat/types";
 import { useSettings } from "@/lib/settings/store";
-import { SatzSchneider, istEchteAussage } from "@/lib/voice/sprache";
+import { SatzSchneider, istEcho, istEchteAussage } from "@/lib/voice/sprache";
 
 /**
  * Das Telefonat -- freihaendig mit dem Chat sprechen.
@@ -60,7 +60,15 @@ const VORLAUF_TAKT_MS = 1_500;
 /** So viele Saetze werden vorab erzeugt, waehrend einer spricht. */
 const VORLAUF = 3;
 /** Am Telefon wirkt ein Hauch schneller lebendiger als das Vorlese-Tempo. */
-const TEMPO = 5;
+const TEMPO = 12;
+/** Nach dem Ende eines Satzes spielt die WebRTC-Schleife noch kurz nach
+ *  (Jitter-Puffer) -- so lange gilt der Satz als nicht vorbei. */
+const NACHLAUF_MS = 150;
+/** Direkt nach dem Sprechen hallt die Stimme noch nach: so lange zaehlt
+ *  nichts als Einsatz ... */
+const RUHE_NACH_SPRECHEN_MS = 400;
+/** ... und was in diesem Fenster beginnt, wird auf Echo geprueft. */
+const ECHO_FENSTER_MS = 2_500;
 
 function besterTyp(): string | undefined {
   if (typeof MediaRecorder === "undefined") return undefined;
@@ -80,7 +88,59 @@ function pegel(analyser: AnalyserNode | null, puffer: Float32Array<ArrayBuffer>)
   return Math.sqrt(summe / puffer.length);
 }
 
-type Satz = { text: string; audio: Promise<Blob | null> | null };
+type Satz = {
+  text: string;
+  audio: Promise<Blob | null> | null;
+  /** Schon geladen -- ueberlebt eine Pause fuers Dazwischenreden. */
+  blob?: Blob | null;
+};
+
+type Schleife = { a: RTCPeerConnection; b: RTCPeerConnection; stream: MediaStream };
+
+/**
+ * Die Stimme ueber eine WebRTC-Verbindung mit sich selbst schicken.
+ *
+ * Das ist der Kern gegen das Selbst-Unterbrechen: die Echo-Unterdrueckung
+ * des Browsers kann nur abziehen, was sie als Gespraechston kennt. Normales
+ * Abspielen (Audio-Element, WebAudio) ist fuer sie "Medien" -- vor allem auf
+ * Android landet es ungefiltert wieder im Mikrofon. Kommt dieselbe Stimme
+ * als WebRTC-Gegenstelle herein, behandelt der Browser sie wie die Stimme in
+ * einem Videocall und rechnet sie heraus. Die Verbindung verlaesst das Geraet
+ * nie (zwei Enden in derselben Seite).
+ */
+async function schleifeBauen(quelle: MediaStream): Promise<Schleife | null> {
+  if (typeof RTCPeerConnection === "undefined") return null;
+  const a = new RTCPeerConnection();
+  const b = new RTCPeerConnection();
+  try {
+    a.onicecandidate = (e) => {
+      if (e.candidate) void b.addIceCandidate(e.candidate).catch(() => {});
+    };
+    b.onicecandidate = (e) => {
+      if (e.candidate) void a.addIceCandidate(e.candidate).catch(() => {});
+    };
+    const empfangen = new Promise<MediaStream>((ok) => {
+      b.ontrack = (e) => ok(e.streams[0] ?? new MediaStream([e.track]));
+    });
+    quelle.getAudioTracks().forEach((spur) => a.addTrack(spur, quelle));
+    const angebot = await a.createOffer();
+    await a.setLocalDescription(angebot);
+    await b.setRemoteDescription(angebot);
+    const antwort = await b.createAnswer();
+    await b.setLocalDescription(antwort);
+    await a.setRemoteDescription(antwort);
+    const stream = await Promise.race([
+      empfangen,
+      new Promise<null>((r) => setTimeout(() => r(null), 3_000)),
+    ]);
+    if (!stream) throw new Error("no remote track");
+    return { a, b, stream };
+  } catch {
+    a.close();
+    b.close();
+    return null;
+  }
+}
 
 type Aufnahme = { rec: MediaRecorder; stuecke: Blob[]; seit: number };
 
@@ -105,6 +165,9 @@ function aufnahmeVerwerfen(aufnahme: Aufnahme | null | undefined): void {
 export function useVoiceCall({ messages, isStreaming, send, stop }: Optionen) {
   const transkribierer = useSettings((z) => z.transcribeModel);
   const stimme = useSettings((z) => z.callVoice);
+  const dazwischenErlaubt = useSettings((z) => z.callBargeIn);
+  const setDazwischenErlaubtEinstellung = useSettings((z) => z.setCallBargeIn);
+  const [echoHinweis, setEchoHinweis] = React.useState(false);
 
   const [phase, setPhaseState] = React.useState<CallPhase>("ready");
   const [fehler, setFehler] = React.useState<string | null>(null);
@@ -138,8 +201,10 @@ export function useVoiceCall({ messages, isStreaming, send, stop }: Optionen) {
   const transkribiererRef = React.useRef(transkribierer);
   const sendRef = React.useRef(send);
   const stopRef = React.useRef(stop);
+  const dazwischenErlaubtRef = React.useRef(dazwischenErlaubt);
 
   React.useEffect(() => {
+    dazwischenErlaubtRef.current = dazwischenErlaubt;
     streamingRef.current = isStreaming;
     messagesRef.current = messages;
     stimmeRef.current = stimme;
@@ -152,7 +217,10 @@ export function useVoiceCall({ messages, isStreaming, send, stop }: Optionen) {
   const ctxRef = React.useRef<AudioContext | null>(null);
   const micAnalyserRef = React.useRef<AnalyserNode | null>(null);
   const outAnalyserRef = React.useRef<AnalyserNode | null>(null);
+  /** Spielt aus, was die Schleife liefert (oder direkt, ohne Schleife). */
   const audioRef = React.useRef<HTMLAudioElement | null>(null);
+  const schleifeRef = React.useRef<Schleife | null>(null);
+  const quelleRef = React.useRef<AudioBufferSourceNode | null>(null);
   const aufnahmeRef = React.useRef<Aufnahme | null>(null);
   /** Die rollenden Vorlauf-Aufnahmen, aelteste zuerst. */
   const vorlaufRef = React.useRef<Aufnahme[]>([]);
@@ -177,7 +245,20 @@ export function useVoiceCall({ messages, isStreaming, send, stop }: Optionen) {
   const gestartetRef = React.useRef(false);
   const fertigRef = React.useRef(false);
   const schneiderRef = React.useRef(new SatzSchneider());
+  /** Bricht das Abspielen ab (auch fuer eine Pause). */
   const sprechAbbruchRef = React.useRef<AbortController | null>(null);
+  /** Bricht das Laden der Saetze ab -- nur wenn die Antwort wirklich weg ist. */
+  const holAbbruchRef = React.useRef<AbortController | null>(null);
+  /** Pause fuers Dazwischenreden: erst das Transkript entscheidet, ob es
+   *  ein echter Einwurf war -- oder nur das eigene Echo. */
+  const pausiertRef = React.useRef(false);
+  const aktuellerSatzRef = React.useRef<Satz | null>(null);
+  const unterbrochenerSatzRef = React.useRef<Satz | null>(null);
+  /** Die zuletzt gesprochenen Saetze -- der Vergleich fuers Echo. */
+  const zuletztRef = React.useRef<string[]>([]);
+  /** Bis wann Einsaetze ignoriert bzw. auf Echo geprueft werden. */
+  const ruheBisRef = React.useRef(0);
+  const echoPruefenBisRef = React.useRef(0);
 
   const setPhase = React.useCallback((p: CallPhase) => {
     phaseRef.current = p;
@@ -268,36 +349,61 @@ export function useVoiceCall({ messages, isStreaming, send, stop }: Optionen) {
   );
 
   const vorbereiten = React.useCallback(() => {
-    const abbruch = sprechAbbruchRef.current;
+    const abbruch = holAbbruchRef.current;
     if (!abbruch) return;
     satzSchlangeRef.current.slice(0, VORLAUF).forEach((satz) => {
-      if (!satz.audio) satz.audio = holeAudio(satz.text, abbruch.signal);
+      if (!satz.audio) {
+        satz.audio = holeAudio(satz.text, abbruch.signal).then((blob) => {
+          satz.blob = blob;
+          return blob;
+        });
+      }
     });
   }, [holeAudio]);
 
+  /** Einen Satz abspielen -- dekodiert und durch die Schleife geschickt.
+   *  false, wenn er sich nicht dekodieren liess (dann spricht der Browser). */
   const spieleBlob = React.useCallback(
-    (blob: Blob, signal: AbortSignal) =>
-      new Promise<void>((fertig) => {
-        const el = audioRef.current;
-        if (!el || signal.aborted) return fertig();
-        const url = URL.createObjectURL(blob);
+    async (blob: Blob, signal: AbortSignal): Promise<boolean> => {
+      const ctx = ctxRef.current;
+      const ziel = outAnalyserRef.current;
+      if (!ctx || !ziel || signal.aborted) return true;
+
+      let puffer: AudioBuffer;
+      try {
+        puffer = await ctx.decodeAudioData(await blob.arrayBuffer());
+      } catch {
+        return false;
+      }
+      if (signal.aborted) return true;
+
+      await new Promise<void>((fertig) => {
+        const quelle = ctx.createBufferSource();
+        quelle.buffer = puffer;
+        quelle.connect(ziel);
+        quelleRef.current = quelle;
+        let erledigt = false;
         const schluss = () => {
-          el.onended = null;
-          el.onerror = null;
+          if (erledigt) return;
+          erledigt = true;
           signal.removeEventListener("abort", abbrechen);
-          URL.revokeObjectURL(url);
+          if (quelleRef.current === quelle) quelleRef.current = null;
           fertig();
         };
         const abbrechen = () => {
-          el.pause();
+          try {
+            quelle.stop();
+          } catch {
+            // schon gestoppt
+          }
           schluss();
         };
-        el.onended = schluss;
-        el.onerror = schluss;
+        quelle.onended = () => setTimeout(schluss, NACHLAUF_MS);
         signal.addEventListener("abort", abbrechen);
-        el.src = url;
-        el.play().catch(schluss);
-      }),
+        quelle.start();
+      });
+      return true;
+    },
     [],
   );
 
@@ -311,6 +417,7 @@ export function useVoiceCall({ messages, isStreaming, send, stop }: Optionen) {
         const aeusserung = new SpeechSynthesisUtterance(text);
         const sprache = document.documentElement.lang || navigator.language;
         aeusserung.lang = sprache;
+        aeusserung.rate = 1.1;
         // Die beste Stimme, die der Browser hat: bevorzugt die neuronalen.
         const stimmen = synth
           .getVoices()
@@ -337,46 +444,84 @@ export function useVoiceCall({ messages, isStreaming, send, stop }: Optionen) {
   );
 
   const vorlesenBeendet = React.useCallback(() => {
+    if (pausiertRef.current) return;
     if (!fertigRef.current || spieltRef.current) return;
     if (satzSchlangeRef.current.length > 0) return;
     if (phaseRef.current === "speaking" || phaseRef.current === "thinking") {
       setGesprochen(null);
+      // Der Nachhall der letzten Worte ist noch im Raum: kurz nichts als
+      // Einsatz werten, und was danach gleich beginnt, auf Echo pruefen.
+      const jetzt = performance.now();
+      ruheBisRef.current = jetzt + RUHE_NACH_SPRECHEN_MS;
+      echoPruefenBisRef.current = jetzt + ECHO_FENSTER_MS;
       zuhoeren();
     }
   }, [zuhoeren]);
 
   const spielen = React.useCallback(async () => {
-    if (spieltRef.current) return;
+    if (spieltRef.current || pausiertRef.current) return;
     const abbruch = sprechAbbruchRef.current;
-    if (!abbruch) return;
+    const holen = holAbbruchRef.current;
+    if (!abbruch || !holen) return;
     spieltRef.current = true;
 
     while (satzSchlangeRef.current.length > 0 && !abbruch.signal.aborted) {
       vorbereiten();
       const satz = satzSchlangeRef.current.shift()!;
       vorbereiten();
+      aktuellerSatzRef.current = satz;
+      zuletztRef.current = [...zuletztRef.current.slice(-2), satz.text];
       if (phaseRef.current !== "speaking") setPhase("speaking");
       setGesprochen(satz.text);
 
-      const blob = await (satz.audio ?? holeAudio(satz.text, abbruch.signal));
+      const blob =
+        satz.blob !== undefined
+          ? satz.blob
+          : await (satz.audio ?? holeAudio(satz.text, holen.signal));
       if (abbruch.signal.aborted) break;
-      if (blob) await spieleBlob(blob, abbruch.signal);
-      else await sprichImBrowser(satz.text, abbruch.signal);
+      const gespielt = blob ? await spieleBlob(blob, abbruch.signal) : false;
+      if (!gespielt && !abbruch.signal.aborted) {
+        await sprichImBrowser(satz.text, abbruch.signal);
+      }
+      if (!abbruch.signal.aborted) aktuellerSatzRef.current = null;
     }
 
     spieltRef.current = false;
     vorlesenBeendet();
   }, [holeAudio, setPhase, spieleBlob, sprichImBrowser, vorbereiten, vorlesenBeendet]);
 
+  /** Die Antwort ist endgueltig weg: nichts mehr spielen, nichts mehr laden. */
   const vorlesenAbbrechen = React.useCallback(() => {
     sprechAbbruchRef.current?.abort();
     sprechAbbruchRef.current = null;
+    holAbbruchRef.current?.abort();
+    holAbbruchRef.current = null;
     satzSchlangeRef.current = [];
-    audioRef.current?.pause();
+    pausiertRef.current = false;
+    aktuellerSatzRef.current = null;
+    unterbrochenerSatzRef.current = null;
+    try {
+      quelleRef.current?.stop();
+    } catch {
+      // schon gestoppt
+    }
+    quelleRef.current = null;
     if (typeof window !== "undefined" && "speechSynthesis" in window) {
       window.speechSynthesis.cancel();
     }
     setGesprochen(null);
+  }, []);
+
+  /** Verstummen, aber nichts wegwerfen: die Schlange und der gerade
+   *  unterbrochene Satz bleiben, bis das Transkript entschieden hat. */
+  const pausieren = React.useCallback(() => {
+    pausiertRef.current = true;
+    unterbrochenerSatzRef.current = aktuellerSatzRef.current;
+    sprechAbbruchRef.current?.abort();
+    sprechAbbruchRef.current = null;
+    if (typeof window !== "undefined" && "speechSynthesis" in window) {
+      window.speechSynthesis.cancel();
+    }
   }, []);
 
   // Die wachsende Antwort in Saetze schneiden und einreihen.
@@ -408,11 +553,35 @@ export function useVoiceCall({ messages, isStreaming, send, stop }: Optionen) {
     }
   }, [messages, isStreaming, spielen, vorlesenBeendet]);
 
+  /** Falscher Alarm beim Dazwischenreden: dort weitersprechen, wo die
+   *  Stimme stehen geblieben ist -- der unterbrochene Satz beginnt neu. */
+  const fortsetzen = React.useCallback(() => {
+    pausiertRef.current = false;
+    const satz = unterbrochenerSatzRef.current;
+    unterbrochenerSatzRef.current = null;
+    if (satz) satzSchlangeRef.current.unshift(satz);
+    sprechAbbruchRef.current = new AbortController();
+    vorlaufBeenden();
+    vad.current.aktivMs = 0;
+    vad.current.stilleMs = 0;
+    if (satzSchlangeRef.current.length > 0) {
+      setPhase("speaking");
+      void spielen();
+    } else if (fertigRef.current) {
+      setGesprochen(null);
+      zuhoeren();
+    } else {
+      setPhase("thinking");
+    }
+  }, [setPhase, spielen, vorlaufBeenden, zuhoeren]);
+
   // ---------------------------------------------------------------- //
   // Eine Aussage abschliessen                                         //
   // ---------------------------------------------------------------- //
 
   const aussageFertig = React.useCallback(async () => {
+    const warUnterbrechung = pausiertRef.current;
+    const imEchoFenster = vad.current.sprichtSeit < echoPruefenBisRef.current;
     setPhase("transcribing");
     const dauer = performance.now() - vad.current.sprichtSeit;
     // Die Zaehler der eben beendeten Aussage duerfen nicht in die naechste
@@ -423,7 +592,8 @@ export function useVoiceCall({ messages, isStreaming, send, stop }: Optionen) {
     vad.current.stilleMs = 0;
     const blob = await recorderStoppen();
     if (!blob || dauer < MIN_AUSSAGE_MS || blob.size < 1_000) {
-      zuhoeren();
+      if (warUnterbrechung) fortsetzen();
+      else zuhoeren();
       return;
     }
 
@@ -443,7 +613,29 @@ export function useVoiceCall({ messages, isStreaming, send, stop }: Optionen) {
     }
 
     if (phaseRef.current !== "transcribing") return;
-    if (!istEchteAussage(text)) {
+
+    const echo =
+      (warUnterbrechung || imEchoFenster) && istEcho(text, zuletztRef.current);
+    if (echo) {
+      // Die Stimme hat sich selbst gehoert -- dieses Geraet unterdrueckt das
+      // Echo nicht. Ab jetzt nur noch per Tipp unterbrechen (und das fuer
+      // dieses Geraet merken); gesprochen wird einfach weiter.
+      dazwischenErlaubtRef.current = false;
+      setDazwischenErlaubtEinstellung(false);
+      setEchoHinweis(true);
+    }
+
+    if (warUnterbrechung) {
+      if (echo || !istEchteAussage(text)) {
+        fortsetzen();
+        return;
+      }
+      // Ein echter Einwurf: erst jetzt die alte Antwort wirklich beenden.
+      vorlesenAbbrechen();
+      fertigRef.current = false;
+      wartetRef.current = false;
+      if (streamingRef.current) stopRef.current();
+    } else if (echo || !istEchteAussage(text)) {
       zuhoeren();
       return;
     }
@@ -460,13 +652,22 @@ export function useVoiceCall({ messages, isStreaming, send, stop }: Optionen) {
     antwortAbRef.current = messagesRef.current.length;
     schneiderRef.current = new SatzSchneider();
     satzSchlangeRef.current = [];
+    zuletztRef.current = [];
     sprechAbbruchRef.current = new AbortController();
+    holAbbruchRef.current = new AbortController();
     gestartetRef.current = false;
     fertigRef.current = false;
     wartetRef.current = true;
     setPhase("thinking");
     sendRef.current(text);
-  }, [recorderStoppen, setPhase, zuhoeren]);
+  }, [
+    fortsetzen,
+    recorderStoppen,
+    setDazwischenErlaubtEinstellung,
+    setPhase,
+    vorlesenAbbrechen,
+    zuhoeren,
+  ]);
 
   /** Knopf oder Tipp auf die Kugel: verstummen und wieder zuhoeren. Ohne
    *  Vorlauf -- der enthielte nur das Echo der Stimme, nicht den Nutzer. */
@@ -477,13 +678,11 @@ export function useVoiceCall({ messages, isStreaming, send, stop }: Optionen) {
     zuhoeren();
   }, [vorlesenAbbrechen, zuhoeren]);
 
-  /** Der Nutzer redet dazwischen: verstummen und ab seinem ersten Wort
-   *  aufnehmen. */
+  /** Der Nutzer redet dazwischen -- oder das Echo tut so. Verstummen, ab dem
+   *  ersten Wort aufnehmen, aber die Antwort noch nicht verwerfen: das
+   *  entscheidet erst das Transkript (siehe ``aussageFertig``). */
   const dazwischenGeredet = React.useCallback(() => {
-    vorlesenAbbrechen();
-    wartetRef.current = false;
-    fertigRef.current = false;
-    if (streamingRef.current) stopRef.current();
+    pausieren();
     vad.current.stilleMs = 0;
     vad.current.sprichtSeit = performance.now();
     setPhase("hearing");
@@ -498,7 +697,7 @@ export function useVoiceCall({ messages, isStreaming, send, stop }: Optionen) {
     } else {
       recorderStarten();
     }
-  }, [recorderStarten, setPhase, vorlaufBeenden, vorlesenAbbrechen]);
+  }, [pausieren, recorderStarten, setPhase, vorlaufBeenden]);
 
   // ---------------------------------------------------------------- //
   // Der Takt: Pegel messen, Sprache erkennen                          //
@@ -517,8 +716,18 @@ export function useVoiceCall({ messages, isStreaming, send, stop }: Optionen) {
 
     if (stummRef.current || p === "transcribing" || p === "connecting") return;
 
-    const basis = Math.max(MIN_SCHWELLE, v.boden * 2.6);
     const redetDazwischen = p === "speaking" || p === "thinking";
+    // Halb-Duplex: waehrend die Stimme spricht, hoert das Mikrofon nicht hin
+    // (Geraete ohne Echo-Unterdrueckung). Unterbrochen wird dann per Tipp.
+    if (redetDazwischen && !dazwischenErlaubtRef.current) return;
+
+    const jetzt = performance.now();
+    if (p === "listening" && jetzt < ruheBisRef.current) {
+      v.aktivMs = 0;
+      return;
+    }
+
+    const basis = Math.max(MIN_SCHWELLE, v.boden * 2.6);
     const schwelle = redetDazwischen
       ? Math.max(MIN_SCHWELLE_UNTERBRECHEN, basis * 2.2)
       : basis;
@@ -534,7 +743,6 @@ export function useVoiceCall({ messages, isStreaming, send, stop }: Optionen) {
       if (p === "listening") v.boden = v.boden * 0.97 + mic * 0.03;
     }
 
-    const jetzt = performance.now();
     if (redetDazwischen) vorlaufDrehen();
     if (p === "listening") {
       if (v.aktivMs >= EINSATZ_MS) {
@@ -566,6 +774,13 @@ export function useVoiceCall({ messages, isStreaming, send, stop }: Optionen) {
     aufnahmeVerwerfen(aufnahmeRef.current);
     aufnahmeRef.current = null;
     vorlaufBeenden();
+    schleifeRef.current?.a.close();
+    schleifeRef.current?.b.close();
+    schleifeRef.current = null;
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.srcObject = null;
+    }
     micRef.current?.getTracks().forEach((spur) => spur.stop());
     micRef.current = null;
     void ctxRef.current?.close().catch(() => {});
@@ -594,8 +809,19 @@ export function useVoiceCall({ messages, isStreaming, send, stop }: Optionen) {
     const ctx = new Ctx();
     void ctx.resume();
     ctxRef.current = ctx;
+
+    // Der Weg der Stimme: Satz -> Pegelmesser -> Stream -> (Schleife) ->
+    // Audio-Element. Zuerst direkt verbunden und noch in der Geste gestartet,
+    // damit das Element abspielen darf; die Schleife kommt weiter unten dazu.
+    const outAnalyser = ctx.createAnalyser();
+    outAnalyser.fftSize = 1024;
+    const ziel = ctx.createMediaStreamDestination();
+    outAnalyser.connect(ziel);
+    outAnalyserRef.current = outAnalyser;
     const el = new Audio();
-    el.preload = "auto";
+    el.autoplay = true;
+    el.srcObject = ziel.stream;
+    void el.play().catch(() => {});
     audioRef.current = el;
     if ("speechSynthesis" in window) {
       window.speechSynthesis.speak(new SpeechSynthesisUtterance(""));
@@ -623,12 +849,14 @@ export function useVoiceCall({ messages, isStreaming, send, stop }: Optionen) {
     ctx.createMediaStreamSource(mic).connect(micAnalyser);
     micAnalyserRef.current = micAnalyser;
 
-    const outAnalyser = ctx.createAnalyser();
-    outAnalyser.fftSize = 1024;
-    const quelle = ctx.createMediaElementSource(el);
-    quelle.connect(outAnalyser);
-    outAnalyser.connect(ctx.destination);
-    outAnalyserRef.current = outAnalyser;
+    // Erst nach dem Mikrofon: dann laeuft das Geraet schon im Gespraechs-
+    // modus, und die Stimme kommt als Gegenstelle eines Anrufs herein.
+    const schleife = await schleifeBauen(ziel.stream);
+    if (schleife && audioRef.current === el) {
+      schleifeRef.current = schleife;
+      el.srcObject = schleife.stream;
+      void el.play().catch(() => {});
+    }
 
     vad.current = { boden: 0.01, aktivMs: 0, stilleMs: 0, sprichtSeit: 0, hoertSeit: 0 };
     taktRef.current = setInterval(takt, TAKT_MS);
@@ -671,6 +899,14 @@ export function useVoiceCall({ messages, isStreaming, send, stop }: Optionen) {
     anrufen,
     auflegen,
     unterbrechen,
+    echoHinweis,
+    dazwischenErlaubt,
+    setDazwischenErlaubt: (wert: boolean) => {
+      dazwischenErlaubtRef.current = wert;
+      setDazwischenErlaubtEinstellung(wert);
+      if (wert) setEchoHinweis(false);
+    },
+    schleifeAktiv: () => schleifeRef.current !== null,
     verfuegbar: status.data?.available ?? false,
     grund: status.data?.available === false ? (status.data.reason ?? null) : null,
   };

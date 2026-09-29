@@ -14,6 +14,12 @@ type Einstellungen = {
   tourGesehen: boolean;
   /** Die Stimme des Telefonats. null = die Vorgabe des Backends. */
   callVoice: string | null;
+  /**
+   * Im Telefonat per Reden unterbrechen. Pro Geraet: ohne Echo-Unterdrueckung
+   * hoert sich die Stimme sonst selbst -- dann schaltet das Telefonat das
+   * hier von allein ab (Unterbrechen per Tipp bleibt).
+   */
+  callBargeIn: boolean;
 
   setThinking: (wert: boolean) => void;
   setTools: (wert: boolean) => void;
@@ -24,6 +30,7 @@ type Einstellungen = {
   setVoiceId: (wert: string) => void;
   setTourGesehen: (wert: boolean) => void;
   setCallVoice: (wert: string | null) => void;
+  setCallBargeIn: (wert: boolean) => void;
 };
 
 export const useSettings = create<Einstellungen>()(
@@ -38,6 +45,7 @@ export const useSettings = create<Einstellungen>()(
       voiceId: "",
       tourGesehen: true,
       callVoice: null,
+      callBargeIn: true,
 
       setThinking: (thinking) => set({ thinking }),
       setTools: (tools) => set({ tools }),
@@ -48,6 +56,7 @@ export const useSettings = create<Einstellungen>()(
       setVoiceId: (voiceId) => set({ voiceId }),
       setTourGesehen: (tourGesehen) => set({ tourGesehen }),
       setCallVoice: (callVoice) => set({ callVoice }),
+      setCallBargeIn: (callBargeIn) => set({ callBargeIn }),
     }),
     { name: "smeeware:settings" },
   ),

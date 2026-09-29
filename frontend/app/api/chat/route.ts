@@ -56,6 +56,7 @@ export async function POST(request: NextRequest) {
         // Ohne sie oeffnet das Backend kein Postfach, und jede waehrend des
         // Turns nachgeschobene Nachricht liefe ins Leere (409).
         stream_id: body.stream_id || undefined,
+        mode: body.mode === "call" ? "call" : undefined,
       }),
       signal: request.signal,
       cache: "no-store",

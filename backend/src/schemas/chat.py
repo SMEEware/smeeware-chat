@@ -49,6 +49,9 @@ class ChatRequest(BaseModel):
     stream_id: Annotated[
         str | None, Field(max_length=64, pattern=r"^[A-Za-z0-9_-]+$")
     ] = None
+    # "call": der Turn wurde im Telefonat gesprochen und wird vorgelesen --
+    # das Backend ergaenzt den System-Prompt um passende Sprechregeln.
+    mode: Literal["chat", "call"] = "chat"
 
     model_config = {
         "json_schema_extra": {

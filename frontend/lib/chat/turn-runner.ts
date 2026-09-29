@@ -141,6 +141,13 @@ function toWire(
   return fenster.map((m) => ({ ...m, content: kuerzen(m.content) }));
 }
 
+function letzteFrageImTelefonat(messages: ChatMessage[]): boolean {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    if (messages[i].role === "user") return messages[i].viaCall === true;
+  }
+  return false;
+}
+
 function kuerzen(text: string): string {
   if (text.length <= MAX_ZEICHEN) return text;
   const kopf = Math.floor(MAX_ZEICHEN * 0.7);
@@ -581,6 +588,9 @@ async function durchlauf(
         voice_id: optionen.voiceId || undefined,
         tts_model: optionen.ttsModel ?? undefined,
         stream_id: l.streamId ?? undefined,
+        // Im Telefonat gesprochen: das Backend ergaenzt den System-Prompt um
+        // Sprechregeln -- die Antwort wird vorgelesen, nicht gelesen.
+        mode: letzteFrageImTelefonat(history) ? "call" : undefined,
       }),
       signal: controller.signal,
     });
