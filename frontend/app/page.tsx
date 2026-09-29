@@ -105,7 +105,7 @@ export default function LandingPage() {
       <Hero />
 
       <section className="border-b">
-        <div className="mx-auto grid w-full max-w-6xl gap-px overflow-hidden px-6 py-16 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mx-auto grid w-full max-w-6xl grid-cols-1 gap-px overflow-hidden px-6 py-16 sm:grid-cols-2 lg:grid-cols-4">
           {features.map((feature) => (
             <div key={feature.title} className="flex flex-col gap-3 p-6">
               <feature.icon className="size-5 text-primary" />
@@ -119,8 +119,8 @@ export default function LandingPage() {
       </section>
 
       <section className="border-b">
-        <div className="mx-auto grid w-full max-w-6xl items-center gap-12 px-6 py-20 lg:grid-cols-2">
-          <div className="flex flex-col gap-4">
+        <div className="mx-auto grid w-full max-w-6xl grid-cols-1 items-center gap-12 px-6 py-20 lg:grid-cols-2">
+          <div className="flex min-w-0 flex-col gap-4">
             <h2 className="font-heading text-3xl font-semibold tracking-tight text-balance">
 Nothing to sign up for
             </h2>
@@ -138,19 +138,21 @@ Nothing to sign up for
             </Link>
           </div>
 
-          <CodeTabs tabs={quickstartTabs} />
+          <div className="min-w-0">
+            <CodeTabs tabs={quickstartTabs} />
+          </div>
         </div>
       </section>
 
       <section className="border-b">
         <div className="mx-auto w-full max-w-6xl px-6 py-20">
-          <div className="relative overflow-hidden rounded-3xl border bg-card/40 p-8 sm:p-12">
+          <div className="relative overflow-hidden rounded-3xl border bg-card/40 p-6 sm:p-12">
             <span
               aria-hidden
               className="pointer-events-none absolute -top-24 -right-16 size-72 rounded-full bg-primary/20 opacity-40 blur-3xl"
             />
-            <div className="relative grid items-center gap-10 lg:grid-cols-2">
-              <div className="flex flex-col gap-4">
+            <div className="relative grid grid-cols-1 items-center gap-10 lg:grid-cols-2">
+              <div className="flex min-w-0 flex-col gap-4">
                 <span className="flex w-fit items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary">
                   <ShieldCheckIcon className="size-3.5" />
                   API keys
@@ -187,7 +189,7 @@ Nothing to sign up for
                 </div>
               </div>
 
-              <div className="overflow-x-auto rounded-2xl border bg-background/60 p-5 font-mono text-[12px] leading-relaxed text-muted-foreground">
+              <div className="min-w-0 overflow-x-auto rounded-2xl border bg-background/60 p-4 font-mono text-[12px] leading-relaxed text-muted-foreground sm:p-5">
                 <pre>{`curl -N https://your-host/api/v1/chat/stream \\
   -H "Authorization: Bearer sk_smee_…" \\
   -H "Content-Type: application/json" \\

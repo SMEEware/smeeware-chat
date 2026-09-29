@@ -12,7 +12,7 @@ const links = [
 
 export function SiteHeader() {
   return (
-    <header className="sticky w-full md:w-4xl place-self-center rounded-none md:rounded-full top-0 md:top-6 z-40 border-b bg-background/70 backdrop-blur-md">
+    <header className="sticky w-full md:w-[min(56rem,calc(100%-2rem))] place-self-center rounded-none md:rounded-full top-0 md:top-6 z-40 border-b bg-background/70 backdrop-blur-md">
       <div className="mx-auto flex h-14 w-full max-w-6xl items-center gap-6 px-6">
         <Link href="/" className="flex items-center gap-2">
           <Image

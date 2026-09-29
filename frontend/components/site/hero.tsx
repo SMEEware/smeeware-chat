@@ -32,7 +32,7 @@ export function Hero() {
     <section className="relative isolate overflow-hidden border-b">
       <HeroBackdrop />
 
-      <div className="relative mx-auto grid w-full max-w-6xl items-center gap-16 px-6 py-20 md:py-24 lg:grid-cols-2 lg:gap-12 lg:py-28">
+      <div className="relative mx-auto grid w-full max-w-6xl grid-cols-1 items-center gap-16 px-6 py-20 md:py-24 lg:grid-cols-2 lg:gap-12 lg:py-28">
         <HeroCopy />
         <HeroPreview />
       </div>
@@ -40,7 +40,7 @@ export function Hero() {
   );
 }
 
-function HeroBackdrop() {
+export function HeroBackdrop() {
   return (
     <div aria-hidden className="pointer-events-none absolute inset-0 -z-10">
       <div className="hero-grid absolute inset-0 opacity-60 dark:opacity-40" />
@@ -69,7 +69,7 @@ function HeroBackdrop() {
 
 function HeroCopy() {
   return (
-    <div className="flex flex-col items-center text-center lg:items-start lg:text-left">
+    <div className="flex min-w-0 flex-col items-center text-center lg:items-start lg:text-left">
       <Link
         href="/docs/changelog"
         className="group inline-flex items-center gap-2 rounded-full border bg-card/70 py-1 pr-3 pl-2.5 text-xs text-muted-foreground shadow-sm backdrop-blur-sm transition-colors hover:bg-accent hover:text-foreground"
@@ -185,7 +185,7 @@ function HeroPreview() {
       initial={reduced ? false : { opacity: 0, y: 28 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-      className="relative isolate w-full"
+      className="relative isolate w-full min-w-0"
     >
       <div className="absolute -inset-8 -z-10 rounded-[2.5rem] bg-primary/20 blur-3xl dark:bg-primary/25" />
 
