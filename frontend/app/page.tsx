@@ -257,23 +257,7 @@ Nothing to sign up for
         </div>
       </section>
 
-      <section>
-        <div className="mx-auto flex w-full max-w-3xl flex-col items-center gap-6 px-6 py-24 text-center">
-          <h2 className="font-heading text-3xl font-semibold tracking-tight text-balance md:text-4xl">
-Open a chat and see
-          </h2>
-          <p className="max-w-md text-pretty text-muted-foreground">
-            Everything stays on this machine unless you send it somewhere.
-          </p>
-          <Button
-            size="lg"
-            nativeButton={false}
-            render={<Link href="/chat">Start chatting</Link>}
-          />
-        </div>
-      </section>
-
-      <SiteFooter />
+      <SiteFooter mitLinks />
     </div>
   );
 }

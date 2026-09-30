@@ -27,40 +27,46 @@ const columns = [
   },
 ] as const;
 
-export function SiteFooter() {
+/**
+ * ``mitLinks``: die Spalten mit Product, Develop und Reference -- nur auf der
+ * Startseite. Ueberall sonst steht nur die Copyright-Zeile.
+ */
+export function SiteFooter({ mitLinks = false }: { mitLinks?: boolean }) {
   return (
     <footer className="border-t">
-      <div className="mx-auto grid w-full max-w-6xl gap-10 px-6 py-12 sm:grid-cols-2 md:grid-cols-4">
-        <div className="flex flex-col gap-2">
-          <span className="font-heading font-semibold tracking-tight">
-            SMEEware Chat
-          </span>
-          <p className="text-sm leading-relaxed text-muted-foreground">
-            A local chat with tools, files and your own models. Nothing leaves
-            this machine unless you send it somewhere.
-          </p>
-        </div>
-
-        {columns.map((column) => (
-          <div key={column.title} className="flex flex-col gap-3">
-            <span className="text-sm font-medium">{column.title}</span>
-            <ul className="flex flex-col gap-2">
-              {column.links.map((link) => (
-                <li key={link.href}>
-                  <Link
-                    href={link.href}
-                    className="text-sm text-muted-foreground transition-colors hover:text-foreground"
-                  >
-                    {link.label}
-                  </Link>
-                </li>
-              ))}
-            </ul>
+      {mitLinks ? (
+        <div className="mx-auto grid w-full max-w-6xl gap-10 px-6 py-12 sm:grid-cols-2 md:grid-cols-4">
+          <div className="flex flex-col gap-2">
+            <span className="font-heading font-semibold tracking-tight">
+              SMEEware Chat
+            </span>
+            <p className="text-sm leading-relaxed text-muted-foreground">
+              A local chat with tools, files and your own models. Nothing leaves
+              this machine unless you send it somewhere.
+            </p>
           </div>
-        ))}
-      </div>
 
-      <div className="border-t">
+          {columns.map((column) => (
+            <div key={column.title} className="flex flex-col gap-3">
+              <span className="text-sm font-medium">{column.title}</span>
+              <ul className="flex flex-col gap-2">
+                {column.links.map((link) => (
+                  <li key={link.href}>
+                    <Link
+                      href={link.href}
+                      className="text-sm text-muted-foreground transition-colors hover:text-foreground"
+                    >
+                      {link.label}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+      ) : null}
+
+      <div className={mitLinks ? "border-t" : undefined}>
         <div className="mx-auto flex w-full max-w-6xl justify-center px-6 py-6 text-sm text-muted-foreground">
           <span>© {new Date().getFullYear()} SMEEware</span>
         </div>

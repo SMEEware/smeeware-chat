@@ -129,7 +129,11 @@ export function PluginManager({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="gap-0 overflow-hidden p-0 sm:max-w-3xl">
+      {/* Auf dem Handy eine feste Hoehe wie ein Blatt: Kopf, Kategorien und
+          Suche bleiben stehen, nur die Liste scrollt. Flex statt des Grids
+          der Basis-Komponente -- dessen automatische Spalte wuchs mit der
+          nicht umbrechenden Kategorienleiste ueber den Bildschirm hinaus. */}
+      <DialogContent className="flex h-[min(calc(100dvh-2rem),44rem)] flex-col gap-0 overflow-hidden p-0 sm:h-auto sm:max-w-3xl">
         <DialogHeader className="space-y-1 border-b border-border/60 px-5 py-4">
           <DialogTitle className="font-heading text-lg">Plugins</DialogTitle>
           <DialogDescription className="text-xs">
@@ -139,7 +143,7 @@ export function PluginManager({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex min-h-0 flex-col sm:h-[30rem] sm:flex-row">
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col sm:h-[30rem] sm:flex-none sm:flex-row">
           <nav className="flex shrink-0 gap-1 overflow-x-auto border-b border-border/60 p-2 sm:w-44 sm:flex-col sm:overflow-x-visible sm:overflow-y-auto sm:border-r sm:border-b-0">
             <Rail
               aktiv={kategorie === "all"}
@@ -158,7 +162,7 @@ export function PluginManager({
             ))}
           </nav>
 
-          <div className="flex min-h-0 flex-1 flex-col">
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col">
             <div className="shrink-0 border-b border-border/60 p-2">
               <div className="relative">
                 <SearchIcon className="absolute inset-s-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground/50" />
@@ -294,7 +298,7 @@ function Karte({
             <span className="truncate text-[13px] font-medium">
               {plugin.title}
             </span>
-            <span className="shrink-0 rounded-full bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
+            <span className="hidden shrink-0 rounded-full bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground sm:inline">
               {plugin.category_label}
             </span>
             <ChevronRightIcon
