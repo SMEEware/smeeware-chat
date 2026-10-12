@@ -1,0 +1,41 @@
+
+services:
+  backend:
+    build: ./backend
+    image: smeeware-backend
+    network_mode: host
+    env_file:
+      - ./backend/.env
+    environment:
+      ENVIRONMENT: "production"
+      HOST: "127.0.0.1"
+      PORT: "8000"
+    volumes:
+      - smee_data:/app/data
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    image: smeeware-frontend
+    network_mode: host
+    environment:
+      LLM_STREAM_URL: "http://127.0.0.1:8000/api/v1/chat/stream"
+      PORT: "3000"
+      HOSTNAME: "0.0.0.0"
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+
+  ollama:
+    image: ollama/ollama:latest
+    profiles: ["ollama"]
+    ports:
+      - "127.0.0.1:11434:11434"
+    volumes:
+      - ollama_models:/root/.ollama
+    restart: unless-stopped
+
+volumes:
+  smee_data:
+  ollama_models:

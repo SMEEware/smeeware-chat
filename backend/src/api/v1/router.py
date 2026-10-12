@@ -1,0 +1,48 @@
+from __future__ import annotations
+
+from fastapi import APIRouter
+
+from src.api.v1.routes import (
+    account,
+    apikeys,
+    capabilities,
+    chat,
+    chats,
+    events,
+    fs,
+    health,
+    models,
+    notifications,
+    plugins,
+    prompts,
+    public,
+    tools,
+    transcribe,
+    tts,
+    uploads,
+    vision,
+    voice,
+)
+
+router = APIRouter()
+router.include_router(health.router)
+router.include_router(capabilities.router)
+router.include_router(account.router)
+router.include_router(apikeys.router)
+router.include_router(events.router)
+router.include_router(fs.router)
+router.include_router(notifications.router)
+router.include_router(chat.router)
+router.include_router(chats.router)
+router.include_router(public.router)
+router.include_router(models.router)
+router.include_router(tools.router)
+router.include_router(vision.router)
+router.include_router(uploads.router)
+router.include_router(transcribe.router)
+router.include_router(tts.router)
+router.include_router(voice.router)
+router.include_router(prompts.router)
+router.include_router(plugins.router)
+
+__all__ = ["router"]

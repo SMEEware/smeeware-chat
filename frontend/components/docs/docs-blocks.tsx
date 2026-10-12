@@ -1,0 +1,311 @@
+"use client";
+
+import Link from "next/link";
+import {
+  ArrowRightIcon,
+  InfoIcon,
+  KeyRoundIcon,
+  SparklesIcon,
+  TriangleAlertIcon,
+} from "lucide-react";
+
+import { CodeBlock } from "@/components/code-block";
+import { CodeTabs } from "@/components/docs/code-tabs";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { useAccount } from "@/hooks/use-account";
+import { cn } from "@/lib/utils";
+import { useT } from "@/context/i18n-provider";
+import type { DocBlock } from "@/lib/docs/content";
+import type { HttpMethod } from "@/lib/docs/navigation";
+
+const methodStyles: Record<HttpMethod, string> = {
+  GET: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400",
+  POST: "bg-sky-500/10 text-sky-700 dark:text-sky-400",
+  PATCH: "bg-amber-500/10 text-amber-700 dark:text-amber-400",
+  DELETE: "bg-destructive/10 text-destructive",
+};
+
+export function MethodBadge({
+  method,
+  className,
+}: {
+  method: HttpMethod;
+  className?: string;
+}) {
+  return (
+    <span
+      className={cn(
+        "inline-flex h-5 shrink-0 items-center rounded-md px-1.5 font-mono text-[10px] font-semibold tracking-wide",
+        methodStyles[method],
+        className,
+      )}
+    >
+      {method}
+    </span>
+  );
+}
+
+function DocsBlock({ block }: { block: DocBlock }) {
+  const t = useT();
+  switch (block.type) {
+    case "lead":
+      return (
+        <p className="text-base leading-relaxed text-muted-foreground md:text-lg">
+          {block.text}
+        </p>
+      );
+
+    case "auth-link":
+      return <AuthenticatedDocsLink block={block} />;
+
+    case "heading":
+      return (
+        <h2
+          id={block.id}
+          className="group/heading scroll-mt-24 pt-6 text-xl font-semibold tracking-tight"
+        >
+          <a href={`#${block.id}`} className="inline-flex items-baseline gap-2">
+            {block.title}
+            <span
+              aria-hidden
+              className="text-muted-foreground opacity-0 transition-opacity group-hover/heading:opacity-100"
+            >
+              #
+            </span>
+          </a>
+        </h2>
+      );
+
+    case "paragraph":
+      return <p className="leading-relaxed text-foreground/80">{block.text}</p>;
+
+    case "code":
+      return (
+        <CodeBlock
+          code={block.code}
+          language={block.language}
+          filename={block.filename}
+        />
+      );
+
+    case "tabs":
+      return <CodeTabs tabs={block.tabs} />;
+
+    case "callout": {
+      if (block.variant === "soon") {
+        return (
+          <div className="relative overflow-hidden rounded-2xl border border-primary/25 bg-primary/[0.05] p-4 ring-1 ring-primary/10">
+            <span
+              aria-hidden
+              className="pointer-events-none absolute -top-10 -right-8 size-28 rounded-full bg-primary/25 opacity-40 blur-3xl"
+            />
+            <div className="relative flex items-start gap-3">
+              <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                <SparklesIcon className="size-4" />
+              </span>
+              <div className="flex min-w-0 flex-col gap-1">
+                <p className="text-sm font-medium">{block.title}</p>
+                <p className="text-sm leading-relaxed text-muted-foreground">
+                  {block.text}
+                </p>
+              </div>
+            </div>
+          </div>
+        );
+      }
+      const Icon = block.variant === "warning" ? TriangleAlertIcon : InfoIcon;
+      return (
+        <Alert
+          variant={block.variant === "warning" ? "destructive" : "default"}
+        >
+          <Icon />
+          <AlertTitle>{block.title}</AlertTitle>
+          <AlertDescription>{block.text}</AlertDescription>
+        </Alert>
+      );
+    }
+
+    case "steps":
+      return (
+        <ol className="flex flex-col gap-5 border-l pl-6">
+          {block.steps.map((step, index) => (
+            <li key={step.title} className="relative">
+              <span className="absolute -left-8.5 flex size-5 items-center justify-center rounded-full bg-muted text-[11px] font-medium text-muted-foreground ring-4 ring-background">
+                {index + 1}
+              </span>
+              <p className="font-medium">{step.title}</p>
+              <p className="text-sm leading-relaxed text-muted-foreground">
+                {step.text}
+              </p>
+            </li>
+          ))}
+        </ol>
+      );
+
+    case "params":
+      if (block.blur) {
+        return (
+          <div className="relative">
+            <div
+              aria-hidden
+              className="pointer-events-none overflow-hidden rounded-2xl border opacity-60 blur-[3px] select-none"
+            >
+              {block.rows.map((row, index) => (
+                <div
+                  key={row.name}
+                  className={cn(
+                    "flex flex-col gap-1 p-4",
+                    index > 0 && "border-t",
+                  )}
+                >
+                  <div className="flex flex-wrap items-center gap-2">
+                    <code className="font-mono text-sm font-medium">
+                      {row.name}
+                    </code>
+                    <span className="font-mono text-xs text-muted-foreground">
+                      {row.type}
+                    </span>
+                  </div>
+                  <p className="text-sm leading-relaxed text-muted-foreground">
+                    {row.text}
+                  </p>
+                </div>
+              ))}
+            </div>
+            <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-background/90 px-3 py-1 text-xs font-medium text-primary shadow-sm backdrop-blur-sm">
+                <SparklesIcon className="size-3.5" />
+                {t("docs.comingSoon")}
+              </span>
+            </div>
+          </div>
+        );
+      }
+      return (
+        <div className="overflow-hidden rounded-2xl border">
+          {block.rows.map((row, index) => (
+            <div
+              key={row.name}
+              className={cn("flex flex-col gap-1 p-4", index > 0 && "border-t")}
+            >
+              <div className="flex flex-wrap items-center gap-2">
+                <code className="font-mono text-sm font-medium">
+                  {row.name}
+                </code>
+                <span className="font-mono text-xs text-muted-foreground">
+                  {row.type}
+                </span>
+                {row.required ? (
+                  <Badge variant="secondary" className="text-[10px]">
+                    required
+                  </Badge>
+                ) : null}
+              </div>
+              <p className="text-sm leading-relaxed text-muted-foreground">
+                {row.text}
+              </p>
+            </div>
+          ))}
+        </div>
+      );
+
+    case "responses":
+      return (
+        <div className="overflow-hidden rounded-2xl border">
+          {block.rows.map((row, index) => (
+            <div
+              key={row.status}
+              className={cn(
+                "flex items-baseline gap-4 p-4",
+                index > 0 && "border-t",
+              )}
+            >
+              <code
+                className={cn(
+                  "font-mono text-sm font-semibold",
+                  row.status.startsWith("2")
+                    ? "text-emerald-600 dark:text-emerald-400"
+                    : "text-destructive",
+                )}
+              >
+                {row.status}
+              </code>
+              <p className="text-sm leading-relaxed text-muted-foreground">
+                {row.text}
+              </p>
+            </div>
+          ))}
+        </div>
+      );
+
+    case "cards":
+      return (
+        <div className="grid gap-3 sm:grid-cols-2">
+          {block.cards.map((card) => (
+            <Link
+              key={card.href}
+              href={card.href}
+              className="group/card relative flex flex-col gap-1 overflow-hidden rounded-2xl p-4 ring-1 ring-border/70 transition-colors ring-inset hover:bg-primary/4 hover:ring-primary/40"
+            >
+              <span
+                aria-hidden
+                className="absolute inset-y-0 -left-full w-full bg-linear-to-r from-transparent via-primary/12 to-transparent transition-transform duration-700 ease-out group-hover/card:translate-x-[200%]"
+              />
+              <span className="relative flex items-center gap-1.5 font-medium">
+                {card.title}
+                <ArrowRightIcon className="size-3.5 text-muted-foreground transition-[color,transform] duration-300 group-hover/card:translate-x-0.5 group-hover/card:text-primary" />
+              </span>
+              <span className="relative text-sm leading-relaxed text-muted-foreground">
+                {card.text}
+              </span>
+            </Link>
+          ))}
+        </div>
+      );
+
+    case "endpoint":
+      return (
+        <div className="flex flex-wrap items-center gap-3 rounded-2xl border bg-muted/40 px-4 py-3">
+          <MethodBadge method={block.method} />
+          <code className="font-mono text-sm">{block.path}</code>
+        </div>
+      );
+  }
+}
+
+function AuthenticatedDocsLink({
+  block,
+}: {
+  block: Extract<DocBlock, { type: "auth-link" }>;
+}) {
+  const account = useAccount();
+
+  if (!account.data?.authenticated) return null;
+
+  return (
+    <Link
+      href={block.href}
+      className="group/auth-link flex items-center gap-3 rounded-2xl border border-primary/20 bg-primary/4 p-4 ring-1 ring-primary/5 transition-colors hover:bg-primary/8 hover:ring-primary/20"
+    >
+      <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+        <KeyRoundIcon className="size-4" />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-sm font-medium">{block.text}</span>
+        <span className="mt-0.5 block text-sm text-primary">{block.label}</span>
+      </span>
+      <ArrowRightIcon className="size-4 shrink-0 text-muted-foreground transition-transform group-hover/auth-link:translate-x-0.5 group-hover/auth-link:text-primary" />
+    </Link>
+  );
+}
+
+export function DocsBlocks({ blocks }: { blocks: DocBlock[] }) {
+  return (
+    <div className="flex flex-col gap-5">
+      {blocks.map((block, index) => (
+        <DocsBlock key={index} block={block} />
+      ))}
+    </div>
+  );
+}

@@ -1,0 +1,24 @@
+from __future__ import annotations
+
+import uvicorn
+
+from src.core.config import get_settings
+
+
+def main() -> None:
+    settings = get_settings()
+    reload = not settings.is_production
+
+    uvicorn.run(
+        "src.app:app",
+        host=settings.host,
+        port=settings.port,
+        reload=reload,
+        reload_dirs=["src"] if reload else None,
+        log_level="debug" if settings.debug else "info",
+        timeout_graceful_shutdown=3,
+    )
+
+
+if __name__ == "__main__":
+    main()
