@@ -24,7 +24,10 @@ CATEGORY_LABELS: dict[Category, str] = {
 }
 
 
-ALWAYS_AVAILABLE = frozenset({"notify_user", "ask_user"})
+ALWAYS_AVAILABLE = frozenset({
+    "notify_user", "ask_user", "list_files", "read_file", "write_file",
+    "copy_file", "edit_file", "extract_archive", "export_file",
+})
 
 
 @dataclass(frozen=True, slots=True)

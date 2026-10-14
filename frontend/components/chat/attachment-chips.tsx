@@ -2,9 +2,9 @@
 
 import * as React from "react";
 import Image from "next/image";
-import { FileTextIcon, XIcon } from "lucide-react";
+import { DownloadIcon, FileTextIcon, XIcon } from "lucide-react";
 
-import { size, previewUrl } from "@/lib/chat/attachments";
+import { downloadUrl, size, previewUrl } from "@/lib/chat/attachments";
 import type { Attachment } from "@/lib/chat/types";
 import { cn } from "@/lib/utils";
 import { useT } from "@/context/i18n-provider";
@@ -18,9 +18,10 @@ function Chip({
 }) {
   const t = useT();
   const preview = previewUrl(attachment);
+  const download = downloadUrl(attachment);
 
-  return (
-    <span className="group/chip relative flex max-w-56 items-center gap-2 rounded-lg py-1.5 pr-2 pl-2 ring-1 ring-border/70 transition-colors ring-inset hover:ring-border">
+  const content = (
+    <>
       {preview ? (
         <Image
           src={preview}
@@ -35,16 +36,34 @@ function Chip({
           <FileTextIcon className="size-3.5" />
         </span>
       )}
-
       <span className="flex min-w-0 flex-col">
         <span className="truncate text-[12px] font-medium text-foreground/85">
           {attachment.name}
         </span>
         <span className="truncate text-[10px] text-muted-foreground/60 tabular-nums">
           {size(attachment.bytes)}
-          {attachment.truncated ? " · truncated" : ""}
+          {attachment.truncated ? ` · ${t("attachments.truncated")}` : ""}
         </span>
       </span>
+      {download ? <DownloadIcon aria-hidden className="size-3 shrink-0 text-muted-foreground/60" /> : null}
+    </>
+  );
+
+  return (
+    <span className="group/chip relative flex max-w-56 items-center gap-2 rounded-lg py-1.5 pr-2 pl-2 ring-1 ring-border/70 transition-colors ring-inset hover:ring-border">
+      {download ? (
+        <a
+          href={download}
+          download={attachment.name}
+          aria-label={t("attachments.download", { name: attachment.name })}
+          title={t("attachments.download", { name: attachment.name })}
+          className="flex min-w-0 items-center gap-2 rounded-md outline-offset-4"
+        >
+          {content}
+        </a>
+      ) : (
+        <span className="flex min-w-0 items-center gap-2">{content}</span>
+      )}
 
       {onRemove ? (
         <button

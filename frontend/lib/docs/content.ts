@@ -109,7 +109,7 @@ export const docsContent: Record<string, DocBlock[]> = {
     { type: "heading", id: "api", title: "Over the API" },
     {
       type: "paragraph",
-      text: "Pass a stream_id of your choice with POST /chat/stream. While that stream runs, POST /chat/stream/{stream_id}/steer with an id and content slips a message in; the stream acknowledges it with a steer frame. A 409 means the turn already ended — send the message as a normal next turn instead. DELETE /chat/stream/{stream_id}/steer/{id} withdraws one that was not picked up yet.",
+      text: "Pass a stream_id of your choice with POST /chat/stream. While it runs, POST /chat/stream/{stream_id}/steer with id and content adds a message. To add files, include attachment_ids and the same chat_id, using the stream's active session. A steer frame acknowledges the message. A 409 means the turn ended; send a normal next turn instead. DELETE /chat/stream/{stream_id}/steer/{id} withdraws a message that has not been picked up.",
     },
     {
       type: "code",
@@ -492,8 +492,13 @@ SMEEWARE_BASE_URL=https://your-host/api/v1`,
       rows: [
         {
           name: "messages",
-          type: "array · 1–100",
-          text: "role is system | user | assistant, content 1–32000 characters.",
+          type: "array · 1–1000",
+          text: "role is system | user | assistant; content allows up to 400000 characters. User messages can include attachment_ids.",
+        },
+        {
+          name: "chat_id",
+          type: "string | null · up to 64 characters",
+          text: "Required with attachment_ids. Identifies the conversation that owns the uploaded files and working directory.",
         },
         {
           name: "temperature",
@@ -515,7 +520,7 @@ SMEEWARE_BASE_URL=https://your-host/api/v1`,
     { type: "heading", id: "stateless", title: "Stateless" },
     {
       type: "paragraph",
-      text: "The backend remembers nothing between requests — send the full history with every chat call.",
+      text: "Send the full message history with every chat call. A chat_id links file references and the working directory across turns; it does not add earlier messages to the request automatically.",
     },
   ],
 
@@ -689,7 +694,7 @@ SMEEWARE_BASE_URL=https://your-host/api/v1`,
   endpoints: [
     {
       type: "lead",
-      text: "Every endpoint lives under the base /api/v1. The backend is stateless — the full history goes with every chat call.",
+      text: "Every endpoint lives under the base /api/v1. Send the full history with every chat call; chat_id keeps file references and working files associated with the conversation.",
     },
     {
       type: "cards",
@@ -771,9 +776,19 @@ SMEEWARE_BASE_URL=https://your-host/api/v1`,
       rows: [
         {
           name: "messages",
-          type: "Message[] · 1–100",
+          type: "Message[] · 1–1000",
           required: true,
-          text: "The full history in order. Each message has a role (system | user | assistant) and content (1–32000 characters).",
+          text: "The full history in order. Each message has a role (system | user | assistant) and content (up to 400000 characters). User messages may include attachment_ids, an array of uploaded file IDs within UPLOADS_MAX_FILES.",
+        },
+        {
+          name: "chat_id",
+          type: "string | null · up to 64 characters",
+          text: "Required with attachment_ids. Identifies the conversation that owns the uploaded files and working directory.",
+        },
+        {
+          name: "tools",
+          type: "boolean · default true",
+          text: "Enable available tools. Reading, unpacking and editing attachments requires true.",
         },
         {
           name: "model",
@@ -1311,81 +1326,90 @@ data: [DONE]`,
   attachments: [
     {
       type: "lead",
-      text: "Files hang on a prompt in two different ways, because they have to. Text goes into the message; images go onto disk and only their address goes into the message.",
+      text: "Attach files of any type: ZIP archives, documents, source code, images or files without an extension. Each upload keeps the complete original on the backend.",
     },
     {
       type: "paragraph",
-      text: "The reason is the main model: it does not see images. Vision is a separate service with its own model, which the agent reaches through the analyze_image tool. So an image cannot travel inside the question — but its path can, and the agent decides for itself when to look and what to ask.",
+      text: "Say what you want done with the files. The model can inspect them, read supported formats, unpack a ZIP, edit working copies and export the result as a download. Image analysis and image generation keep using their existing tools.",
     },
     {
       type: "callout",
       variant: "info",
-      title: "The chat endpoint is unchanged",
-      text: "POST /api/v1/chat/stream still takes nothing but role and content. Attachments never became a field — they are folded into the text on the way to the wire.",
-    },
-    { type: "heading", id: "text", title: "Text files" },
-    {
-      type: "paragraph",
-      text: "Read in the browser and appended to the question. Nothing is uploaded, nothing is stored, no endpoint is involved. Each file is capped at 12,000 characters and all of them together at 24,000 — content itself allows 32,000, and the question needs room too. A file that got cut is marked as truncated, in the composer and in the prompt.",
+      title: "Upload IDs in the chat request",
+      text: "Upload first, then add the returned IDs to attachment_ids on the user message and send a chat_id. The backend resolves the files for that conversation; the original bytes never become inline prompt text.",
     },
     {
       type: "code",
-      language: "text",
-      filename: "what the model receives",
-      code: `Why does this fail on the second run?
-
-[attached file] notes.md (text/markdown, 2.3 KB)
---- begin notes.md ---
-# Deploy notes
-The cache is warmed on boot …
---- end notes.md ---`,
+      language: "json",
+      filename: "POST /api/v1/chat/stream",
+      code: `{
+  "chat_id": "project-review",
+  "tools": true,
+  "messages": [
+    {
+      "role": "user",
+      "content": "Unpack this project, fix the README and give me a new ZIP.",
+      "attachment_ids": ["a904577a208845c98dbce47c1d4655f5"]
+    }
+  ]
+}`,
+    },
+    { type: "heading", id: "file-tools", title: "Working with files" },
+    {
+      type: "params",
+      rows: [
+        { name: "list_files", type: "tool", text: "List attached originals and files in this conversation's working directory." },
+        { name: "read_file", type: "tool", text: "Read text and source files in pages, or extract text from PDF, DOCX, PPTX and XLSX. PDF reading uses pypdf." },
+        { name: "copy_file", type: "tool", text: "Copy an attached original or working file byte-for-byte into a working copy." },
+        { name: "write_file", type: "tool", text: "Write edited text into the conversation's working directory; attached originals stay unchanged." },
+        { name: "edit_file", type: "tool", text: "Replace an exact UTF-8 text fragment in a working copy. The match must be unique unless replace_all=true." },
+        { name: "extract_archive", type: "tool", text: "Unpack a ZIP into the conversation's working directory within the configured expansion limits." },
+        { name: "export_file", type: "tool", text: "Export a working file or package a directory as a ZIP and return a download link." },
+      ],
+    },
+    {
+      type: "paragraph",
+      text: "File processing needs tools=true. Uploading accepts every format; reading or editing depends on the available parser or tool. Unknown binary formats remain available as originals, and the model can explain what further conversion is needed.",
+    },
+    {
+      type: "paragraph",
+      text: "For a small change in a large text file, copy_file creates a working copy and edit_file replaces the requested fragment without regenerating the whole file. export_file returns the complete edited result.",
     },
     { type: "heading", id: "images", title: "Images" },
     {
       type: "paragraph",
-      text: "PNG, JPEG, WebP, and GIF go to POST /api/v1/uploads and come back as a path. That path lands in the message, and the agent passes it to analyze_image when it wants to look. Base64 in the prompt would be the obvious shortcut and is a dead end: a 24 KB image already exhausts the 32,000-character limit.",
-    },
-    {
-      type: "code",
-      language: "text",
-      filename: "what the model receives",
-      code: `Which error is in this console?
-
-[attached image] console.png (image/png, 245 KB)
-Path on this machine: /srv/smeeware/data/uploads/a904…f5.png
-Use the analyze_image tool with that path to look at it.`,
+      text: "PNG, JPEG, WebP and GIF retain their chat previews. The agent can use analyze_image to inspect them or generate_image with reference_images to make a changed or new image.",
     },
     {
       type: "callout",
-      variant: "warning",
-      title: "The path is a local one",
-      text: "It points into UPLOADS_DIR on the machine the backend runs on. Frontend and backend on separate hosts means the agent cannot open it — put the file somewhere both can reach, for example with storage_put, and hand over that URL instead.",
+      variant: "info",
+      title: "Files live on the backend",
+      text: "Uploads and file tools run on the backend host. The frontend can run on another host: it forwards the upload, so no shared frontend filesystem is needed.",
+    },
+    {
+      type: "paragraph",
+      text: "Older saved chats with inline text attachments remain readable. New text uploads keep the full file rather than a browser-truncated copy.",
     },
     { type: "heading", id: "limits", title: "Limits" },
     {
       type: "params",
       rows: [
-        {
-          name: "UPLOADS_MAX_FILES",
-          type: "int · default 8",
-          text: "Files per request.",
-        },
-        {
-          name: "UPLOADS_MAX_BYTES",
-          type: "int · default 20000000",
-          text: "Per file, 20 MB by default.",
-        },
-        {
-          name: "UPLOADS_DIR",
-          type: "path · default data/uploads",
-          text: "Where the files land.",
-        },
-        {
-          name: "UPLOADS_ENABLED",
-          type: "bool · default true",
-          text: "On false the endpoint answers 500 instead of taking files nobody can look at.",
-        },
+        { name: "UPLOADS_MAX_FILES", type: "int · default 8", text: "Files per upload request and per user message." },
+        { name: "UPLOADS_MAX_BYTES", type: "int · default 20000000", text: "Per original or exported file, 20 MB by default." },
+        { name: "UPLOADS_MAX_EXTRACTED_BYTES", type: "int · default 100000000", text: "Maximum expanded ZIP content, 100 MB by default." },
+        { name: "UPLOADS_MAX_ARCHIVE_MEMBERS", type: "int · default 1000", text: "Maximum number of members in an archive." },
+        { name: "UPLOADS_DIR", type: "path · default data/uploads", text: "Where originals, exports and conversation work files live." },
+        { name: "UPLOADS_ENABLED", type: "bool · default true", text: "Enable file uploads and the conversation's file tools." },
       ],
+    },
+    {
+      type: "paragraph",
+      text: "GET /api/v1/capabilities reports uploads, uploads_max_bytes and uploads_max_files. The composer checks those limits before uploading and shows size errors in the selected UI language. The backend also checks them; oversized files return 413 with code file_too_large and details.max_bytes and details.filename.",
+    },
+    { type: "heading", id: "downloads", title: "Downloads and sharing" },
+    {
+      type: "paragraph",
+      text: "Uploads and attachment processing require an active session. Downloads also require a session, except when the file is referenced by a currently shared chat. Removing the share removes public access. Reopening a chat keeps its original references and exported download links.",
     },
   ],
 
@@ -1393,22 +1417,17 @@ Use the analyze_image tool with that path to look at it.`,
     { type: "endpoint", method: "POST", path: "/api/v1/uploads" },
     {
       type: "lead",
-      text: "Store attachments and get an address back. multipart/form-data. The answer holds the path the agent hands to analyze_image — the file itself never travels through the conversation.",
+      text: "Upload one or more original files as multipart/form-data. The response returns an ID and metadata for each file; use those IDs in a chat message's attachment_ids.",
     },
     {
       type: "paragraph",
-      text: "Only what the vision model can actually look at is accepted: image/png, image/jpeg, image/webp, image/gif. Anything else is rejected with 422 rather than stored and silently ignored later. Text files do not belong here at all — they go into the prompt directly.",
+      text: "All file types are accepted, including text, ZIP, documents and unknown MIME types. An active session is required through X-Session-Id; the bundled frontend forwards it automatically.",
     },
     { type: "heading", id: "parameters", title: "Form fields" },
     {
       type: "params",
       rows: [
-        {
-          name: "files",
-          type: "file[] · multipart",
-          required: true,
-          text: "One or more images, at most UPLOADS_MAX_FILES per request.",
-        },
+        { name: "files", type: "file[] · multipart", required: true, text: "One or more files, at most UPLOADS_MAX_FILES per request, each within UPLOADS_MAX_BYTES." },
       ],
     },
     { type: "heading", id: "example", title: "Example request" },
@@ -1416,7 +1435,8 @@ Use the analyze_image tool with that path to look at it.`,
       type: "code",
       language: "bash",
       code: `curl -X POST http://localhost:8000/api/v1/uploads \\
-  -F "files=@console.png"`,
+  -H "X-Session-Id: $SMEEWARE_SESSION" \\
+  -F "files=@project.zip"`,
     },
     { type: "heading", id: "response", title: "Response" },
     {
@@ -1426,30 +1446,26 @@ Use the analyze_image tool with that path to look at it.`,
   "files": [
     {
       "id": "a904577a208845c98dbce47c1d4655f5",
-      "filename": "console.png",
-      "media_type": "image/png",
+      "filename": "project.zip",
+      "media_type": "application/zip",
       "bytes": 245113,
-      "path": "/srv/smeeware/data/uploads/a904577a208845c98dbce47c1d4655f5.png"
+      "path": "/srv/smeeware/data/uploads/a904577a208845c98dbce47c1d4655f5.zip"
     }
   ]
 }`,
     },
     {
       type: "paragraph",
-      text: "The filename you sent is kept for display only. On disk the file lives under a generated id with an extension derived from the media type — so neither a .. nor a .py finds its way through.",
+      text: "The filename is kept for display and downloads. Disk names use generated IDs. path describes the backend location; chat requests use the ID rather than a caller-supplied filesystem path.",
     },
     {
       type: "responses",
       rows: [
         { status: "201", text: "Stored." },
-        {
-          status: "422",
-          text: "Unsupported type, empty file, too large, or too many files.",
-        },
-        {
-          status: "500",
-          text: "Uploads are disabled (UPLOADS_ENABLED=false).",
-        },
+        { status: "401", text: "No active session." },
+        { status: "413", text: "File too large: code file_too_large, details { max_bytes, filename }." },
+        { status: "422", text: "Empty file, invalid form or too many files. too_many_files includes details.max_files." },
+        { status: "500", text: "Uploads are disabled (UPLOADS_ENABLED=false)." },
       ],
     },
   ],
@@ -1458,34 +1474,36 @@ Use the analyze_image tool with that path to look at it.`,
     { type: "endpoint", method: "GET", path: "/api/v1/uploads/{file_id}" },
     {
       type: "lead",
-      text: "Fetch one stored attachment. This is what the preview in the conversation hangs on — a reopened chat shows its images the same way the one they were attached in does.",
+      text: "Fetch an original attachment or an exported result. Images retain their previews; other files download with their original filename.",
+    },
+    {
+      type: "paragraph",
+      text: "Send an active X-Session-Id, unless a currently shared chat references this file. The frontend forwards its session automatically for previews and downloads.",
     },
     { type: "heading", id: "parameters", title: "Path parameter" },
     {
       type: "params",
       rows: [
-        {
-          name: "file_id",
-          type: "string · 32 hex",
-          required: true,
-          text: "The id from the upload response. Anything else is 422 — the id is generated, not named by a user.",
-        },
+        { name: "file_id", type: "string · 32 hex", required: true, text: "The generated ID from the upload or export response." },
       ],
     },
     { type: "heading", id: "example", title: "Example request" },
     {
       type: "code",
       language: "bash",
-      code: `curl -O http://localhost:8000/api/v1/uploads/a904577a208845c98dbce47c1d4655f5`,
+      code: `curl -OJ \\
+  -H "X-Session-Id: $SMEEWARE_SESSION" \\
+  http://localhost:8000/api/v1/uploads/a904577a208845c98dbce47c1d4655f5`,
     },
     {
       type: "paragraph",
-      text: "The response is the file itself, with the media type it was stored under.",
+      text: "The response carries the stored media type, Content-Disposition filename, private no-store caching and X-Content-Type-Options: nosniff. Supported images and audio can display inline; other files are attachments.",
     },
     {
       type: "responses",
       rows: [
         { status: "200", text: "The file." },
+        { status: "401", text: "No active session or public chat reference." },
         { status: "404", text: "No attachment under that id." },
         { status: "422", text: "Malformed id." },
       ],

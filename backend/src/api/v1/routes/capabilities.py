@@ -14,4 +14,9 @@ router = APIRouter(tags=["capabilities"])
     summary="Server features that depend on configuration",
 )
 async def capabilities(provider: ProviderDep) -> CapabilitiesResponse:
-    return CapabilitiesResponse(sharing=provider.can_share)
+    return CapabilitiesResponse(
+        sharing=provider.can_share,
+        uploads=provider.settings.uploads_enabled,
+        uploads_max_bytes=provider.settings.uploads_max_bytes,
+        uploads_max_files=provider.settings.uploads_max_files,
+    )

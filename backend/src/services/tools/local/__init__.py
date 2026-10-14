@@ -36,6 +36,7 @@ from src.services.tools.local.storage import (
 from src.services.tools.local.vision import AnalyzeImageTool
 from src.services.tools.local.weather import WeatherTool
 from src.services.tools.local.web import create_web_tools
+from src.services.tools.local.files import create_file_tools
 
 logger = get_logger(__name__)
 
@@ -88,6 +89,7 @@ def create_local_toolbox(
         ContextTool(locations),
         WeatherTool(client, locations),
         *create_web_tools(client, settings),
+        *(create_file_tools() if uploads_dir is not None else []),
     ]
 
     if bus is not None:
@@ -203,6 +205,7 @@ def create_local_toolbox(
                 timeout=settings.shell_timeout,
                 workdir=settings.shell_workdir,
                 max_output=settings.shell_max_output,
+                allow_root=settings.shell_root,
             )
         )
     else:

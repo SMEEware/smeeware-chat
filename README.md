@@ -42,6 +42,10 @@ private.
   storage, a shell and more — switch them on per conversation.
 - **Workspaces.** Point the model at a folder on the agent's host; every message
   carries that context.
+- **File attachments.** Upload any file type, including ZIP and documents. Ask
+  the model to read, unpack or edit working copies and return a download.
+  Originals stay complete; images keep their previews. The default limit is
+  20 MB per file and 8 files per message, configurable on the backend.
 - **Encrypted at rest.** Chats and notices are encrypted with a key derived from
   your password. The key lives in memory only, never on disk.
 - **Bilingual.** The whole UI and docs are available in English and German,
@@ -59,8 +63,9 @@ cd smeeware-chat
 ```
 
 `install.sh` asks for your API keys (typed hidden, stored only in
-`backend/.env`), switches every feature on or off to match what you entered,
-and installs the Python and Node dependencies. Skipping it works too —
+`backend/.env`), configures feature switches to match what you entered,
+and installs the Python and Node dependencies. `ROOT` is a manual setting in
+`backend/.env`. Skipping setup works too —
 `./start.sh` runs the setup on its first start.
 
 Then open **http://localhost:3000**. `Ctrl+C` stops everything.
@@ -91,11 +96,13 @@ UI, so nothing half-works.
 
 ### Switches
 
-These need no key. `install.sh` asks about each one.
+These need no API key. `install.sh` configures the listed features except
+`ROOT`; set that manually in `backend/.env` and restart the backend.
 
 | Setting                                                     | Default          | What it does                                                                                                          |
 | ----------------------------------------------------------- | ---------------- | --------------------------------------------------------------------------------------------------------------------- |
 | `SHELL_ENABLED`                                             | `false`          | Lets the model run shell commands. Not sandboxed: local, single-user setups only                                      |
+| `ROOT`                                                      | `false`          | Allows `sudo` and `su` through the shell command guard. Requires enabled shell tools; grants no OS privileges          |
 | `TRANSCRIBE_MODEL`                                          | `gpt-transcribe` | `whisper-local` transcribes on your machine (whisper.cpp + ffmpeg), so voice input works without OpenAI               |
 | `OLLAMA_ENABLED` + `OLLAMA_MODEL`                           | off              | Offers a local model through [Ollama](https://ollama.com). Pick one that can reason and call tools, e.g. `qwen3:8b`   |
 | `STORAGE_ENABLED` + `STORAGE_ALIAS` + `STORAGE_PUBLIC_BASE` | off              | An S3 bucket the model can write to, through the [mc](https://min.io/docs/minio/linux/reference/minio-mc.html) client |

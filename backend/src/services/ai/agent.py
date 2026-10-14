@@ -108,7 +108,13 @@ class Agent:
                 yield chunk
 
             if not calls:
-                return
+                working.append(Message(role="assistant", content="".join(answer)))
+                interjections = list(_interjections(steer, working))
+                if not interjections:
+                    return
+                for chunk in interjections:
+                    yield chunk
+                continue
 
             logger.info(
                 "Round %d: %d tool call(s)", round_number + 1, len(calls)
@@ -218,7 +224,10 @@ def _interjections(
             continue
         logger.info("Interjection received (%d chars)", len(text))
         working.append(Message(role="user", content=text))
-        receipts.append(StreamChunk(kind="steer", text=text, ref=interjection.id))
+        receipts.append(StreamChunk(
+            kind="steer", text=interjection.display_text if interjection.display_text is not None else text,
+            ref=interjection.id, attachments=interjection.attachments,
+        ))
     return receipts
 
 

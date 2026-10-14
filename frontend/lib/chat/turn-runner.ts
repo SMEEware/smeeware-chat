@@ -3,9 +3,9 @@
 import type { QueryClient } from "@tanstack/react-query";
 
 import { chatKeys, invalidateChatList } from "@/hooks/use-chats";
-import { attachmentBlock } from "@/lib/chat/attachments";
+import { attachmentBlock, uploadedAttachmentIds } from "@/lib/chat/attachments";
 import { fromStored, saveChat, toStored } from "@/lib/chat/history";
-import { stripToolScaffolding } from "@/lib/chat/sanitize";
+import { toWire } from "@/lib/chat/wire";
 import { parseSseStream, readErrorMessage } from "@/lib/chat/stream";
 import type {
   Attachment,
@@ -13,7 +13,6 @@ import type {
   MessagePart,
   QueuedMessage,
   StreamFrame,
-  WireMessage,
 } from "@/lib/chat/types";
 import { workspaceBlock } from "@/lib/workspaces/store";
 import type { Workspace } from "@/lib/workspaces/store";
@@ -62,75 +61,16 @@ const EMPTY: Snapshot = {
   queued: NO_QUEUED,
 };
 
-const MAX_CHARS = 60_000;
-const MAX_MESSAGES = 120;
-
 const newId = () =>
   typeof crypto !== "undefined" && "randomUUID" in crypto
     ? crypto.randomUUID()
     : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
-
-function toWire(
-  allMessages: ChatMessage[],
-  workspace: Workspace | null = null,
-): WireMessage[] {
-  const messages = allMessages.filter((m) => !m.hidden);
-
-  const lastUserIndex = messages.map((m) => m.role).lastIndexOf("user");
-  const wsBlock = workspaceBlock(workspace);
-
-  const clean: WireMessage[] = [];
-  messages.forEach((message, index) => {
-    let content: string;
-    if (message.role === "assistant") {
-      content = stripToolScaffolding(message.content).trim();
-      if (message.aborted) {
-        content = content
-          ? `${content}\n\n[Stopped by the user before the answer was complete.]`
-          : "[Stopped by the user before answering.]";
-      } else if (message.interrupted) {
-        content = content
-          ? `${content}\n\n[This answer was cut off.]`
-          : "[This answer was cut off before any text arrived.]";
-      }
-    } else {
-      const blocks = [attachmentBlock(message.attachments ?? [])];
-      if (index === lastUserIndex && wsBlock) blocks.push(wsBlock);
-      const attachment = blocks.filter(Boolean).join("\n\n");
-      content = (
-        attachment ? `${message.content}\n\n${attachment}` : message.content
-      ).trim();
-    }
-    if (!content) return;
-
-    const prior = clean.at(-1);
-    if (prior && prior.role === message.role) {
-      prior.content = `${prior.content}\n\n${content}`;
-      return;
-    }
-    clean.push({ role: message.role, content });
-  });
-
-  let viewport = clean.slice(-MAX_MESSAGES);
-  while (viewport.length > 0 && viewport[0].role !== "user") {
-    viewport = viewport.slice(1);
-  }
-  return viewport.map((m) => ({ ...m, content: truncate(m.content) }));
-}
 
 function lastQuestionInCall(messages: ChatMessage[]): boolean {
   for (let i = messages.length - 1; i >= 0; i--) {
     if (messages[i].role === "user") return messages[i].viaCall === true;
   }
   return false;
-}
-
-function truncate(text: string): string {
-  if (text.length <= MAX_CHARS) return text;
-  const head = Math.floor(MAX_CHARS * 0.7);
-  const tail = MAX_CHARS - head;
-  const excess = text.length - MAX_CHARS;
-  return `${text.slice(0, head)}\n\n[… ${excess} characters omitted …]\n\n${text.slice(-tail)}`;
 }
 
 function createRun(messages: ChatMessage[]): TurnRun {
@@ -350,12 +290,12 @@ export function isRunning(chatId: string): boolean {
   return runs.get(chatId)?.snapshot.streaming ?? false;
 }
 
-export function steer(chatId: string, text: string): boolean {
+export function steer(chatId: string, text: string, attachments: Attachment[] = []): boolean {
   const l = runs.get(chatId);
   const clean = text.trim();
   if (!l || !l.snapshot.streaming || !l.streamId || !clean) return false;
 
-  const entry: QueuedMessage = { id: newId(), text: clean };
+  const entry: QueuedMessage = { id: newId(), text: clean, attachments: attachments.length ? attachments : undefined };
   updateSnapshot(l, { queued: [...l.snapshot.queued, entry] });
 
   void fetch("/api/chat/steer", {
@@ -364,7 +304,9 @@ export function steer(chatId: string, text: string): boolean {
     body: JSON.stringify({
       stream_id: l.streamId,
       id: entry.id,
-      content: clean,
+      chat_id: chatId,
+      content: [clean, attachmentBlock(attachments)].filter(Boolean).join("\n\n"),
+      attachment_ids: uploadedAttachmentIds(attachments),
     }),
   }).catch(() => {});
   return true;
@@ -545,7 +487,8 @@ async function runTurn(
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        messages: toWire(history, options.workspace),
+        messages: toWire(history, workspaceBlock(options.workspace)),
+        chat_id: chatId,
         model: options.model ?? undefined,
         prompt: options.prompt ?? undefined,
         tools: options.tools,
@@ -669,7 +612,8 @@ function splitAtSteer(
   const question: ChatMessage = {
     id: frame.id,
     role: "user",
-    content: frame.content,
+    content: l.snapshot.queued.find((entry) => entry.id === frame.id)?.text ?? frame.content,
+    attachments: l.snapshot.queued.find((entry) => entry.id === frame.id)?.attachments ?? frame.attachments,
   };
   const response: ChatMessage = {
     id: next,
@@ -764,7 +708,10 @@ function finishTurn(
     if (texts.length > 0) {
       l.restore?.({
         text: texts.join("\n\n"),
-        attachments: returnQuestion ? (last?.attachments ?? []) : [],
+        attachments: [
+          ...(returnQuestion ? (last?.attachments ?? []) : []),
+          ...waiting.flatMap((entry) => entry.attachments ?? []),
+        ],
       });
     }
 
@@ -799,18 +746,19 @@ function finishTurn(
         chatId,
         history: [
           ...l.snapshot.messages,
-          {
-            id: waiting[0].id,
+          ...waiting.map((entry): ChatMessage => ({
+            id: entry.id,
             role: "user",
-            content: waiting.map((q) => q.text).join("\n\n"),
-          },
+            content: entry.text,
+            attachments: entry.attachments,
+          })),
         ],
       });
       return;
     }
     l.restore?.({
       text: waiting.map((q) => q.text).join("\n\n"),
-      attachments: [],
+      attachments: waiting.flatMap((entry) => entry.attachments ?? []),
     });
   }
 

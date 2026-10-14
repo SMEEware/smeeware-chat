@@ -34,6 +34,27 @@ class ValidationError(AppError):
     code = "validation_error"
 
 
+class FileTooLargeError(AppError):
+    status_code = 413
+    code = "file_too_large"
+
+    def __init__(self, filename: str, max_bytes: int) -> None:
+        super().__init__(
+            f"{filename} exceeds the upload limit.",
+            details={"filename": filename, "max_bytes": max_bytes},
+        )
+
+
+class TooManyFilesError(AppError):
+    status_code = 422
+    code = "too_many_files"
+
+    def __init__(self, max_files: int) -> None:
+        super().__init__(
+            f"At most {max_files} files per request.", details={"max_files": max_files},
+        )
+
+
 class NotFoundError(AppError):
     status_code = 404
     code = "not_found"

@@ -27,13 +27,13 @@ async function relay(upstream: Promise<Response>) {
 }
 
 export async function POST(request: NextRequest) {
-  let body: { stream_id?: string; id?: string; content?: string };
+  let body: { stream_id?: string; id?: string; content?: string; chat_id?: string; attachment_ids?: string[] };
   try {
     body = await request.json();
   } catch {
     return fail("Invalid request body.", 400);
   }
-  const { stream_id, id, content } = body;
+  const { stream_id, id, content, chat_id, attachment_ids } = body;
   if (!stream_id || !ID.test(stream_id) || !id || !ID.test(id) || !content) {
     return fail("stream_id, id and content are required.", 400);
   }
@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
     fetch(`${CHAT_STREAM_ENDPOINT}/${stream_id}/steer`, {
       method: "POST",
       headers: { "Content-Type": "application/json", ...session(request) },
-      body: JSON.stringify({ id, content }),
+      body: JSON.stringify({ id, content, chat_id, attachment_ids }),
       signal: AbortSignal.timeout(5000),
       cache: "no-store",
     }),

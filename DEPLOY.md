@@ -150,6 +150,12 @@ docker run --rm -v smee_data:/d -v "$PWD":/b alpine \
   process's permissions. The container is the only boundary (and there it runs
   as an unprivileged user, not root). On a shared or public instance, leave
   **`SHELL_ENABLED=false`**.
+- **`ROOT=false`** blocks `sudo` and `su` in `run_shell`. Setting it to `true`
+  removes that guard while shell enablement and the installed Shell plugin are
+  still required. It does not restart the backend as root or change container
+  permissions: the supplied image keeps running as `app` (UID 10001), and its
+  slim runtime does not include `sudo`. OS permissions and password requirements
+  still apply; other command guards and file-tool scopes remain in place.
 
 ## Platform
 

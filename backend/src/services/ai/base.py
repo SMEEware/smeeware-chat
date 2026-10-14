@@ -84,6 +84,7 @@ class StreamChunk:
     tool_call_id: str | None = None
     is_error: bool = False
     ref: str | None = None
+    attachments: tuple[dict[str, Any], ...] = ()
 
 
 class LLMProvider(ABC):

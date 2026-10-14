@@ -62,6 +62,7 @@ class ToolSettings(BaseModel):
     skills_cache_ttl: float = Field(default=300.0, ge=0)
 
     shell_enabled: bool = False
+    shell_root: bool = False
     shell_timeout: float = Field(default=30.0, ge=0)
     shell_workdir: Path | None = None
     shell_max_output: int = Field(default=8000, ge=200)
@@ -194,6 +195,8 @@ class Settings(BaseModel):
     uploads_dir: Path = BASE_DIR / "data" / "uploads"
     uploads_max_bytes: int = Field(default=20_000_000, ge=10_000)
     uploads_max_files: int = Field(default=8, ge=1, le=50)
+    uploads_max_extracted_bytes: int = Field(default=100_000_000, ge=10_000)
+    uploads_max_archive_members: int = Field(default=1000, ge=1)
 
     mcp_enabled: bool = True
     mcp_config_path: Path = BASE_DIR / "mcp.json"
@@ -273,6 +276,7 @@ class Settings(BaseModel):
                 ),
                 skills_cache_ttl=float(os.getenv("SKILLS_CACHE_TTL", "300")),
                 shell_enabled=_as_bool(os.getenv("SHELL_ENABLED"), default=False),
+                shell_root=_as_bool(os.getenv("ROOT"), default=False),
                 shell_timeout=float(os.getenv("SHELL_TIMEOUT", "30")),
                 shell_workdir=(
                     Path(workdir) if (workdir := os.getenv("SHELL_WORKDIR")) else None
@@ -332,6 +336,8 @@ class Settings(BaseModel):
             ),
             uploads_max_bytes=int(os.getenv("UPLOADS_MAX_BYTES", "20000000")),
             uploads_max_files=int(os.getenv("UPLOADS_MAX_FILES", "8")),
+            uploads_max_extracted_bytes=int(os.getenv("UPLOADS_MAX_EXTRACTED_BYTES", "100000000")),
+            uploads_max_archive_members=int(os.getenv("UPLOADS_MAX_ARCHIVE_MEMBERS", "1000")),
             mcp_enabled=_as_bool(os.getenv("MCP_ENABLED"), default=True),
             mcp_config_path=Path(os.getenv("MCP_CONFIG", str(BASE_DIR / "mcp.json"))),
             mcp_call_timeout=float(os.getenv("MCP_CALL_TIMEOUT", "60")),

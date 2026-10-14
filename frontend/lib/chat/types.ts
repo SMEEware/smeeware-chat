@@ -23,14 +23,15 @@ export type StreamFrame =
       preview?: string;
       length?: number;
     }
-  | { type: "steer"; id: string; content: string }
+  | { type: "steer"; id: string; content: string; attachments?: Attachment[] }
   | { type: "error"; error: { code?: string; message: string } };
 
-export type QueuedMessage = { id: string; text: string };
+export type QueuedMessage = { id: string; text: string; attachments?: Attachment[] };
 
 export type WireMessage = {
   role: "user" | "assistant";
   content: string;
+  attachment_ids?: string[];
 };
 
 export type Attachment = {
@@ -38,7 +39,7 @@ export type Attachment = {
   name: string;
   mediaType: string;
   bytes: number;
-  kind: "text" | "image";
+  kind: "text" | "image" | "file";
   text?: string;
   truncated?: boolean;
   path?: string;
@@ -78,6 +79,7 @@ export type ChatMessage = WireMessage & {
 
 export type ChatRequestBody = {
   messages: WireMessage[];
+  chat_id?: string;
   model?: string | null;
   max_tokens?: number;
   prompt?: string | null;

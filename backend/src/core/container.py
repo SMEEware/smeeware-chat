@@ -47,6 +47,7 @@ from src.services.tools.composite import CompositeToolBox
 from src.services.tools.local import create_local_toolbox, create_notify_toolbox
 from src.services.tools.config import load_mcp_servers
 from src.services.tools.mcp_toolbox import McpToolBox
+from src.services.uploads.store import UploadStore
 
 logger = get_logger(__name__)
 
@@ -87,6 +88,14 @@ class ServiceProvider:
         self._instances: dict[str, Any] = {}
         self._skills_block = ""
         self._ollama_probe: tuple[float, bool] | None = None
+
+    @property
+    def uploads(self) -> UploadStore:
+        return self._singleton("uploads", lambda: UploadStore(
+            self.settings.uploads_dir,
+            max_bytes=self.settings.uploads_max_bytes,
+            max_files=self.settings.uploads_max_files,
+        ))
 
 
     @property

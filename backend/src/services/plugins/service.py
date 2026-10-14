@@ -115,8 +115,8 @@ def prompt_block(
     else:
         lines.append("")
         lines.append(
-            "**No plugin is installed.** You have no tools in this conversation "
-            "that fetch or change anything."
+            "**No optional plugin is installed.** The built-in tools listed "
+            "below are still available."
         )
 
     if always:

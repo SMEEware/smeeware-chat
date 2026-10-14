@@ -16,6 +16,7 @@ from src.schemas.chats import (
     ChatUpsertRequest,
 )
 from src.services.chats import ChatInfo, StoredChat
+from src.services.uploads import referenced_upload_ids
 
 CHAT_ID = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
 
@@ -43,10 +44,12 @@ async def list_chats(
     summary="Delete every stored chat",
 )
 async def delete_all_chats(
-    store: ChatStoreDep, public: PublicChatStoreDep
+    store: ChatStoreDep, public: PublicChatStoreDep, provider: ProviderDep
 ) -> dict[str, int]:
     await public.withdraw_all()
-    return {"deleted": await store.delete_all()}
+    deleted = await store.delete_all()
+    provider.uploads.delete_bound()
+    return {"deleted": deleted}
 
 
 @router.get("/{chat_id}", response_model=ChatDetail, summary="One chat with messages")
@@ -65,10 +68,27 @@ async def upsert_chat(
     payload: ChatUpsertRequest,
     store: ChatStoreDep,
     public: PublicChatStoreDep,
+    provider: ProviderDep,
 ) -> ChatDetail:
+    checked = _checked(chat_id)
+    messages = [message.model_dump() for message in payload.messages]
+    identifiers = referenced_upload_ids(messages, include_links=False)
+    for identifier in referenced_upload_ids(messages):
+        if identifier in identifiers:
+            continue
+        try:
+            file = provider.uploads.get(identifier)
+        except NotFoundError:
+            continue
+        # Quoted answers can contain downloads from another chat. Keep the literal
+        # link without granting access to or changing the source file's ownership.
+        if file.chat_id not in (None, checked):
+            continue
+        identifiers.append(identifier)
+    provider.uploads.bind(identifiers, checked)
     chat = await store.upsert(
-        _checked(chat_id),
-        [message.model_dump() for message in payload.messages],
+        checked,
+        messages,
         title=payload.title,
         model=payload.model,
     )
@@ -101,12 +121,13 @@ async def rename_chat(
     summary="Delete a chat",
 )
 async def delete_chat(
-    chat_id: str, store: ChatStoreDep, public: PublicChatStoreDep
+    chat_id: str, store: ChatStoreDep, public: PublicChatStoreDep, provider: ProviderDep
 ) -> Response:
     checked = _checked(chat_id)
     if not await store.delete(checked):
         raise NotFoundError(f"Chat {chat_id!r} does not exist.")
     await public.withdraw(checked)
+    provider.uploads.delete_chat(checked)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 

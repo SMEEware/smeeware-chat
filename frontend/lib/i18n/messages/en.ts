@@ -171,6 +171,10 @@ export const en = {
       removeQuote: "Remove quote",
       nothingToAttach: "Nothing to attach.",
       uploadFailed: "Upload failed.",
+      uploadUnavailable: "File uploads are unavailable on this server.",
+      uploadUnauthorized: "Please sign in to upload files.",
+      emptyFile: "{name} is empty.",
+      file: "File",
       noPluginDidYouMean: "No plugin “{slug}”. Did you mean {list}?",
       noPlugin: "No plugin “{slug}”.",
       pluginNeeds: "{title} needs {requirements}.",
@@ -313,8 +317,8 @@ export const en = {
       },
       attach: {
         label: "Attach files",
-        description: "Add images or text files",
-        hint: "Drop them on the box too. Text folds into the prompt; images travel by path.",
+        description: "Add files of any type",
+        hint: "Drop files on the box too. Ask the model to read, unpack or edit them.",
         keywords: "file upload image document attach",
       },
       record: {
@@ -708,6 +712,8 @@ export const en = {
   },
   attachments: {
     remove: "Remove {name}",
+    download: "Download {name}",
+    truncated: "truncated",
   },
   userMessage: {
     showLess: "Show less",

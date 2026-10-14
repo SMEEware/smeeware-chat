@@ -1,40 +1,32 @@
 import type { Attachment } from "@/lib/chat/types";
+import type { TranslateFn } from "@/lib/i18n/translate";
 
 export const TEXT_MAX_CHARS = 12_000;
-
 export const TEXT_TOTAL_BUDGET = 24_000;
-
 export const MAX_ATTACHMENTS = 8;
-
-export const IMAGE_MAX_BYTES = 20_000_000;
+export const UPLOAD_MAX_BYTES = 20_000_000;
 
 const IMAGE_TYPE = /^image\/(png|jpeg|webp|gif)$/i;
+const UPLOAD_ID = /^[0-9a-f]{32}$/;
 
-const TEXT_TYPE =
-  /^text\/|^application\/(json|xml|javascript|x-yaml|x-sh|toml|sql)|\+json$|\+xml$/i;
+export type UploadLimits = { maxBytes: number; maxFiles: number };
+type UploadDetails = { filename?: string; max_bytes?: number; max_files?: number };
 
-const TEXT_EXTENSION =
-  /\.(txt|md|markdown|mdx|csv|tsv|json|jsonl|ya?ml|toml|xml|html?|css|scss|less|jsx?|tsx?|py|rb|go|rs|java|kt|swift|c|h|cpp|hpp|cs|php|sh|zsh|bash|sql|ini|cfg|conf|log|gitignore|dockerfile)$/i;
+export class UploadError extends Error {
+  code: string;
+  details: UploadDetails;
 
-export const TEXT_FILE_ACCEPT = [
-  "text/*",
-  ".md,.markdown,.mdx,.csv,.tsv,.json,.jsonl,.yml,.yaml,.toml,.xml",
-  ".js,.jsx,.ts,.tsx,.py,.rb,.go,.rs,.java,.kt,.swift,.c,.h,.cpp,.cs,.php",
-  ".sh,.zsh,.bash,.sql,.ini,.cfg,.conf,.log,.css,.scss,.html",
-].join(",");
+  constructor(code: string, details: UploadDetails = {}) {
+    super(code);
+    this.name = "UploadError";
+    this.code = code;
+    this.details = details;
+  }
+}
 
-export const FILE_ACCEPT = [
-  "image/png,image/jpeg,image/webp,image/gif",
-  TEXT_FILE_ACCEPT,
-].join(",");
-
-export type AttachmentKind = Attachment["kind"];
-
-export function classify(file: File): AttachmentKind | null {
+export function classify(file: Pick<File, "type">): "image" | "file" {
   const type = (file.type || "").split(";")[0].trim().toLowerCase();
-  if (IMAGE_TYPE.test(type)) return "image";
-  if (TEXT_TYPE.test(type) || TEXT_EXTENSION.test(file.name)) return "text";
-  return null;
+  return IMAGE_TYPE.test(type) ? "image" : "file";
 }
 
 export function size(bytes: number): string {
@@ -43,105 +35,152 @@ export function size(bytes: number): string {
   return `${(bytes / 1_000_000).toFixed(1)} MB`;
 }
 
-const newId = () =>
-  typeof crypto !== "undefined" && "randomUUID" in crypto
-    ? crypto.randomUUID()
-    : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+export function prepareUploads(
+  files: File[],
+  limits: UploadLimits,
+  attachedCount: number,
+): { files: File[]; errors: UploadError[] } {
+  const remaining = Math.max(0, limits.maxFiles - attachedCount);
+  const accepted: File[] = [];
+  const errors: UploadError[] = [];
+  let tooMany = false;
 
-export async function readTextFile(file: File): Promise<Attachment> {
-  const raw = await file.text();
-  const truncated = raw.length > TEXT_MAX_CHARS;
-
-  return {
-    id: newId(),
-    name: file.name,
-    mediaType: file.type || "text/plain",
-    bytes: file.size,
-    kind: "text",
-    text: truncated ? raw.slice(0, TEXT_MAX_CHARS) : raw,
-    truncated: truncated || undefined,
-  };
+  for (const file of files) {
+    if (file.size > limits.maxBytes) {
+      errors.push(new UploadError("file_too_large", {
+        filename: file.name,
+        max_bytes: limits.maxBytes,
+      }));
+    } else if (file.size === 0) {
+      errors.push(new UploadError("empty_file", { filename: file.name }));
+    } else if (accepted.length >= remaining) {
+      tooMany = true;
+    } else {
+      accepted.push(file);
+    }
+  }
+  if (tooMany) errors.push(new UploadError("too_many_files", { max_files: limits.maxFiles }));
+  return { files: accepted, errors };
 }
 
-export async function uploadImages(
+export function uploadErrorMessage(
+  error: unknown,
+  t: TranslateFn,
+  limits: UploadLimits = { maxBytes: UPLOAD_MAX_BYTES, maxFiles: MAX_ATTACHMENTS },
+): string {
+  if (!(error instanceof UploadError)) return t("chat.composer.uploadFailed");
+  const name = error.details.filename || t("chat.composer.file");
+  switch (error.code) {
+    case "file_too_large":
+      return t("chat.composer.largerThan", {
+        name,
+        size: size(error.details.max_bytes ?? limits.maxBytes),
+      });
+    case "too_many_files":
+      return t("chat.composer.atMostFiles", { max: error.details.max_files ?? limits.maxFiles });
+    case "unauthorized":
+      return t("chat.composer.uploadUnauthorized");
+    case "empty_file":
+      return t("chat.composer.emptyFile", { name });
+    case "upload_unavailable":
+      return t("chat.composer.uploadUnavailable");
+    default:
+      return t("chat.composer.uploadFailed");
+  }
+}
+
+type UploadedFile = {
+  id: string;
+  filename: string;
+  media_type: string;
+  bytes: number;
+  path?: string;
+};
+
+export async function uploadFiles(
   files: File[],
   signal?: AbortSignal,
 ): Promise<Attachment[]> {
   const form = new FormData();
   for (const file of files) form.append("files", file, file.name);
 
-  const response = await fetch("/api/uploads", {
-    method: "POST",
-    body: form,
-    signal,
-  });
-
-  if (!response.ok) {
-    let statusMessage = `HTTP ${response.status}`;
-    try {
-      const payload = await response.json();
-      statusMessage = payload?.error?.message ?? statusMessage;
-    } catch {
-    }
-    throw new Error(statusMessage);
+  let response: Response;
+  try {
+    response = await fetch("/api/uploads", { method: "POST", body: form, signal });
+  } catch (error) {
+    if (signal?.aborted) throw error;
+    throw new UploadError("upload_unavailable");
   }
 
-  const payload = (await response.json()) as {
-    files: {
-      id: string;
-      filename: string;
-      media_type: string;
-      bytes: number;
-      path: string;
-    }[];
-  };
+  if (!response.ok) {
+    let code = response.status === 401 ? "unauthorized" : "upload_failed";
+    let details: UploadDetails = {};
+    try {
+      const payload = await response.json();
+      code = payload?.error?.code ?? code;
+      details = payload?.error?.details ?? details;
+    } catch {
+      // The UI still has a localized fallback for non-JSON proxy errors.
+    }
+    throw new UploadError(code, details);
+  }
 
-  return (payload.files ?? []).map((file) => ({
+  const payload = (await response.json()) as { files: UploadedFile[] };
+  if (!Array.isArray(payload.files)) throw new UploadError("upload_failed");
+  return payload.files.map((file) => ({
     id: file.id,
     name: file.filename,
-    mediaType: file.media_type,
+    mediaType: file.media_type || "application/octet-stream",
     bytes: file.bytes,
-    kind: "image" as const,
+    kind: classify({ type: file.media_type }),
     path: file.path,
   }));
 }
 
-export function previewUrl(attachment: Attachment): string | null {
-  return attachment.kind === "image" ? `/api/uploads/${attachment.id}` : null;
+export function uploadedAttachmentIds(attachmentList: Attachment[]): string[] {
+  return [...new Set(attachmentList
+    .filter((attachment) => attachment.kind !== "text" && UPLOAD_ID.test(attachment.id))
+    .map((attachment) => attachment.id))];
 }
 
-export function attachmentBlock(attachmentList: Attachment[]): string {
-  if (attachmentList.length === 0) return "";
+export function downloadUrl(attachment: Attachment): string | null {
+  return attachment.kind !== "text" && UPLOAD_ID.test(attachment.id)
+    ? `/api/uploads/${attachment.id}`
+    : null;
+}
 
+export function previewUrl(attachment: Attachment): string | null {
+  return attachment.kind === "image" ? downloadUrl(attachment) : null;
+}
+
+// Older saved chats stored inline text or an image path. New uploads travel as
+// attachment_ids and are resolved on the backend before the model sees them.
+export function attachmentBlock(attachmentList: Attachment[]): string {
   const parts: string[] = [];
   let used = 0;
-
   for (const attachment of attachmentList) {
+    if (downloadUrl(attachment)) continue;
     const head = `${attachment.name} (${attachment.mediaType}, ${size(attachment.bytes)})`;
-
-    if (attachment.kind === "image") {
+    if (attachment.kind === "image" && attachment.path) {
       parts.push(
         `[attached image] ${head}\n` +
-          `Path on this machine: ${attachment.path}\n` +
-          `Use analyze_image with that path to look at what is in it. ` +
-          `To make a NEW picture from it -- same style, combined with ` +
-          `another, changed in some way -- pass that path to ` +
-          `generate_image as reference_images instead.`,
+        `Path on this machine: ${attachment.path}\n` +
+        `Use analyze_image with that path to look at what is in it. ` +
+        `To make a NEW picture from it -- same style, combined with ` +
+        `another, changed in some way -- pass that path to ` +
+        `generate_image as reference_images instead.`,
       );
-      continue;
-    }
-
-    const rest = Math.max(0, TEXT_TOTAL_BUDGET - used);
-    const raw = attachment.text ?? "";
-    const content = raw.slice(0, rest);
-    used += content.length;
-
-    const clipped = attachment.truncated || content.length < raw.length;
-    parts.push(
-      `[attached file] ${head}${clipped ? " -- truncated" : ""}\n` +
+    } else if (attachment.kind === "text") {
+      const rest = Math.max(0, TEXT_TOTAL_BUDGET - used);
+      const raw = attachment.text ?? "";
+      const content = raw.slice(0, rest);
+      used += content.length;
+      const clipped = attachment.truncated || content.length < raw.length;
+      parts.push(
+        `[attached file] ${head}${clipped ? " -- truncated" : ""}\n` +
         `--- begin ${attachment.name} ---\n${content}\n--- end ${attachment.name} ---`,
-    );
+      );
+    }
   }
-
   return parts.join("\n\n");
 }

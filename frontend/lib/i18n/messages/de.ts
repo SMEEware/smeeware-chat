@@ -171,6 +171,10 @@ export const de = {
       removeQuote: "Zitat entfernen",
       nothingToAttach: "Nichts zum Anhängen.",
       uploadFailed: "Upload fehlgeschlagen.",
+      uploadUnavailable: "Datei-Uploads sind auf diesem Server nicht verfügbar.",
+      uploadUnauthorized: "Bitte melde dich an, um Dateien hochzuladen.",
+      emptyFile: "{name} ist leer.",
+      file: "Datei",
       noPluginDidYouMean: "Kein Plugin „{slug}“. Meintest du {list}?",
       noPlugin: "Kein Plugin „{slug}“.",
       pluginNeeds: "{title} braucht {requirements}.",
@@ -313,8 +317,8 @@ export const de = {
       },
       attach: {
         label: "Dateien anhängen",
-        description: "Bilder oder Textdateien hinzufügen",
-        hint: "Du kannst sie auch ins Feld ziehen. Text fließt in den Prompt; Bilder reisen per Pfad.",
+        description: "Dateien beliebigen Typs hinzufügen",
+        hint: "Zieh Dateien auch ins Feld. Bitte das Modell, sie zu lesen, zu entpacken oder zu bearbeiten.",
         keywords: "datei hochladen bild dokument anhang",
       },
       record: {
@@ -708,6 +712,8 @@ export const de = {
   },
   attachments: {
     remove: "{name} entfernen",
+    download: "{name} herunterladen",
+    truncated: "gekürzt",
   },
   userMessage: {
     showLess: "Weniger anzeigen",

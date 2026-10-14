@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from src.core.exceptions import ValidationError
 from src.services.ai.base import CompletionOptions, Message
@@ -14,6 +14,9 @@ MAX_MESSAGES = 1_000
 class ChatMessage(BaseModel):
     role: Literal["system", "user", "assistant"]
     content: Annotated[str, Field(max_length=MAX_CHARS)]
+    attachment_ids: Annotated[
+        list[Annotated[str, Field(pattern=r"^[0-9a-f]{32}$")]], Field(max_length=50)
+    ] = Field(default_factory=list)
 
     def to_domain(self) -> Message:
         return Message(role=self.role, content=self.content)
@@ -24,6 +27,9 @@ class ChatRequest(BaseModel):
         list[ChatMessage], Field(min_length=1, max_length=MAX_MESSAGES)
     ]
     model: str | None = None
+    chat_id: Annotated[
+        str | None, Field(max_length=64, pattern=r"^[A-Za-z0-9_-]+$")
+    ] = None
     prompt: Annotated[str | None, Field(max_length=64)] = None
     tools: bool = True
     temperature: Annotated[float | None, Field(ge=0.0, le=2.0)] = None
@@ -47,8 +53,23 @@ class ChatRequest(BaseModel):
         }
     }
 
-    def to_domain_messages(self) -> list[Message]:
-        return _normalize([message.to_domain() for message in self.messages])
+    @model_validator(mode="after")
+    def _attachment_scope(self) -> "ChatRequest":
+        if any(message.attachment_ids for message in self.messages) and not self.chat_id:
+            raise ValueError("File attachments require chat_id.")
+        if any(message.attachment_ids and message.role != "user" for message in self.messages):
+            raise ValueError("Only user messages can attach files.")
+        return self
+
+    def to_domain_messages(self, attachment_blocks: dict[int, str] | None = None) -> list[Message]:
+        blocks = attachment_blocks or {}
+        return _normalize([
+            Message(
+                role=message.role,
+                content=f"{message.content}\n\n{blocks[index]}" if index in blocks else message.content,
+            )
+            for index, message in enumerate(self.messages)
+        ])
 
     def to_options(self) -> CompletionOptions:
         return CompletionOptions(

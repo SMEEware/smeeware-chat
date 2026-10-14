@@ -57,9 +57,11 @@ export function useChat({ chatId, initialMessages }: UseChatOptions) {
 
   React.useEffect(() => {
     setRestoreHandler(chatId, (restore) => {
-      setInput(restore.text);
+      setInput((draft) => draft.trim() ? `${draft}\n\n${restore.text}` : restore.text);
       if (restore.attachments.length > 0) {
-        setAttachments(restore.attachments);
+        setAttachments((draft) => [...new Map(
+          [...draft, ...restore.attachments].map((attachment) => [attachment.id, attachment]),
+        ).values()]);
       }
     });
     return () => setRestoreHandler(chatId, null);
@@ -75,7 +77,10 @@ export function useChat({ chatId, initialMessages }: UseChatOptions) {
       if (!clean) return;
 
       if (stand.streaming) {
-        if (steer(chatId, clean)) setInput("");
+        if (steer(chatId, clean, attachments)) {
+          setInput("");
+          setAttachments([]);
+        }
         return;
       }
 

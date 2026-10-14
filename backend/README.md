@@ -75,11 +75,41 @@ the tool is quietly left out — the model only sees what actually works.
 | `social_profile` / `youtube_search` / `youtube_transcript` | SerpAPI engines |
 | `analyze_image` | Look at an image and answer a question (vision model) |
 | `generate_image` | Create an image from a description (OpenAI Images) |
+| `list_files` | Attached originals and this conversation's working files |
+| `read_file` | Paged text/source reading; text extraction from PDF, DOCX, PPTX and XLSX |
+| `copy_file` | Copy original or working-file bytes into a working copy |
+| `write_file` | Write edited text in the conversation's working directory |
+| `edit_file` | Replace an exact UTF-8 text fragment in a working copy; unique match by default |
+| `extract_archive` | Unpack a ZIP into that working directory |
+| `export_file` | Download a working file or a directory packaged as a ZIP |
 | `storage_put` / `storage_list` / `storage_get` / `storage_delete` | Object storage (mc/S3) |
 | `get_context` / `get_weather` | Location, timezone, date / forecast |
 | `read_aloud` | Speak an answer out loud (ElevenLabs, or a free English-only voice) |
 | `skill_list` / `use_skill` / `skill_save` / `skill_import` / `skill_delete` | Skills |
 | `run_shell` | Shell command (`SHELL_ENABLED`) |
+
+### File attachments
+
+`POST /api/v1/uploads` stores complete originals of any type, including ZIP,
+text, documents and images. Add the returned IDs to the user message's
+`attachment_ids`, send a `chat_id` and keep `tools=true` for file processing.
+Uploads and attachment processing require an active `X-Session-Id`; the
+frontend forwards its session automatically.
+
+The built-in file tools work on attached originals and a directory scoped to
+that conversation. Originals stay unchanged. `copy_file` creates a working
+copy with the exact original bytes; `edit_file` changes an exact text fragment
+without recreating a large file. Replacements require a unique match unless
+`replace_all=true`. The agent can also unpack ZIPs there and use `export_file`
+to return a downloadable file or ZIP.
+PDF text extraction uses `pypdf`; the other supported document readers use
+Python's standard library. An unrecognized binary format can still be uploaded
+and downloaded, but needs a suitable parser to read or edit its contents.
+
+`GET /api/v1/uploads/{id}` serves originals and exports with a download
+filename. It requires a session, except for files referenced by a currently
+shared chat. Unsharing removes public access. Older inline-text chat
+attachments remain compatible.
 
 ### Skills
 
@@ -110,11 +140,46 @@ change one.
 | Read aloud | `TTS_ENABLED` (`true`), `TTS_MODEL` (`eleven_multilingual_v2`), `ELEVENLABS_VOICE_ID`, `TTS_FREE_LANGUAGE` (`en`, the free voice's language), `TTS_MAX_CHARS` (`5000`) |
 | Ollama | `OLLAMA_BASE_URL` (`http://localhost:11434/v1`), `OLLAMA_TIMEOUT` (`600`) |
 | Storage | `STORAGE_BUCKET` (`llm`), `STORAGE_PREFIX`, `MC_BINARY` (`mc`), `MC_CONFIG_DIR` (`~/.mc`), `STORAGE_LOCAL_ROOT` (limits which local files may be uploaded) |
-| Shell | `SHELL_TIMEOUT` (`30`), `SHELL_WORKDIR`, `SHELL_MAX_OUTPUT` (`8000`) |
+| Shell | `SHELL_ENABLED` (`false`), `ROOT` (`false`), `SHELL_TIMEOUT` (`30`), `SHELL_WORKDIR`, `SHELL_MAX_OUTPUT` (`8000`) |
 | Web tools | `BRAVE_ANSWERS_ENABLED` (`true`), `HACKERONE_ALLOW_SUBMIT` (`false`, drafts only), `TOOL_HTTP_TIMEOUT` (`20`), `SCRAPE_MAX_CHARS` (`12000`), `SCRAPE_CONCURRENCY` (`4`) |
-| Data | `CHATS_DB_PATH` (`data/chats.db`), `UPLOADS_DIR` (`data/uploads`), `UPLOADS_MAX_BYTES` (`20000000`), `SKILLS_ENABLED` (`true`) |
+| Data | `CHATS_DB_PATH` (`data/chats.db`), `SKILLS_ENABLED` (`true`) |
+| Attachments | `UPLOADS_ENABLED` (`true`), `UPLOADS_DIR` (`data/uploads`), `UPLOADS_MAX_BYTES` (`20000000` per original/export), `UPLOADS_MAX_FILES` (`8` per upload/message), `UPLOADS_MAX_EXTRACTED_BYTES` (`100000000`), `UPLOADS_MAX_ARCHIVE_MEMBERS` (`1000`) |
 | Prompts & MCP | `PROMPTS_DIR` (`prompts`), `DEFAULT_PROMPT` (`default`), `MCP_ENABLED` (`true`), `MCP_CONFIG` (`mcp.json`), `MCP_MAX_TOOL_ROUNDS` (`8`) |
 
-Any `*_TIMEOUT` set to `0` means no time limit. See
-[`../DEPLOY.md`](../DEPLOY.md) for production notes (single worker, host
+Any `*_TIMEOUT` set to `0` means no time limit.
+
+Use `GET /api/v1/capabilities` for the active `uploads`, `uploads_max_bytes` and
+`uploads_max_files` values used by the composer. Oversized files return HTTP
+413 with `file_too_large` and `{ max_bytes, filename }` details; the UI shows
+the message in its selected language.
+
+See [`../DEPLOY.md`](../DEPLOY.md) for production notes (single worker, host
 network, TLS).
+
+### Shell privilege commands
+
+`ROOT=false` blocks `sudo` and `su` in `run_shell`. To allow those commands,
+set these values manually in `backend/.env`:
+
+```dotenv
+SHELL_ENABLED=true
+ROOT=true
+```
+
+Restart the backend and enable the Shell plugin in the chat. `ROOT` removes
+only that command guard: the backend keeps its existing OS user, other command
+guards and file-tool scopes. Noninteractive commands such as `sudo -n whoami`
+still require the host's sudo permissions; the flag supplies no password or
+additional OS privileges.
+
+## Developer checks
+
+With the backend virtual environment activated, run the test suite from this
+directory:
+
+```bash
+python -m unittest discover -s tests
+```
+
+The frontend's attachment and chat payload tests run with `npm test` from
+`../frontend`.

@@ -23,8 +23,8 @@ export const docsDe: Record<string, string> = {
   "Queued messages can be withdrawn with the × until the agent picks them up. Pressing stop puts anything still queued back into the input box.":
     "Wartende Nachrichten lassen sich mit dem × zurückziehen, bis der Agent sie aufnimmt. Stopp drücken legt alles noch Wartende zurück ins Eingabefeld.",
   "Over the API": "Über die API",
-  "Pass a stream_id of your choice with POST /chat/stream. While that stream runs, POST /chat/stream/{stream_id}/steer with an id and content slips a message in; the stream acknowledges it with a steer frame. A 409 means the turn already ended — send the message as a normal next turn instead. DELETE /chat/stream/{stream_id}/steer/{id} withdraws one that was not picked up yet.":
-    "Gib bei POST /chat/stream eine stream_id deiner Wahl mit. Während dieser Stream läuft, schiebt POST /chat/stream/{stream_id}/steer mit id und content eine Nachricht ein; der Stream bestätigt sie mit einem steer-Frame. Ein 409 heißt, die Runde ist schon beendet — schick die Nachricht stattdessen als normale nächste Runde. DELETE /chat/stream/{stream_id}/steer/{id} zieht eine noch nicht aufgenommene zurück.",
+  "Pass a stream_id of your choice with POST /chat/stream. While it runs, POST /chat/stream/{stream_id}/steer with id and content adds a message. To add files, include attachment_ids and the same chat_id, using the stream's active session. A steer frame acknowledges the message. A 409 means the turn ended; send a normal next turn instead. DELETE /chat/stream/{stream_id}/steer/{id} withdraws a message that has not been picked up.":
+    "Gib bei POST /chat/stream eine stream_id deiner Wahl mit. Während der Stream läuft, fügt POST /chat/stream/{stream_id}/steer mit id und content eine Nachricht hinzu. Für Dateien sende attachment_ids und dieselbe chat_id mit der aktiven Sitzung des Streams. Ein steer-Frame bestätigt die Nachricht. Ein 409 heißt, die Runde ist beendet; sende stattdessen eine normale nächste Runde. DELETE /chat/stream/{stream_id}/steer/{id} zieht eine noch nicht aufgenommene Nachricht zurück.",
   "Stops, errors and cut-offs": "Stopps, Fehler und Abbrüche",
   "A chat stays usable whatever happens to a turn. Answers stopped while thinking, answers cut off by a lost connection, and very long answers are all tidied up before the next question goes out — empty replies are dropped or marked, consecutive questions are merged, and oversized messages are shortened in the middle. A connection that drops mid-answer is shown as interrupted with a Try again button, instead of silently looking finished.":
     "Ein Chat bleibt nutzbar, egal was mit einer Runde passiert. Beim Denken gestoppte Antworten, durch eine verlorene Verbindung abgebrochene Antworten und sehr lange Antworten werden alle aufgeräumt, bevor die nächste Frage rausgeht — leere Antworten werden verworfen oder markiert, aufeinanderfolgende Fragen zusammengeführt und übergroße Nachrichten in der Mitte gekürzt. Eine Verbindung, die mitten in der Antwort abbricht, wird als unterbrochen mit einem „Erneut versuchen“-Knopf gezeigt, statt still fertig auszusehen.",
@@ -188,14 +188,16 @@ export const docsDe: Record<string, string> = {
   "Every path hangs off api_prefix — /api/v1 by default. In the examples the backend runs locally at http://localhost:8000.":
     "Jeder Pfad hängt an api_prefix — standardmäßig /api/v1. In den Beispielen läuft das Backend lokal unter http://localhost:8000.",
   "Chat body limits": "Grenzen des Chat-Body",
-  "role is system | user | assistant, content 1–32000 characters.":
-    "role ist system | user | assistant, content 1–32000 Zeichen.",
+  "role is system | user | assistant; content allows up to 400000 characters. User messages can include attachment_ids.":
+    "role ist system | user | assistant; content erlaubt bis zu 400000 Zeichen. Nutzernachrichten können attachment_ids enthalten.",
+  "Required with attachment_ids. Identifies the conversation that owns the uploaded files and working directory.":
+    "Mit attachment_ids erforderlich. Kennzeichnet die Unterhaltung, zu der die hochgeladenen Dateien und das Arbeitsverzeichnis gehören.",
   "null = default from configuration.": "null = Vorgabe aus der Konfiguration.",
   "Counts thinking tokens on reasoning models.": "Zählt bei Reasoning-Modellen Denk-Token mit.",
   "null = default.": "null = Vorgabe.",
   Stateless: "Zustandslos",
-  "The backend remembers nothing between requests — send the full history with every chat call.":
-    "Das Backend merkt sich nichts zwischen Anfragen — schick den vollen Verlauf mit jedem Chat-Aufruf mit.",
+  "Send the full message history with every chat call. A chat_id links file references and the working directory across turns; it does not add earlier messages to the request automatically.":
+    "Schick bei jedem Chat-Aufruf den vollständigen Nachrichtenverlauf mit. Eine chat_id verknüpft Dateireferenzen und das Arbeitsverzeichnis über mehrere Runden; sie fügt frühere Nachrichten nicht automatisch zur Anfrage hinzu.",
   // streaming
   "Instead of waiting for the full answer, the API delivers Server-Sent Events — token by token.":
     "Statt auf die volle Antwort zu warten, liefert die API Server-Sent Events — Token für Token.",
@@ -249,8 +251,8 @@ export const docsDe: Record<string, string> = {
   "Rate limits are per API key. When you exceed one, the API answers 429 with a Retry-After header saying how many seconds to wait. Local, keyless use is not rate limited. See Rate limits for the headers that report your remaining quota.":
     "Rate-Limits gelten pro API-Schlüssel. Überschreitest du eins, antwortet die API mit 429 und einem Retry-After-Header, der sagt, wie viele Sekunden zu warten sind. Lokale, schlüssellose Nutzung wird nicht limitiert. Siehe Rate-Limits für die Header, die dein verbleibendes Kontingent melden.",
   // endpoints overview
-  "Every endpoint lives under the base /api/v1. The backend is stateless — the full history goes with every chat call.":
-    "Jeder Endpunkt liegt unter der Basis /api/v1. Das Backend ist zustandslos — der volle Verlauf geht mit jedem Chat-Aufruf mit.",
+  "Every endpoint lives under the base /api/v1. Send the full history with every chat call; chat_id keeps file references and working files associated with the conversation.":
+    "Jeder Endpunkt liegt unter der Basis /api/v1. Sende bei jedem Chat-Aufruf den vollständigen Verlauf; chat_id ordnet Dateireferenzen und Arbeitsdateien der Unterhaltung zu.",
   "Liveness — is the process running?": "Lebendigkeit — läuft der Prozess?",
   "Readiness — is the LLM provider reachable?": "Bereitschaft — ist der LLM-Anbieter erreichbar?",
   "Answer in one piece as JSON.": "Antwort am Stück als JSON.",
@@ -268,8 +270,10 @@ export const docsDe: Record<string, string> = {
   "Takes the full history and produces the next answer in one piece. Tools run internally in the agent loop — this response shows only the final result; the intermediate steps are visible only in the stream.":
     "Nimmt den vollen Verlauf und erzeugt die nächste Antwort am Stück. Werkzeuge laufen intern in der Agent-Schleife — diese Antwort zeigt nur das Endergebnis; die Zwischenschritte sind nur im Stream sichtbar.",
   Parameters: "Parameter",
-  "The full history in order. Each message has a role (system | user | assistant) and content (1–32000 characters).":
-    "Der volle Verlauf in Reihenfolge. Jede Nachricht hat eine role (system | user | assistant) und content (1–32000 Zeichen).",
+  "The full history in order. Each message has a role (system | user | assistant) and content (up to 400000 characters). User messages may include attachment_ids, an array of uploaded file IDs within UPLOADS_MAX_FILES.":
+    "Der vollständige Verlauf in Reihenfolge. Jede Nachricht hat eine role (system | user | assistant) und content (bis zu 400000 Zeichen). Nutzernachrichten können attachment_ids enthalten, eine Liste hochgeladener Datei-IDs innerhalb von UPLOADS_MAX_FILES.",
+  "Enable available tools. Reading, unpacking and editing attachments requires true.":
+    "Verfügbare Werkzeuge aktivieren. Das Lesen, Entpacken und Bearbeiten von Anhängen benötigt true.",
   "An id from GET /models. null = default from the backend configuration.":
     "Eine id aus GET /models. null = Vorgabe aus der Backend-Konfiguration.",
   "Creativity. Lower = more predictable. null = default.":
@@ -380,53 +384,101 @@ export const docsDe: Record<string, string> = {
   "Uploaded bytes are always embedded → inlined=true.":
     "Hochgeladene Bytes werden immer eingebettet → inlined=true.",
   "Invalid format or file too large.": "Ungültiges Format oder Datei zu groß.",
-  // attachments
-  "Files hang on a prompt in two different ways, because they have to. Text goes into the message; images go onto disk and only their address goes into the message.":
-    "Dateien hängen auf zwei verschiedene Arten an einem Prompt, weil es nicht anders geht. Text geht in die Nachricht; Bilder gehen auf die Platte, und nur ihre Adresse geht in die Nachricht.",
-  "The reason is the main model: it does not see images. Vision is a separate service with its own model, which the agent reaches through the analyze_image tool. So an image cannot travel inside the question — but its path can, and the agent decides for itself when to look and what to ask.":
-    "Der Grund ist das Hauptmodell: es sieht keine Bilder. Vision ist ein eigener Dienst mit eigenem Modell, den der Agent über das Werkzeug analyze_image erreicht. Ein Bild kann also nicht in der Frage mitreisen — sein Pfad schon, und der Agent entscheidet selbst, wann er hinsieht und was er fragt.",
-  "The chat endpoint is unchanged": "Der Chat-Endpunkt bleibt unverändert",
-  "POST /api/v1/chat/stream still takes nothing but role and content. Attachments never became a field — they are folded into the text on the way to the wire.":
-    "POST /api/v1/chat/stream nimmt weiterhin nichts außer role und content. Anhänge wurden nie ein eigenes Feld — sie werden auf dem Weg zur Leitung in den Text eingefaltet.",
-  "Text files": "Textdateien",
-  "Read in the browser and appended to the question. Nothing is uploaded, nothing is stored, no endpoint is involved. Each file is capped at 12,000 characters and all of them together at 24,000 — content itself allows 32,000, and the question needs room too. A file that got cut is marked as truncated, in the composer and in the prompt.":
-    "Im Browser gelesen und an die Frage angehängt. Nichts wird hochgeladen, nichts gespeichert, kein Endpunkt beteiligt. Jede Datei ist auf 12.000 Zeichen begrenzt und alle zusammen auf 24.000 — content selbst erlaubt 32.000, und die Frage braucht auch Platz. Eine gekürzte Datei wird als truncated markiert, im Eingabefeld und im Prompt.",
-  Images: "Bilder",
-  "PNG, JPEG, WebP, and GIF go to POST /api/v1/uploads and come back as a path. That path lands in the message, and the agent passes it to analyze_image when it wants to look. Base64 in the prompt would be the obvious shortcut and is a dead end: a 24 KB image already exhausts the 32,000-character limit.":
-    "PNG, JPEG, WebP und GIF gehen an POST /api/v1/uploads und kommen als Pfad zurück. Dieser Pfad landet in der Nachricht, und der Agent übergibt ihn an analyze_image, wenn er hinsehen will. Base64 im Prompt wäre die naheliegende Abkürzung und ist eine Sackgasse: ein 24-KB-Bild sprengt schon die 32.000-Zeichen-Grenze.",
-  "The path is a local one": "Der Pfad ist ein lokaler",
-  "It points into UPLOADS_DIR on the machine the backend runs on. Frontend and backend on separate hosts means the agent cannot open it — put the file somewhere both can reach, for example with storage_put, and hand over that URL instead.":
-    "Er zeigt in UPLOADS_DIR auf dem Rechner, auf dem das Backend läuft. Frontend und Backend auf getrennten Hosts heißt, der Agent kann ihn nicht öffnen — leg die Datei irgendwohin, das beide erreichen, etwa mit storage_put, und reich stattdessen diese URL weiter.",
-  Limits: "Grenzen",
-  "Files per request.": "Dateien pro Anfrage.",
-  "Per file, 20 MB by default.": "Pro Datei, standardmäßig 20 MB.",
-  "Where the files land.": "Wo die Dateien landen.",
-  "On false the endpoint answers 500 instead of taking files nobody can look at.":
-    "Bei false antwortet der Endpunkt mit 500, statt Dateien anzunehmen, die niemand ansehen kann.",
-  // uploads endpoint
-  "Store attachments and get an address back. multipart/form-data. The answer holds the path the agent hands to analyze_image — the file itself never travels through the conversation.":
-    "Anhänge speichern und eine Adresse zurückbekommen. multipart/form-data. Die Antwort enthält den Pfad, den der Agent an analyze_image übergibt — die Datei selbst reist nie durch die Unterhaltung.",
-  "Only what the vision model can actually look at is accepted: image/png, image/jpeg, image/webp, image/gif. Anything else is rejected with 422 rather than stored and silently ignored later. Text files do not belong here at all — they go into the prompt directly.":
-    "Angenommen wird nur, was das Vision-Modell wirklich ansehen kann: image/png, image/jpeg, image/webp, image/gif. Alles andere wird mit 422 abgelehnt, statt gespeichert und später still ignoriert zu werden. Textdateien gehören hier gar nicht hin — sie gehen direkt in den Prompt.",
-  "One or more images, at most UPLOADS_MAX_FILES per request.":
-    "Ein oder mehrere Bilder, höchstens UPLOADS_MAX_FILES pro Anfrage.",
-  "The filename you sent is kept for display only. On disk the file lives under a generated id with an extension derived from the media type — so neither a .. nor a .py finds its way through.":
-    "Der gesendete Dateiname bleibt nur zur Anzeige. Auf der Platte liegt die Datei unter einer erzeugten id mit einer aus dem Medientyp abgeleiteten Endung — sodass weder ein .. noch ein .py durchkommt.",
-  Stored: "Gespeichert",
-  "Unsupported type, empty file, too large, or too many files.":
-    "Nicht unterstützter Typ, leere Datei, zu groß oder zu viele Dateien.",
-  "Uploads are disabled (UPLOADS_ENABLED=false).": "Uploads sind deaktiviert (UPLOADS_ENABLED=false).",
-  // upload (get) endpoint
-  "Fetch one stored attachment. This is what the preview in the conversation hangs on — a reopened chat shows its images the same way the one they were attached in does.":
-    "Einen gespeicherten Anhang abrufen. Daran hängt die Vorschau in der Unterhaltung — ein wieder geöffneter Chat zeigt seine Bilder genauso wie der, in dem sie angehängt wurden.",
-  "Path parameter": "Pfad-Parameter",
-  "The id from the upload response. Anything else is 422 — the id is generated, not named by a user.":
-    "Die id aus der Upload-Antwort. Alles andere ist 422 — die id wird erzeugt, nicht von einem Nutzer benannt.",
-  "The response is the file itself, with the media type it was stored under.":
-    "Die Antwort ist die Datei selbst, mit dem Medientyp, unter dem sie gespeichert wurde.",
-  "The file.": "Die Datei.",
-  "No attachment under that id.": "Kein Anhang unter dieser id.",
-  "Malformed id.": "Fehlerhafte id.",
+  // attachments and upload endpoints
+  "Attach files of any type: ZIP archives, documents, source code, images or files without an extension. Each upload keeps the complete original on the backend.":
+    "Hänge Dateien beliebigen Typs an: ZIP-Archive, Dokumente, Quellcode, Bilder oder Dateien ohne Endung. Jeder Upload bewahrt das vollständige Original im Backend.",
+  "Say what you want done with the files. The model can inspect them, read supported formats, unpack a ZIP, edit working copies and export the result as a download. Image analysis and image generation keep using their existing tools.":
+    "Sag, was mit den Dateien geschehen soll. Das Modell kann sie prüfen, unterstützte Formate lesen, ein ZIP entpacken, Arbeitskopien bearbeiten und das Ergebnis als Download exportieren. Bildanalyse und Bilderzeugung verwenden weiterhin ihre bisherigen Werkzeuge.",
+  "Upload IDs in the chat request":
+    "Upload-IDs in der Chat-Anfrage",
+  "Upload first, then add the returned IDs to attachment_ids on the user message and send a chat_id. The backend resolves the files for that conversation; the original bytes never become inline prompt text.":
+    "Lade zuerst hoch, füge dann die zurückgegebenen IDs als attachment_ids zur Nutzernachricht hinzu und sende eine chat_id. Das Backend löst die Dateien für diese Unterhaltung auf; die Originalbytes werden nie als Text in den Prompt eingefügt.",
+  "Working with files":
+    "Mit Dateien arbeiten",
+  "List attached originals and files in this conversation's working directory.":
+    "Angehängte Originale und Dateien im Arbeitsverzeichnis dieser Unterhaltung auflisten.",
+  "Read text and source files in pages, or extract text from PDF, DOCX, PPTX and XLSX. PDF reading uses pypdf.":
+    "Text- und Quelldateien abschnittsweise lesen oder Text aus PDF, DOCX, PPTX und XLSX auslesen. Das Lesen von PDF verwendet pypdf.",
+  "Copy an attached original or working file byte-for-byte into a working copy.":
+    "Ein angehängtes Original oder eine Arbeitsdatei bytegenau in eine Arbeitskopie kopieren.",
+  "Write edited text into the conversation's working directory; attached originals stay unchanged.":
+    "Bearbeiteten Text ins Arbeitsverzeichnis der Unterhaltung schreiben; angehängte Originale bleiben unverändert.",
+  "Replace an exact UTF-8 text fragment in a working copy. The match must be unique unless replace_all=true.":
+    "Ein exaktes UTF-8-Textstück in einer Arbeitskopie ersetzen. Der Treffer muss eindeutig sein, außer bei replace_all=true.",
+  "Unpack a ZIP into the conversation's working directory within the configured expansion limits.":
+    "Ein ZIP innerhalb der konfigurierten Entpackgrenzen ins Arbeitsverzeichnis der Unterhaltung entpacken.",
+  "Export a working file or package a directory as a ZIP and return a download link.":
+    "Eine Arbeitsdatei exportieren oder ein Verzeichnis als ZIP verpacken und einen Download-Link zurückgeben.",
+  "File processing needs tools=true. Uploading accepts every format; reading or editing depends on the available parser or tool. Unknown binary formats remain available as originals, and the model can explain what further conversion is needed.":
+    "Die Dateiverarbeitung benötigt tools=true. Der Upload akzeptiert jedes Format; das Lesen oder Bearbeiten hängt vom verfügbaren Parser oder Werkzeug ab. Unbekannte Binärformate bleiben als Originale verfügbar, und das Modell kann erklären, welche weitere Umwandlung nötig ist.",
+  "For a small change in a large text file, copy_file creates a working copy and edit_file replaces the requested fragment without regenerating the whole file. export_file returns the complete edited result.":
+    "Für eine kleine Änderung in einer großen Textdatei erstellt copy_file eine Arbeitskopie, und edit_file ersetzt das gewünschte Textstück, ohne die gesamte Datei neu zu erzeugen. export_file liefert das vollständige bearbeitete Ergebnis.",
+  "Images":
+    "Bilder",
+  "PNG, JPEG, WebP and GIF retain their chat previews. The agent can use analyze_image to inspect them or generate_image with reference_images to make a changed or new image.":
+    "PNG, JPEG, WebP und GIF behalten ihre Chat-Vorschau. Der Agent kann sie mit analyze_image prüfen oder mit generate_image und reference_images ein bearbeitetes oder neues Bild erstellen.",
+  "Files live on the backend":
+    "Dateien liegen im Backend",
+  "Uploads and file tools run on the backend host. The frontend can run on another host: it forwards the upload, so no shared frontend filesystem is needed.":
+    "Uploads und Dateiwerkzeuge laufen auf dem Backend-Host. Das Frontend kann auf einem anderen Host laufen: Es leitet den Upload weiter, sodass kein gemeinsames Frontend-Dateisystem nötig ist.",
+  "Older saved chats with inline text attachments remain readable. New text uploads keep the full file rather than a browser-truncated copy.":
+    "Ältere gespeicherte Chats mit eingebetteten Textanhängen bleiben lesbar. Neue Text-Uploads bewahren die vollständige Datei statt einer im Browser gekürzten Kopie.",
+  "Limits":
+    "Grenzen",
+  "Files per upload request and per user message.":
+    "Dateien pro Upload-Anfrage und pro Nutzernachricht.",
+  "Per original or exported file, 20 MB by default.":
+    "Pro Original oder exportierter Datei, standardmäßig 20 MB.",
+  "Maximum expanded ZIP content, 100 MB by default.":
+    "Maximaler entpackter ZIP-Inhalt, standardmäßig 100 MB.",
+  "Maximum number of members in an archive.":
+    "Maximale Anzahl von Einträgen in einem Archiv.",
+  "Where originals, exports and conversation work files live.":
+    "Wo Originale, Exporte und Arbeitsdateien der Unterhaltung liegen.",
+  "Enable file uploads and the conversation's file tools.":
+    "Datei-Uploads und die Dateiwerkzeuge der Unterhaltung aktivieren.",
+  "GET /api/v1/capabilities reports uploads, uploads_max_bytes and uploads_max_files. The composer checks those limits before uploading and shows size errors in the selected UI language. The backend also checks them; oversized files return 413 with code file_too_large and details.max_bytes and details.filename.":
+    "GET /api/v1/capabilities meldet uploads, uploads_max_bytes und uploads_max_files. Das Eingabefeld prüft diese Grenzen vor dem Upload und zeigt Größenfehler in der gewählten UI-Sprache. Das Backend prüft sie ebenfalls; zu große Dateien liefern 413 mit dem Code file_too_large sowie details.max_bytes und details.filename.",
+  "Downloads and sharing":
+    "Downloads und Teilen",
+  "Uploads and attachment processing require an active session. Downloads also require a session, except when the file is referenced by a currently shared chat. Removing the share removes public access. Reopening a chat keeps its original references and exported download links.":
+    "Uploads und die Verarbeitung von Anhängen benötigen eine aktive Sitzung. Downloads benötigen ebenfalls eine Sitzung, außer wenn ein aktuell geteilter Chat auf die Datei verweist. Das Beenden der Freigabe entfernt den öffentlichen Zugriff. Beim erneuten Öffnen bleiben die Originalreferenzen und exportierten Download-Links erhalten.",
+  "Upload one or more original files as multipart/form-data. The response returns an ID and metadata for each file; use those IDs in a chat message's attachment_ids.":
+    "Lade eine oder mehrere Originaldateien als multipart/form-data hoch. Die Antwort liefert für jede Datei eine ID und Metadaten; verwende diese IDs in den attachment_ids einer Chat-Nachricht.",
+  "All file types are accepted, including text, ZIP, documents and unknown MIME types. An active session is required through X-Session-Id; the bundled frontend forwards it automatically.":
+    "Alle Dateitypen werden angenommen, einschließlich Text, ZIP, Dokumenten und unbekannten MIME-Typen. Eine aktive Sitzung ist über X-Session-Id erforderlich; das mitgelieferte Frontend leitet sie automatisch weiter.",
+  "One or more files, at most UPLOADS_MAX_FILES per request, each within UPLOADS_MAX_BYTES.":
+    "Eine oder mehrere Dateien, höchstens UPLOADS_MAX_FILES pro Anfrage, jeweils innerhalb von UPLOADS_MAX_BYTES.",
+  "The filename is kept for display and downloads. Disk names use generated IDs. path describes the backend location; chat requests use the ID rather than a caller-supplied filesystem path.":
+    "Der Dateiname bleibt für Anzeige und Downloads erhalten. Dateinamen auf der Platte verwenden erzeugte IDs. path beschreibt den Speicherort im Backend; Chat-Anfragen verwenden die ID statt eines vom Aufrufer gelieferten Dateisystempfads.",
+  "Stored.":
+    "Gespeichert.",
+  "No active session.":
+    "Keine aktive Sitzung.",
+  "File too large: code file_too_large, details { max_bytes, filename }.":
+    "Datei zu groß: Code file_too_large, Details { max_bytes, filename }.",
+  "Empty file, invalid form or too many files. too_many_files includes details.max_files.":
+    "Leere Datei, ungültiges Formular oder zu viele Dateien. too_many_files enthält details.max_files.",
+  "Uploads are disabled (UPLOADS_ENABLED=false).":
+    "Uploads sind deaktiviert (UPLOADS_ENABLED=false).",
+  "Fetch an original attachment or an exported result. Images retain their previews; other files download with their original filename.":
+    "Einen Originalanhang oder ein exportiertes Ergebnis abrufen. Bilder behalten ihre Vorschau; andere Dateien werden mit ihrem ursprünglichen Dateinamen heruntergeladen.",
+  "Send an active X-Session-Id, unless a currently shared chat references this file. The frontend forwards its session automatically for previews and downloads.":
+    "Sende eine aktive X-Session-Id, sofern kein aktuell geteilter Chat auf diese Datei verweist. Das Frontend leitet seine Sitzung für Vorschauen und Downloads automatisch weiter.",
+  "Path parameter":
+    "Pfad-Parameter",
+  "The generated ID from the upload or export response.":
+    "Die erzeugte ID aus der Upload- oder Export-Antwort.",
+  "The response carries the stored media type, Content-Disposition filename, private no-store caching and X-Content-Type-Options: nosniff. Supported images and audio can display inline; other files are attachments.":
+    "Die Antwort enthält den gespeicherten Medientyp, den Dateinamen in Content-Disposition, privates no-store-Caching und X-Content-Type-Options: nosniff. Unterstützte Bilder und Audio können direkt angezeigt werden; andere Dateien werden als Anhänge heruntergeladen.",
+  "The file.":
+    "Die Datei.",
+  "No active session or public chat reference.":
+    "Keine aktive Sitzung oder öffentliche Chat-Referenz.",
+  "No attachment under that id.":
+    "Kein Anhang unter dieser ID.",
+  "Malformed id.":
+    "Fehlerhafte ID.",
   // transcribe endpoint
   "Turns a recording into text. Multipart in, JSON out. The language is detected — you never have to pick one first, and a sentence that switches mid-way still comes back whole.":
     "Macht aus einer Aufnahme Text. Multipart rein, JSON raus. Die Sprache wird erkannt — du musst nie vorher eine wählen, und ein Satz, der mittendrin wechselt, kommt trotzdem vollständig zurück.",
@@ -526,8 +578,8 @@ export const docsDe: Record<string, string> = {
   "Receive answers token by token over Server-Sent Events.":
     "Antworten Token für Token über Server-Sent Events empfangen.",
   Attachments: "Anhänge",
-  "Hang files on a prompt — text inline, images by path.":
-    "Dateien an einen Prompt hängen — Text inline, Bilder per Pfad.",
+  "Upload originals of any type; read, unpack, edit and download the result.":
+    "Originale beliebigen Typs hochladen; lesen, entpacken, bearbeiten und das Ergebnis herunterladen.",
   "Error codes, retries, and what to do when things break.":
     "Fehlercodes, Retries und was zu tun ist, wenn etwas bricht.",
   "Rate limits": "Rate-Limits",

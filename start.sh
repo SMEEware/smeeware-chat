@@ -5,16 +5,16 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 if [[ -d "$SCRIPT_DIR/backend" && -d "$SCRIPT_DIR/frontend" ]]; then
-  ROOT="$SCRIPT_DIR"
+  PROJECT_ROOT="$SCRIPT_DIR"
 elif [[ -n "${SMEEWARE_ROOT:-}" ]]; then
-  ROOT="$SMEEWARE_ROOT"
+  PROJECT_ROOT="$SMEEWARE_ROOT"
 else
   echo "ERROR: no backend/ and frontend/ next to this script. Set SMEEWARE_ROOT to the project folder." >&2
   exit 1
 fi
 
-BACKEND_DIR="${BACKEND_DIR:-$ROOT/backend}"
-FRONTEND_DIR="${FRONTEND_DIR:-$ROOT/frontend}"
+BACKEND_DIR="${BACKEND_DIR:-$PROJECT_ROOT/backend}"
+FRONTEND_DIR="${FRONTEND_DIR:-$PROJECT_ROOT/frontend}"
 MODE="dev"
 
 export LLM_STREAM_URL="${LLM_STREAM_URL:-http://127.0.0.1:8000/api/v1/chat/stream}"
@@ -98,13 +98,13 @@ env_value() {
 if [[ ! -f "$BACKEND_DIR/.env" ]]; then
   if [[ -t 0 ]]; then
     echo ">> First start -- running the setup"
-    BACKEND_DIR="$BACKEND_DIR" FRONTEND_DIR="$FRONTEND_DIR" "$ROOT/install.sh"
+    BACKEND_DIR="$BACKEND_DIR" FRONTEND_DIR="$FRONTEND_DIR" "$PROJECT_ROOT/install.sh"
   else
     echo "ERROR: $BACKEND_DIR/.env is missing. Run ./install.sh first." >&2
     exit 1
   fi
 elif [[ "$SKIP_DEPS" != "1" ]]; then
-  BACKEND_DIR="$BACKEND_DIR" FRONTEND_DIR="$FRONTEND_DIR" "$ROOT/install.sh" --deps
+  BACKEND_DIR="$BACKEND_DIR" FRONTEND_DIR="$FRONTEND_DIR" "$PROJECT_ROOT/install.sh" --deps
 fi
 
 if [[ -z "${DEEPSEEK_API_KEY:-$(env_value DEEPSEEK_API_KEY)}" ]]; then
@@ -176,7 +176,7 @@ if [[ "$OLLAMA" == "1" ]]; then
   echo ">> OLLAMA_ENABLED=true, model: $effective_model"
 fi
 
-echo ">> Project: $ROOT"
+echo ">> Project: $PROJECT_ROOT"
 echo ">> Backend: $BACKEND_DIR"
 cd "$BACKEND_DIR"
 

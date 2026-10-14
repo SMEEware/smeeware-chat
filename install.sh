@@ -2,9 +2,9 @@
 
 set -euo pipefail
 
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-BACKEND_DIR="${BACKEND_DIR:-$ROOT/backend}"
-FRONTEND_DIR="${FRONTEND_DIR:-$ROOT/frontend}"
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+BACKEND_DIR="${BACKEND_DIR:-$PROJECT_ROOT/backend}"
+FRONTEND_DIR="${FRONTEND_DIR:-$PROJECT_ROOT/frontend}"
 ENV_FILE="$BACKEND_DIR/.env"
 ENV_EXAMPLE="$BACKEND_DIR/.env.example"
 PYTHON_BIN="${PYTHON_BIN:-python3}"

@@ -30,6 +30,23 @@ The frontend proxies to the backend server-side. By default it targets
 `http://127.0.0.1:8000/api/v1`; override it with `LLM_STREAM_URL` (the other
 endpoints are derived from it). The browser never talks to the backend directly.
 
+## File attachments
+
+The picker and drag/drop accept every file type, including ZIP, text, documents
+and files without extensions. Complete originals are streamed through the
+frontend to the backend; chat messages carry `attachment_ids` and `chat_id`.
+The model uses file tools to read, unpack, edit working copies and export
+downloadable results according to your request. Image previews and image tools
+keep working, and older inline-text chat attachments remain readable.
+
+The composer reads upload availability and limits from `/api/capabilities`:
+20 MB per file and 8 files per message by default, configurable on the backend.
+Client and server size errors appear in English or German. Upload and download
+proxies forward the active session; files referenced by a currently shared chat
+can also be downloaded from its public view.
+
+Run `npm test` for attachment and chat payload tests.
+
 ## What lives where
 
 ```

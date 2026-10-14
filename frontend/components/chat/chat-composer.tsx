@@ -31,7 +31,7 @@ import { toast } from "sonner";
 import { usePlugins, useSetPluginInstalled } from "@/hooks/use-plugins";
 import { asPluginCommand } from "@/lib/chat/plugin-commands";
 import { useSound } from "@/hooks/use-sound";
-import { acceptsImages, useCapabilities } from "@/hooks/use-capabilities";
+import { useCapabilities } from "@/hooks/use-capabilities";
 import { useTranscribe } from "@/hooks/use-transcribe";
 import {
   COMMAND_EVENT,
@@ -50,14 +50,9 @@ import {
 import type { CommandEntry } from "@/lib/chat/command-registry";
 import { selectActiveWorkspace, useWorkspaces } from "@/lib/workspaces/store";
 import {
-  FILE_ACCEPT,
-  TEXT_FILE_ACCEPT,
-  IMAGE_MAX_BYTES,
-  MAX_ATTACHMENTS,
-  uploadImages,
-  classify,
-  size,
-  readTextFile,
+  prepareUploads,
+  uploadFiles,
+  uploadErrorMessage,
 } from "@/lib/chat/attachments";
 import type { Attachment, Model } from "@/lib/chat/types";
 import { cn } from "@/lib/utils";
@@ -113,6 +108,7 @@ export function ChatComposer({
   const playSend = useSound(SEND_SOUND);
 
   const [loading, setLoading] = React.useState(false);
+  const uploadingRef = React.useRef(false);
   const [error, setError] = React.useState<string | null>(null);
   const [dragOver, setDragOver] = React.useState(false);
 
@@ -184,7 +180,6 @@ export function ChatComposer({
   const voice = useTranscribe(insertText);
   const isRecording = voice.state !== "idle";
   const caps = useCapabilities();
-  const imagesAllowed = acceptsImages(caps);
 
   const workspace = useWorkspaces(selectActiveWorkspace);
 
@@ -205,7 +200,14 @@ export function ChatComposer({
     textareaRef.current?.focus();
   }, [isStreaming, callActive]);
 
-  const pickFiles = React.useCallback(() => fileInputRef.current?.click(), []);
+  const pickFiles = React.useCallback(() => {
+    if (disabled || uploadingRef.current) return;
+    if (!caps.uploads) {
+      setError(t("chat.composer.uploadUnavailable"));
+      return;
+    }
+    fileInputRef.current?.click();
+  }, [disabled, caps.uploads, t]);
 
   React.useEffect(() => {
     if (disabled || loading) return;
@@ -252,71 +254,42 @@ export function ChatComposer({
   }, [voice]);
 
   const canSend =
-    value.trim().length > 0 && !disabled && !loading && !isRecording;
+    value.trim().length > 0 && !disabled && !loading && !isRecording &&
+    attachments.length <= caps.uploadsMaxFiles;
 
   const accept = React.useCallback(
     async (files: File[]) => {
-      if (files.length === 0) return;
+      if (files.length === 0 || disabled || uploadingRef.current) return;
       setError(null);
-
-      const remaining = MAX_ATTACHMENTS - attachments.length;
-      if (remaining <= 0) {
-        setError(t("chat.composer.atMostFiles", { max: MAX_ATTACHMENTS }));
+      if (!caps.uploads) {
+        setError(t("chat.composer.uploadUnavailable"));
         return;
       }
-
-      const rejected: string[] = [];
-      if (files.length > remaining) {
-        rejected.push(t("chat.composer.onlyFirst", { n: remaining }));
-      }
-
-      const texts: File[] = [];
-      const images: File[] = [];
-
-      for (const file of files.slice(0, remaining)) {
-        const kind = classify(file);
-        if (kind === "image" && !imagesAllowed) {
-          rejected.push(t("chat.composer.imagesUnavailable", { name: file.name }));
-        } else if (kind === "image") {
-          if (file.size > IMAGE_MAX_BYTES) {
-            rejected.push(
-              t("chat.composer.largerThan", { name: file.name, size: size(IMAGE_MAX_BYTES) }),
-            );
-          } else {
-            images.push(file);
-          }
-        } else if (kind === "text") {
-          texts.push(file);
-        } else {
-          rejected.push(t("chat.composer.notSupported", { name: file.name }));
-        }
-      }
-
-      if (texts.length === 0 && images.length === 0) {
+      const limits = { maxBytes: caps.uploadsMaxBytes, maxFiles: caps.uploadsMaxFiles };
+      const prepared = prepareUploads(files, limits, attachments.length);
+      const rejected = prepared.errors.map((error) => uploadErrorMessage(error, t, limits));
+      if (prepared.files.length === 0) {
         setError(rejected.join(" · ") || t("chat.composer.nothingToAttach"));
         return;
       }
 
+      uploadingRef.current = true;
       setLoading(true);
       try {
-        const isRead = await Promise.all(texts.map(readTextFile));
-        const uploaded =
-          images.length > 0 ? await uploadImages(images) : [];
+        const uploaded = await uploadFiles(prepared.files);
         onAttachmentsChange((previous) => [
           ...previous,
-          ...isRead,
           ...uploaded,
-        ]);
+        ].slice(0, limits.maxFiles));
         if (rejected.length > 0) setError(rejected.join(" · "));
       } catch (err) {
-        setError(
-          err instanceof Error ? err.message : t("chat.composer.uploadFailed"),
-        );
+        setError(uploadErrorMessage(err, t, limits));
       } finally {
+        uploadingRef.current = false;
         setLoading(false);
       }
     },
-    [attachments.length, onAttachmentsChange, imagesAllowed, t],
+    [attachments.length, onAttachmentsChange, disabled, caps.uploads, caps.uploadsMaxBytes, caps.uploadsMaxFiles, t],
   );
 
   const remove = React.useCallback(
@@ -384,7 +357,9 @@ export function ChatComposer({
   const hasFiles = (event: React.DragEvent) =>
     event.dataTransfer.types.includes("Files");
 
-  const statusMessage = error ?? voice.error;
+  const statusMessage = attachments.length > caps.uploadsMaxFiles
+    ? t("chat.composer.atMostFiles", { max: caps.uploadsMaxFiles })
+    : error ?? voice.error;
   const hasVisibleContent =
     attachments.length > 0 || loading || statusMessage !== null || quote !== null;
 
@@ -429,7 +404,7 @@ export function ChatComposer({
         ref={fileInputRef}
         type="file"
         multiple
-        accept={imagesAllowed ? FILE_ACCEPT : TEXT_FILE_ACCEPT}
+        disabled={disabled || loading || !caps.uploads}
         className="hidden"
         onChange={(event) => {
           const files = Array.from(event.target.files ?? []);

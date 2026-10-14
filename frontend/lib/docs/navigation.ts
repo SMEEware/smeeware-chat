@@ -69,7 +69,7 @@ export const docsNavigation: DocGroup[] = [
       {
         slug: "attachments",
         title: "Attachments",
-        description: "Hang files on a prompt — text inline, images by path.",
+        description: "Upload originals of any type; read, unpack, edit and download the result.",
       },
       {
         slug: "errors",

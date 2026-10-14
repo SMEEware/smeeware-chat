@@ -18,11 +18,12 @@ BLOCKED: tuple[tuple[re.Pattern[str], str], ...] = (
     (re.compile(r":\(\)\s*\{.*\};\s*:", re.S), "fork bomb"),
     (re.compile(r"\bshutdown\b|\breboot\b|\bhalt\b", re.I), "shut down the system"),
     (re.compile(r"\bchmod\s+-R\s+777\s+/", re.I), "open permissions system-wide"),
-    (re.compile(r"\bsudo\b|\bsu\s", re.I), "privilege escalation"),
     (re.compile(r">\s*/dev/(sd|disk|nvme)", re.I), "redirect to a device"),
     (re.compile(r"\bcurl\b.*\|\s*(ba)?sh|\bwget\b.*\|\s*(ba)?sh", re.I),
      "run a downloaded script directly"),
 )
+
+PRIVILEGE_COMMAND = re.compile(r"\b(?:sudo|su)\b", re.I)
 
 
 class ShellTool(LocalTool):
@@ -51,17 +52,24 @@ class ShellTool(LocalTool):
         timeout: float = 30.0,
         workdir: Path | None = None,
         max_output: int = 8000,
+        allow_root: bool = False,
     ) -> None:
         self._timeout = timeout
         self._workdir = workdir
         self._max_output = max_output
+        self._allow_root = allow_root
+        self.description = type(self).description + (
+            " sudo and su are permitted by ROOT=true, subject to the operating "
+            "system's permissions. Use non-interactive commands (e.g. sudo -n)."
+            if allow_root else " sudo and su are blocked (ROOT=false)."
+        )
 
     async def run(self, command: str, workdir: str | None = None) -> str:
         command = command.strip()
         if not command:
             raise ToolError("No command given.")
 
-        if reason := _blocked(command):
+        if reason := _blocked(command, allow_root=self._allow_root):
             logger.warning("Shell command rejected (%s): %s", reason, command[:120])
             raise ToolError(f"Rejected: {reason}. This command will not be run.")
 
@@ -105,10 +113,12 @@ class ShellTool(LocalTool):
         return "\n\n".join(parts)
 
 
-def _blocked(command: str) -> str | None:
+def _blocked(command: str, *, allow_root: bool = False) -> str | None:
     for pattern, reason in BLOCKED:
         if pattern.search(command):
             return reason
+    if not allow_root and PRIVILEGE_COMMAND.search(command):
+        return "privilege escalation"
     try:
         shlex.split(command)
     except ValueError as exc:

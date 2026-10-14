@@ -31,9 +31,10 @@ export async function POST(request: NextRequest) {
     return fail("No messages provided.", 400);
   }
 
-  const messages: WireMessage[] = body.messages.map(({ role, content }) => ({
+  const messages: WireMessage[] = body.messages.map(({ role, content, attachment_ids }) => ({
     role,
     content,
+    attachment_ids,
   }));
 
   let upstream: Response;
@@ -47,6 +48,7 @@ export async function POST(request: NextRequest) {
       },
       body: JSON.stringify({
         messages,
+        chat_id: body.chat_id,
         model: body.model ?? undefined,
         max_tokens: body.max_tokens ?? MAX_TOKENS,
         prompt: body.prompt ?? undefined,
