@@ -171,6 +171,7 @@ export const en = {
       removeQuote: "Remove quote",
       nothingToAttach: "Nothing to attach.",
       uploadFailed: "Upload failed.",
+      uploadRequestTooLarge: "The upload exceeds the server’s size limit. Try fewer or smaller files.",
       uploadUnavailable: "File uploads are unavailable on this server.",
       uploadUnauthorized: "Please sign in to upload files.",
       emptyFile: "{name} is empty.",

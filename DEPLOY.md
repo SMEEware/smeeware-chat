@@ -70,6 +70,42 @@ your-domain.com {
 Caddy fetches the certificate itself (nginx + certbot works the same). SSE needs
 no special config, just **no** response buffering.
 
+With nginx, set the upload limit on the **chat/Next.js HTTPS vhost** that
+handles `POST /api/uploads` and proxies to port 3000. nginx defaults to
+`client_max_body_size 1m`, so it can reject an upload with HTTP 413 before the
+app receives it. See the [nginx directive reference](https://nginx.org/en/docs/http/ngx_http_core_module.html#client_max_body_size).
+
+Merge these settings into that vhost's existing `server` block and `location /`;
+keep its TLS certificate settings and existing proxy headers:
+
+```nginx
+# Inside the existing HTTPS server block for the chat hostname:
+client_max_body_size 160m;
+
+location / {
+    proxy_pass http://127.0.0.1:3000;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_buffering off;          # Deliver SSE responses as they arrive.
+    proxy_request_buffering off;  # Optional: forward upload bodies as they arrive.
+}
+```
+
+The default batch permits eight files of 20,000,000 bytes each: 160,000,000
+bytes plus multipart overhead. nginx's `160m` allows 167,772,160 bytes, leaving
+room for that overhead. If you increase `UPLOADS_MAX_BYTES` or
+`UPLOADS_MAX_FILES`, also raise the proxy limit to cover their product plus
+multipart overhead. The backend continues to enforce each file's size and the
+file count. `proxy_request_buffering off` streams the request to the frontend;
+`proxy_http_version 1.1` also supports this for chunked uploads. See the
+[nginx buffering reference](https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_request_buffering).
+
+After editing the server configuration, validate it and reload nginx:
+
+```bash
+sudo nginx -t && sudo systemctl reload nginx
+```
+
 ## E. Local model (Ollama) — optional
 
 The endpoint is **always** `http://localhost:11434/v1` (the built-in default).

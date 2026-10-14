@@ -108,6 +108,11 @@ async def _resolve_agent(
         state=state,
     )
     options = payload.to_options().merged(model=entry.upstream)
+    # Model-specific budgets belong in the backend, not the frontend proxy.
+    # DeepSeek supplies its maximum thinking budget; retain the existing chat
+    # default for other providers.
+    if options.max_tokens is None and agent.provider_name != "deepseek":
+        options = replace(options, max_tokens=8_000)
 
     if entry.reasoning_effort and entry.runtime == "openai":
         options = replace(

@@ -120,3 +120,18 @@ test("server validation failures retain stable codes and details instead of raw 
     return true;
   });
 });
+
+test("an HTML 413 reports the server request limit without inventing a per-file limit", async (t) => {
+  t.mock.method(globalThis, "fetch", async () => new Response(
+    "<html><h1>413 Request Entity Too Large</h1><hr>nginx</html>",
+    { status: 413, headers: { "Content-Type": "text/html" } },
+  ));
+  await assert.rejects(attachments.uploadFiles([new File(["archive"], "project.zip")]), (error) => {
+    assert.ok(error instanceof attachments.UploadError);
+    assert.equal(error.code, "upload_request_too_large");
+    assert.deepEqual(error.details, {});
+    assert.equal(attachments.uploadErrorMessage(error, (key, vars) => translate(en, key, vars)), "The upload exceeds the server’s size limit. Try fewer or smaller files.");
+    assert.equal(attachments.uploadErrorMessage(error, (key, vars) => translate(de, key, vars)), "Der Upload überschreitet das Größenlimit des Servers. Versuche weniger oder kleinere Dateien.");
+    return true;
+  });
+});

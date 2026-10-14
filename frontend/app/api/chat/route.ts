@@ -6,8 +6,6 @@ import { CHAT_STREAM_ENDPOINT } from "@/lib/chat/backend";
 
 const ENDPOINT = CHAT_STREAM_ENDPOINT;
 
-const MAX_TOKENS = 8000;
-
 const SSE_HEADERS = {
   "Content-Type": "text/event-stream; charset=utf-8",
   "Cache-Control": "no-cache, no-transform",
@@ -50,7 +48,7 @@ export async function POST(request: NextRequest) {
         messages,
         chat_id: body.chat_id,
         model: body.model ?? undefined,
-        max_tokens: body.max_tokens ?? MAX_TOKENS,
+        max_tokens: body.max_tokens ?? undefined,
         prompt: body.prompt ?? undefined,
         tools: body.tools,
         voice_id: body.voice_id || undefined,

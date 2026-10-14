@@ -171,6 +171,7 @@ export const de = {
       removeQuote: "Zitat entfernen",
       nothingToAttach: "Nichts zum Anhängen.",
       uploadFailed: "Upload fehlgeschlagen.",
+      uploadRequestTooLarge: "Der Upload überschreitet das Größenlimit des Servers. Versuche weniger oder kleinere Dateien.",
       uploadUnavailable: "Datei-Uploads sind auf diesem Server nicht verfügbar.",
       uploadUnauthorized: "Bitte melde dich an, um Dateien hochzuladen.",
       emptyFile: "{name} ist leer.",

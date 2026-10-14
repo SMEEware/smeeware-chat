@@ -17,6 +17,7 @@ class Message:
     content: str
     tool_calls: tuple[ToolCall, ...] = ()
     tool_call_id: str | None = None
+    reasoning: str | None = None
 
     def to_wire(self) -> dict[str, Any]:
         wire: dict[str, Any] = {"role": self.role, "content": self.content}

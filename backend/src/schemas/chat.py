@@ -33,7 +33,7 @@ class ChatRequest(BaseModel):
     prompt: Annotated[str | None, Field(max_length=64)] = None
     tools: bool = True
     temperature: Annotated[float | None, Field(ge=0.0, le=2.0)] = None
-    max_tokens: Annotated[int | None, Field(ge=1, le=32_000)] = None
+    max_tokens: Annotated[int | None, Field(ge=1, le=393_216)] = None
     top_p: Annotated[float | None, Field(gt=0.0, le=1.0)] = None
     voice_id: Annotated[str | None, Field(max_length=128)] = None
     tts_model: Annotated[str | None, Field(max_length=64)] = None

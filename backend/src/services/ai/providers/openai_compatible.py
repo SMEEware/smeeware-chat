@@ -63,6 +63,7 @@ class OpenAICompatibleProvider(LLMProvider):
             )
 
         choice = response.choices[0]
+        self._check_finish_reason(choice.finish_reason)
         return Completion(
             content=choice.message.content or "",
             model=response.model,
@@ -96,6 +97,7 @@ class OpenAICompatibleProvider(LLMProvider):
                 async for chunk in stream:
                     if not chunk.choices:
                         continue
+                    self._check_finish_reason(chunk.choices[0].finish_reason)
                     delta = chunk.choices[0].delta
                     if delta is None:
                         continue
@@ -123,6 +125,9 @@ class OpenAICompatibleProvider(LLMProvider):
 
     async def aclose(self) -> None:
         await self._client.close()
+
+    def _check_finish_reason(self, reason: str | None) -> None:
+        """Providers may reject incomplete answers rather than silently finish."""
 
     async def health(self) -> bool:
         try:

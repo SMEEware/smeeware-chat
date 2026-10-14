@@ -132,7 +132,7 @@ change one.
 | Area | Setting (default) |
 | --- | --- |
 | Server | `ENVIRONMENT` (`development`; `start.sh -build` and Docker use `production`), `DEBUG` (`false`), `HOST` (`127.0.0.1`), `PORT` (`8000`), `CORS_ORIGINS` (`*`), `SESSION_TTL` (`43200` s) |
-| Chat model | `DEFAULT_MODEL` (`deepseek-v4-flash`), `DEEPSEEK_BASE_URL`, `LLM_TIMEOUT` (`60`), `LLM_MAX_RETRIES` (`2`) |
+| Chat model | `DEFAULT_MODEL` (`deepseek-v4-flash`), `DEEPSEEK_BASE_URL`, `LLM_TIMEOUT` (`600`), `LLM_MAX_RETRIES` (`2`) |
 | OpenAI | `OPENAI_ENABLED` (`true`), `OPENAI_BASE_URL`, `OPENAI_DEFAULT_MODEL` (`gpt-5.6-terra`), `OPENAI_REASONING_EFFORT` (`medium`), `OPENAI_REASONING_SUMMARY` (`detailed`), `OPENAI_TIMEOUT` (`600`) |
 | Images | `IMAGE_ENABLED` (`true`), `IMAGE_MODEL` (`gpt-image-2`), `IMAGE_SIZE` (`1024x1024`), `IMAGE_QUALITY` (`high`), `IMAGE_FORMAT` (`png`, keeps the live preview), `IMAGE_MAX_REFERENCES` (`4`), `IMAGE_ARCHIVE` (`true`, copies to the bucket when storage is on) |
 | Vision | `VISION_ENABLED` (`true`), `VISION_MODEL` (`deepseek-v4-flash-vision-exp`), `VISION_API_KEY` / `VISION_BASE_URL` (the DeepSeek ones when empty), `VISION_MAX_IMAGES` (`8`) |
@@ -152,6 +152,13 @@ Use `GET /api/v1/capabilities` for the active `uploads`, `uploads_max_bytes` and
 `uploads_max_files` values used by the composer. Oversized files return HTTP
 413 with `file_too_large` and `{ max_bytes, filename }` details; the UI shows
 the message in its selected language.
+
+The reverse proxy must allow the complete multipart batch. With the defaults,
+eight files can total 160,000,000 bytes before multipart overhead. Set nginx's
+`client_max_body_size 160m;` on the chat/Next.js HTTPS vhost, and adjust it when
+the backend limits change. A lower proxy limit can return its own HTTP 413
+before the backend handles the upload. See the
+[upload proxy example](../DEPLOY.md#d-go-public-tls).
 
 See [`../DEPLOY.md`](../DEPLOY.md) for production notes (single worker, host
 network, TLS).
@@ -183,3 +190,17 @@ python -m unittest discover -s tests
 
 The frontend's attachment and chat payload tests run with `npm test` from
 `../frontend`.
+
+### DeepSeek thinking
+
+DeepSeek V4 Flash and Pro use enabled thinking with `reasoning_effort=max` and
+a default output budget of 393,216 tokens (thinking plus answer). This is an
+upper limit, not a requested answer length. An explicit API `max_tokens` can
+reduce it. The frontend leaves this default to the backend; other chat models
+keep their 8,000-token default. Tool continuations preserve DeepSeek reasoning.
+Truncation or provider aborts are reported as errors instead of a successful
+reasoning-only answer.
+
+`LLM_TIMEOUT=600` is the default SDK read timeout in seconds, not a total
+thinking deadline. Set `LLM_TIMEOUT=0` to disable it. Existing `.env` values
+still override the default; change an old `LLM_TIMEOUT=60` if necessary.

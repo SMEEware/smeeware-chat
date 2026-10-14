@@ -21,7 +21,7 @@ class LLMSettings(BaseModel):
     api_key: SecretStr
     base_url: str = "https://api.deepseek.com"
     default_model: str = "deepseek-v4-flash"
-    timeout: float = Field(default=60.0, ge=0)
+    timeout: float = Field(default=600.0, ge=0)
     max_retries: int = Field(default=2, ge=0)
 
 
@@ -347,7 +347,7 @@ class Settings(BaseModel):
                 api_key=SecretStr(api_key),
                 base_url=os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com"),
                 default_model=os.getenv("DEFAULT_MODEL", "deepseek-v4-flash"),
-                timeout=float(os.getenv("LLM_TIMEOUT", "60")),
+                timeout=float(os.getenv("LLM_TIMEOUT", "600")),
                 max_retries=int(os.getenv("LLM_MAX_RETRIES", "2")),
             ),
             openai=OpenAISettings(

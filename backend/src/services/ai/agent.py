@@ -99,16 +99,19 @@ class Agent:
         for round_number in range(self._max_tool_rounds):
             calls: list[ToolCall] = []
             answer: list[str] = []
+            reasoning: list[str] = []
 
             async for chunk in self._provider.stream(working, merged):
                 if chunk.kind == "tool_call":
                     calls.append(_call_of(chunk))
                 elif chunk.kind == "content":
                     answer.append(chunk.text)
+                elif chunk.kind == "reasoning":
+                    reasoning.append(chunk.text)
                 yield chunk
 
             if not calls:
-                working.append(Message(role="assistant", content="".join(answer)))
+                working.append(Message(role="assistant", content="".join(answer), reasoning="".join(reasoning) or None))
                 interjections = list(_interjections(steer, working))
                 if not interjections:
                     return
@@ -124,6 +127,7 @@ class Agent:
                     role="assistant",
                     content="".join(answer),
                     tool_calls=tuple(calls),
+                    reasoning="".join(reasoning) or None,
                 )
             )
 
@@ -236,6 +240,7 @@ def _assistant_turn(completion: Completion) -> Message:
         role="assistant",
         content=completion.content,
         tool_calls=completion.tool_calls,
+        reasoning=completion.reasoning,
     )
 
 

@@ -76,6 +76,8 @@ export function uploadErrorMessage(
         name,
         size: size(error.details.max_bytes ?? limits.maxBytes),
       });
+    case "upload_request_too_large":
+      return t("chat.composer.uploadRequestTooLarge");
     case "too_many_files":
       return t("chat.composer.atMostFiles", { max: error.details.max_files ?? limits.maxFiles });
     case "unauthorized":
@@ -113,7 +115,9 @@ export async function uploadFiles(
   }
 
   if (!response.ok) {
-    let code = response.status === 401 ? "unauthorized" : "upload_failed";
+    let code = response.status === 413
+      ? "upload_request_too_large"
+      : response.status === 401 ? "unauthorized" : "upload_failed";
     let details: UploadDetails = {};
     try {
       const payload = await response.json();
