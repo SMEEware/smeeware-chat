@@ -48,6 +48,7 @@ export async function POST(request: NextRequest) {
         messages,
         chat_id: body.chat_id,
         model: body.model ?? undefined,
+        reasoning_effort: body.reasoning_effort,
         max_tokens: body.max_tokens ?? undefined,
         prompt: body.prompt ?? undefined,
         tools: body.tools,

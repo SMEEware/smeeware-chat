@@ -631,6 +631,8 @@ export const de = {
   },
   modelSelector: {
     effortShort: {
+      none: "aus",
+      minimal: "minimal",
       low: "niedrig",
       medium: "mittel",
       high: "hoch",
@@ -650,6 +652,12 @@ export const de = {
     },
     choose: "Modell wechseln (aktuell: {name})",
     gated: "Freigabe",
+    thinking: "Denktiefe",
+    thinkingHint: "Mehr Denkzeit kann komplexe Antworten verbessern und länger dauern.",
+    thinkingLess: "Schneller",
+    thinkingMore: "Gründlicher",
+    effortNone: "ohne Denken",
+    effortMinimal: "denkt minimal",
     effortLow: "denkt kurz",
     effortMedium: "denkt",
     effortHigh: "denkt gründlich",

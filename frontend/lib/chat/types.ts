@@ -81,6 +81,7 @@ export type ChatRequestBody = {
   messages: WireMessage[];
   chat_id?: string;
   model?: string | null;
+  reasoning_effort?: string;
   max_tokens?: number;
   prompt?: string | null;
   tools?: boolean;
@@ -97,6 +98,7 @@ export type Model = {
   group: string;
   runtime: "hosted" | "local" | "openai";
   reasoning_effort?: string | null;
+  reasoning_efforts?: string[];
   gated?: boolean;
 };
 

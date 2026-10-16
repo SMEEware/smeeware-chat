@@ -16,12 +16,10 @@ from src.services.ai.base import (
     Usage,
 )
 from src.services.ai.providers.openai_compatible import _translate_errors
+from src.services.ai.catalog import known_model, reasoning_effort_for
 from src.services.tools.base import ToolCall
 
 logger = get_logger(__name__)
-
-EFFORTS = frozenset({"none", "minimal", "low", "medium", "high", "xhigh", "max"})
-
 
 class OpenAIResponsesProvider(LLMProvider):
     name = "openai"
@@ -142,12 +140,13 @@ class OpenAIResponsesProvider(LLMProvider):
         payload: dict[str, Any] = {
             "model": options.model or self.default_model,
             "input": user_input,
-            "reasoning": {
-                "effort": self._effort_for(options),
-                "summary": self._summary,
-            },
             "store": False,
         }
+        effort = self._effort_for(options)
+        if effort is not None:
+            payload["reasoning"] = {"effort": effort}
+            if effort != "none":
+                payload["reasoning"]["summary"] = self._summary
         if instruction:
             payload["instructions"] = instruction
         if options.max_tokens is not None:
@@ -157,17 +156,18 @@ class OpenAIResponsesProvider(LLMProvider):
 
         extra = dict(options.extra)
         extra.pop("reasoning_effort", None)
+        extra.pop("reasoning", None)
         payload.update(extra)
         return payload
 
-    def _effort_for(self, options: CompletionOptions) -> str:
-        preferred = str(options.extra.get("reasoning_effort") or self._effort)
-        if preferred not in EFFORTS:
-            logger.warning(
-                "Unknown reasoning effort %r -- using %r", preferred, self._effort
-            )
-            return self._effort
-        return preferred
+    def _effort_for(self, options: CompletionOptions) -> str | None:
+        entry = known_model(options.model or self.default_model, runtime="openai")
+        if entry is None:
+            return None
+        preferred = options.extra.get("reasoning_effort")
+        if preferred is None and options.model is None:
+            preferred = self._effort
+        return reasoning_effort_for(entry, preferred)
 
 
 def _input_from(messages: Sequence[Message]) -> tuple[str, list[dict[str, Any]]]:

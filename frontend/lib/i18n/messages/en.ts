@@ -631,6 +631,8 @@ export const en = {
   },
   modelSelector: {
     effortShort: {
+      none: "off",
+      minimal: "minimal",
       low: "low",
       medium: "medium",
       high: "high",
@@ -650,6 +652,12 @@ export const en = {
     },
     choose: "Change model (current: {name})",
     gated: "approval",
+    thinking: "Thinking",
+    thinkingHint: "More thinking can improve complex answers and take longer.",
+    thinkingLess: "Faster",
+    thinkingMore: "More thorough",
+    effortNone: "no thinking",
+    effortMinimal: "thinks minimally",
     effortLow: "thinks briefly",
     effortMedium: "thinks",
     effortHigh: "thinks hard",

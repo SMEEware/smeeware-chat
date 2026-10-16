@@ -27,6 +27,7 @@ class ChatRequest(BaseModel):
         list[ChatMessage], Field(min_length=1, max_length=MAX_MESSAGES)
     ]
     model: str | None = None
+    reasoning_effort: Annotated[str | None, Field(max_length=32)] = None
     chat_id: Annotated[
         str | None, Field(max_length=64, pattern=r"^[A-Za-z0-9_-]+$")
     ] = None

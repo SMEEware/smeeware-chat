@@ -3,6 +3,9 @@
 import * as React from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
+import { useModels } from "@/hooks/use-models";
+import { useModelOverride } from "@/lib/chat/model-store";
+import { reasoningEffortForModel } from "@/lib/chat/reasoning";
 import {
   subscribe,
   clearError,
@@ -16,7 +19,7 @@ import {
   stopTurn,
   withdrawSteer,
 } from "@/lib/chat/turn-runner";
-import type { Attachment, ChatMessage } from "@/lib/chat/types";
+import type { Attachment, ChatMessage, ModelList } from "@/lib/chat/types";
 import { useSettings } from "@/lib/settings/store";
 import { selectActiveWorkspace, useWorkspaces } from "@/lib/workspaces/store";
 
@@ -32,11 +35,19 @@ const newId = () =>
 
 export function useChat({ chatId, initialMessages }: UseChatOptions) {
   const queryClient = useQueryClient();
+  const models = useModels();
   const settings = useSettings();
   const workspace = useWorkspaces(selectActiveWorkspace);
 
   const [input, setInput] = React.useState("");
   const [attachments, setAttachments] = React.useState<Attachment[]>([]);
+
+  const reasoningFor = React.useCallback((modelId: string | null) =>
+    reasoningEffortForModel(
+      queryClient.getQueryData<ModelList>(["chat", "models"]) ?? models.data,
+      modelId,
+      useModelOverride.getState().reasoningEfforts,
+    ), [queryClient, models.data]);
 
   const [seed] = React.useState(() => {
     if (initialMessages?.length) seedHistory(chatId, initialMessages);
@@ -101,6 +112,7 @@ export function useChat({ chatId, initialMessages }: UseChatOptions) {
           },
         ],
         model,
+        reasoningEffort: reasoningFor(model),
         prompt: settings.prompt,
         tools: settings.tools,
         voiceId: settings.voiceId,
@@ -118,6 +130,7 @@ export function useChat({ chatId, initialMessages }: UseChatOptions) {
       settings.ttsModel,
       workspace,
       queryClient,
+      reasoningFor,
       stand.messages,
       stand.streaming,
     ],
@@ -135,6 +148,7 @@ export function useChat({ chatId, initialMessages }: UseChatOptions) {
         chatId,
         history,
         model,
+        reasoningEffort: reasoningFor(model),
         prompt: settings.prompt,
         tools: settings.tools,
         voiceId: settings.voiceId,
@@ -151,6 +165,7 @@ export function useChat({ chatId, initialMessages }: UseChatOptions) {
       settings.ttsModel,
       workspace,
       queryClient,
+      reasoningFor,
       stand.messages,
       stand.streaming,
     ],

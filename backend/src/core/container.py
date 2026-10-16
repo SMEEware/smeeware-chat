@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import asyncio
 import time
+from dataclasses import replace
 from typing import Any, TypeVar
 
 import httpx
@@ -88,6 +90,7 @@ class ServiceProvider:
         self._instances: dict[str, Any] = {}
         self._skills_block = ""
         self._ollama_probe: tuple[float, bool] | None = None
+        self._local_model_capabilities: tuple[ModelEntry, ...] = ()
 
     @property
     def uploads(self) -> UploadStore:
@@ -173,13 +176,28 @@ class ServiceProvider:
 
     @property
     def local_models(self) -> tuple[ModelEntry, ...]:
-        return catalog.local_models(self.settings.ollama)
+        return self._local_model_capabilities or catalog.local_models(self.settings.ollama)
+
+    async def local_models_with_capabilities(self) -> tuple[ModelEntry, ...]:
+        entries = catalog.local_models(self.settings.ollama)
+        if not entries:
+            return ()
+        self._local_model_capabilities = await _discovered_reasoning(entries, self.ollama)
+        return self._local_model_capabilities
+
+    async def hosted_models_with_capabilities(self) -> tuple[ModelEntry, ...]:
+        entries = tuple(entry for entry in catalog.CATALOG if entry.runtime == "hosted")
+        if self.llm.name == "deepseek":
+            return entries
+        # LLM_PROVIDER can route these catalog IDs through Ollama instead.
+        # Advertise the capabilities of the actual adapter and upstream tag.
+        return await _discovered_reasoning(entries, self.llm)
 
     async def local_models_visible(self) -> tuple[ModelEntry, ...]:
         entries = self.local_models
         if not entries:
             return ()
-        return entries if await self._ollama_reachable() else ()
+        return await self.local_models_with_capabilities() if await self._ollama_reachable() else ()
 
     async def _ollama_reachable(self) -> bool:
         now = time.monotonic()
@@ -582,6 +600,19 @@ async def _render_skills(skills: "SkillLibrary") -> str:
     else:
         lines.append("(none yet -- create some with skill_save when it makes sense)")
     return "\n".join(lines)
+
+
+async def _discovered_reasoning(
+    entries: tuple[ModelEntry, ...], provider: LLMProvider | None,
+) -> tuple[ModelEntry, ...]:
+    discover = getattr(provider, "reasoning_options", None)
+    if discover is None:
+        return tuple(replace(entry, reasoning_efforts=(), reasoning_effort=None) for entry in entries)
+    capabilities = await asyncio.gather(*(discover(entry.upstream) for entry in entries))
+    return tuple(
+        replace(entry, reasoning_efforts=efforts, reasoning_effort=default)
+        for entry, (efforts, default) in zip(entries, capabilities)
+    )
 
 
 def _mcp_boxes(toolbox: ToolBox) -> list[McpToolBox]:

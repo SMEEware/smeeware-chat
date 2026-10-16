@@ -75,6 +75,15 @@ class DeepSeekTests(unittest.IsolatedAsyncioTestCase):
         payload, _ = await self.request(options=CompletionOptions(max_tokens=1234))
         self.assertEqual(payload['max_tokens'], 1234)
 
+    async def test_selected_effort_reaches_upstream_in_both_modes(self):
+        for stream in (False, True):
+            for effort in ('low', 'high', 'max'):
+                payload, _ = await self.request(stream=stream, options=CompletionOptions(
+                    max_tokens=1234, extra={'reasoning_effort': effort},
+                ))
+                self.assertEqual(payload['reasoning_effort'], effort)
+                self.assertEqual(payload['max_tokens'], 1234)
+
     async def test_reasoning_is_forwarded_for_tool_continuations(self):
         payload, _ = await self.request(messages=[Message('assistant', '', reasoning='tool planning')])
         self.assertEqual(payload['messages'][0]['reasoning_content'], 'tool planning')

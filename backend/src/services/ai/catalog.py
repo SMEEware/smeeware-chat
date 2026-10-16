@@ -21,9 +21,13 @@ class ModelEntry:
     upstream: str
     group: str
     reasoning_effort: str | None = None
+    reasoning_efforts: tuple[str, ...] = ()
     tools: bool = True
     gated: bool = False
 
+
+OPENAI_56_EFFORTS = ("none", "low", "medium", "high", "xhigh", "max")
+DEEPSEEK_V4_EFFORTS = ("low", "high", "max")
 
 CATALOG: tuple[ModelEntry, ...] = (
     ModelEntry(
@@ -34,6 +38,7 @@ CATALOG: tuple[ModelEntry, ...] = (
         upstream="gpt-5.6-sol",
         group="OpenAI",
         reasoning_effort="high",
+        reasoning_efforts=OPENAI_56_EFFORTS,
     ),
     ModelEntry(
         id="gpt-5.6-terra",
@@ -43,6 +48,7 @@ CATALOG: tuple[ModelEntry, ...] = (
         upstream="gpt-5.6-terra",
         group="OpenAI",
         reasoning_effort="medium",
+        reasoning_efforts=OPENAI_56_EFFORTS,
     ),
     ModelEntry(
         id="gpt-5.6-luna",
@@ -52,6 +58,7 @@ CATALOG: tuple[ModelEntry, ...] = (
         upstream="gpt-5.6-luna",
         group="OpenAI",
         reasoning_effort="low",
+        reasoning_efforts=OPENAI_56_EFFORTS,
     ),
     ModelEntry(
         id="gpt-5.6-cyber",
@@ -90,6 +97,8 @@ CATALOG: tuple[ModelEntry, ...] = (
         upstream="gpt-daybreak-blue-latest",
         group="OpenAI",
         reasoning_effort="high",
+        # The documented alias points to GPT-5.6 Sol.
+        reasoning_efforts=OPENAI_56_EFFORTS,
         gated=True,
     ),
     ModelEntry(
@@ -99,6 +108,8 @@ CATALOG: tuple[ModelEntry, ...] = (
         runtime="hosted",
         upstream="deepseek-v4-flash",
         group="DeepSeek",
+        reasoning_effort="max",
+        reasoning_efforts=DEEPSEEK_V4_EFFORTS,
     ),
     ModelEntry(
         id="deepseek-v4-pro",
@@ -107,6 +118,8 @@ CATALOG: tuple[ModelEntry, ...] = (
         runtime="hosted",
         upstream="deepseek-v4-pro",
         group="DeepSeek",
+        reasoning_effort="max",
+        reasoning_efforts=DEEPSEEK_V4_EFFORTS,
     ),
 )
 
@@ -120,10 +133,23 @@ for _entry in CATALOG:
     _BY_ID.setdefault(_entry.upstream, _entry)
 
 
+def known_model(model_id: str, *, runtime: Runtime) -> ModelEntry | None:
+    entry = _BY_ID.get(model_id)
+    return entry if entry is not None and entry.runtime == runtime else None
+
+
+def reasoning_effort_for(entry: ModelEntry, requested: str | None) -> str | None:
+    """Only offer documented overrides; stale preferences retain the model default."""
+    if requested in entry.reasoning_efforts:
+        return requested
+    return entry.reasoning_effort
+
+
 def _local_id(tag: str) -> str:
     core = tag.rsplit("/", 1)[-1].split(":", 1)[0]
     slug = re.sub(r"[^a-z0-9._-]+", "-", core.lower()).strip("-")
-    return slug or "local"
+    slug = slug or "local"
+    return f"local-{slug}" if slug in _BY_ID else slug
 
 
 def local_models(ollama: OllamaSettings) -> tuple[ModelEntry, ...]:
@@ -144,12 +170,15 @@ def local_models(ollama: OllamaSettings) -> tuple[ModelEntry, ...]:
 
 
 def available(
-    *, openai: bool, local: tuple[ModelEntry, ...] = ()
+    *, openai: bool, local: tuple[ModelEntry, ...] = (),
+    hosted: tuple[ModelEntry, ...] | None = None,
 ) -> tuple[ModelEntry, ...]:
-    hosted = tuple(
+    entries = tuple(
         entry for entry in CATALOG if entry.runtime != "openai" or openai
     )
-    return hosted + local
+    if hosted is not None:
+        entries = tuple(entry for entry in entries if entry.runtime != "hosted") + hosted
+    return entries + local
 
 
 def resolve(model_id: str | None, *, local: tuple[ModelEntry, ...] = ()) -> ModelEntry:

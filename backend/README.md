@@ -191,9 +191,40 @@ python -m unittest discover -s tests
 The frontend's attachment and chat payload tests run with `npm test` from
 `../frontend`.
 
-### DeepSeek thinking
+### Model reasoning controls
 
-DeepSeek V4 Flash and Pro use enabled thinking with `reasoning_effort=max` and
+`GET /api/v1/models` declares each model's ordered `reasoning_efforts` and
+`reasoning_effort` default. Chat and stream requests accept an optional
+`reasoning_effort`; only a value supported by the selected model overrides its
+default. Stale or unsupported preferences fall back to that default. Provider
+adapters validate again and omit reasoning overrides for unverified models.
+
+| Models | Adjustable efforts | Default |
+| --- | --- | --- |
+| GPT-5.6 Sol / Terra / Luna | `none`, `low`, `medium`, `high`, `xhigh`, `max` | `high` / `medium` / `low` |
+| Daybreak Blue (documented Sol alias) | Same as Sol | `high` |
+| GPT-5.6 Cyber / Daybreak Red | No documented effort range; no control | Existing `high` |
+| DeepSeek V4 Flash / Pro | `low`, `high`, `max` | `max` |
+| Configured Ollama model | Discovered from `/api/show` `thinking.values` and `thinking.default` | Model metadata |
+
+Ollama discovery is cached for 15 seconds and requires valid thinking metadata.
+Older servers, unavailable metadata, and nonthinking models receive no override.
+Named effort values pass through unchanged. Boolean-only models map `none` to
+off and `high` to on, so the UI offers a binary control. Adding a local model
+does not require a model-name heuristic or a hard-coded provider-wide enum.
+The same discovery replaces hosted catalog capabilities when
+`LLM_PROVIDER=ollama`. Local IDs that would collide with a built-in model are
+prefixed with `local-`; the explicit local ID selects that runtime safely.
+
+Capability references: [OpenAI Sol](https://developers.openai.com/api/docs/models/gpt-5.6-sol),
+[Terra](https://developers.openai.com/api/docs/models/gpt-5.6-terra),
+[Luna](https://developers.openai.com/api/docs/models/gpt-5.6-luna),
+[Daybreak Blue](https://developers.openai.com/api/docs/models/gpt-daybreak-blue-latest),
+[DeepSeek thinking](https://api-docs.deepseek.com/guides/thinking_mode/),
+[Ollama thinking](https://docs.ollama.com/capabilities/thinking), and
+[Ollama OpenAI compatibility](https://docs.ollama.com/api/openai-compatibility).
+
+DeepSeek V4 Flash and Pro default to enabled thinking with `reasoning_effort=max` and
 a default output budget of 393,216 tokens (thinking plus answer). This is an
 upper limit, not a requested answer length. An explicit API `max_tokens` can
 reduce it. The frontend leaves this default to the backend; other chat models

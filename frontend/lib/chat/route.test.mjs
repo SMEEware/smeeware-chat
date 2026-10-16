@@ -28,3 +28,26 @@ test("chat proxy leaves default token budget to backend and forwards explicit bu
     globalThis.fetch = originalFetch;
   }
 });
+
+test("chat proxy forwards explicit reasoning effort without adding one to unsupported requests", async () => {
+  const originalFetch = globalThis.fetch;
+  const captured = [];
+  globalThis.fetch = async (_url, options) => {
+    captured.push(JSON.parse(options.body));
+    return new Response("data: [DONE]\n\n");
+  };
+  try {
+    for (const reasoning_effort of [undefined, "none", "high", "xhigh", "max"]) {
+      const request = new Request("http://localhost/api/chat", {
+        method: "POST",
+        body: JSON.stringify({ messages: [{ role: "user", content: "hello" }], model: "reasoner", reasoning_effort }),
+      });
+      request.cookies = { get: () => undefined };
+      assert.equal((await POST(request)).status, 200);
+      assert.equal(captured.at(-1).reasoning_effort, reasoning_effort);
+    }
+    assert.equal(Object.hasOwn(captured[0], "reasoning_effort"), false);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});

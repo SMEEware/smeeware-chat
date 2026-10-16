@@ -398,6 +398,7 @@ type TurnArgs = {
   chatId: string;
   history: ChatMessage[];
   model: string | null;
+  reasoningEffort?: string;
   prompt: string | null;
   tools: boolean;
   voiceId: string;
@@ -410,6 +411,7 @@ export function startTurn({
   chatId,
   history,
   model,
+  reasoningEffort,
   prompt,
   tools,
   voiceId,
@@ -424,7 +426,7 @@ export function startTurn({
   l.activeId = id;
   l.model = model;
   l.streamId = newId();
-  l.options = { model, prompt, tools, voiceId, ttsModel, workspace, client };
+  l.options = { model, reasoningEffort, prompt, tools, voiceId, ttsModel, workspace, client };
   l.parts = [];
   l.content = "";
   l.tail = "";
@@ -458,7 +460,7 @@ export function startTurn({
     l,
     history,
     controller,
-    { model, prompt, tools, voiceId, ttsModel, workspace },
+    { model, reasoningEffort, prompt, tools, voiceId, ttsModel, workspace },
     client,
   );
   return true;
@@ -471,6 +473,7 @@ async function runTurn(
   controller: AbortController,
   options: {
     model: string | null;
+    reasoningEffort?: string;
     prompt: string | null;
     tools: boolean;
     voiceId: string;
@@ -490,6 +493,7 @@ async function runTurn(
         messages: toWire(history, workspaceBlock(options.workspace)),
         chat_id: chatId,
         model: options.model ?? undefined,
+        reasoning_effort: options.reasoningEffort,
         prompt: options.prompt ?? undefined,
         tools: options.tools,
         voice_id: options.voiceId || undefined,

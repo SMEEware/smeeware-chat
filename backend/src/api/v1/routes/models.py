@@ -14,6 +14,7 @@ async def list_models(provider: ProviderDep) -> ModelListResponse:
     entries = available(
         openai=provider.openai is not None,
         local=await provider.local_models_visible(),
+        hosted=await provider.hosted_models_with_capabilities(),
     )
     models = [
         ModelInfo(
@@ -23,6 +24,7 @@ async def list_models(provider: ProviderDep) -> ModelListResponse:
             group=entry.group,
             runtime=entry.runtime,
             reasoning_effort=entry.reasoning_effort,
+            reasoning_efforts=list(entry.reasoning_efforts),
             gated=entry.gated,
         )
         for entry in entries

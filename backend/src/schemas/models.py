@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class ModelInfo(BaseModel):
@@ -10,6 +10,7 @@ class ModelInfo(BaseModel):
     group: str
     runtime: str
     reasoning_effort: str | None = None
+    reasoning_efforts: list[str] = Field(default_factory=list)
     gated: bool = False
 
 

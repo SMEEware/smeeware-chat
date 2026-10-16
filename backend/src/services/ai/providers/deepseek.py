@@ -5,6 +5,7 @@ from typing import Any
 
 from src.core.exceptions import ProviderError
 from src.services.ai.base import CompletionOptions, Message
+from src.services.ai.catalog import known_model, reasoning_effort_for
 from src.services.ai.providers.openai_compatible import OpenAICompatibleProvider
 
 MAX_OUTPUT_TOKENS = 393_216
@@ -16,10 +17,14 @@ class DeepSeekProvider(OpenAICompatibleProvider):
 
     def _payload(self, messages: Sequence[Message], options: CompletionOptions) -> dict[str, Any]:
         payload = super()._payload(messages, options)
+        requested = payload.pop("reasoning_effort", None)
+        entry = known_model(payload["model"], runtime="hosted")
+        if entry is None or entry.group != "DeepSeek":
+            return payload
         # Thinking and the final answer share the output budget. Both V4 models
         # support 384 Ki tokens; a smaller explicit caller budget is respected.
         payload.setdefault("max_tokens", MAX_OUTPUT_TOKENS)
-        payload["reasoning_effort"] = "max"
+        payload["reasoning_effort"] = reasoning_effort_for(entry, requested)
         payload["extra_body"] = {
             **payload.get("extra_body", {}), "thinking": {"type": "enabled"},
         }

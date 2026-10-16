@@ -21,7 +21,7 @@ from src.schemas.chat import MAX_CHARS, ChatRequest, ChatResponse, UsageResponse
 from src.services.ai.agent import Agent
 from src.services.ai.base import CompletionOptions, Message, StreamChunk
 from src.services.ai.attachments import describe_uploads, file_instructions
-from src.services.ai.catalog import resolve
+from src.services.ai.catalog import reasoning_effort_for, resolve
 from src.services.ai.modes import system_addition_for
 from src.services.ai.steering import STEERING, Interjection
 from src.services.speech.runtime import set_choice
@@ -98,7 +98,10 @@ async def _resolve_agent(
 ) -> tuple[Agent, CompletionOptions]:
     set_choice(model=payload.tts_model, voice=payload.voice_id)
 
-    entry = resolve(payload.model, local=provider.local_models)
+    local = provider.local_models
+    if any(payload.model in (entry.id, entry.upstream) for entry in local):
+        local = await provider.local_models_with_capabilities()
+    entry = resolve(payload.model, local=local)
     allowed, state = await provider.tool_state()
     agent = provider.agent_for(
         entry.runtime,
@@ -107,6 +110,12 @@ async def _resolve_agent(
         allowed=allowed,
         state=state,
     )
+    if entry.runtime == "hosted" and agent.provider_name != "deepseek":
+        if agent.provider_name == "ollama":
+            entries = await provider.hosted_models_with_capabilities()
+            entry = next(candidate for candidate in entries if candidate.id == entry.id)
+        else:
+            entry = replace(entry, reasoning_effort=None, reasoning_efforts=())
     options = payload.to_options().merged(model=entry.upstream)
     # Model-specific budgets belong in the backend, not the frontend proxy.
     # DeepSeek supplies its maximum thinking budget; retain the existing chat
@@ -114,10 +123,11 @@ async def _resolve_agent(
     if options.max_tokens is None and agent.provider_name != "deepseek":
         options = replace(options, max_tokens=8_000)
 
-    if entry.reasoning_effort and entry.runtime == "openai":
+    effort = reasoning_effort_for(entry, payload.reasoning_effort)
+    if effort is not None:
         options = replace(
             options,
-            extra={**options.extra, "reasoning_effort": entry.reasoning_effort},
+            extra={**options.extra, "reasoning_effort": effort},
         )
     return agent, options
 
