@@ -742,7 +742,6 @@ export const en = {
   codeBlock: {
     copy: "Copy code",
     copied: "Copied",
-    lines: "lines",
   },
   message: {
     copyAnswer: "Copy answer",

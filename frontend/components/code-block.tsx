@@ -104,24 +104,6 @@ export function CodeBlock({
         </div>
       )}
 
-      {longChatBlock ? (
-        <div className="flex items-center justify-between gap-3 border-t border-border/60 bg-muted/25 py-1.5 ps-4 pe-2">
-          <span className="text-[11px] text-muted-foreground tabular-nums">
-            {lineCount} {t("codeBlock.lines")}
-          </span>
-          <Button
-            type="button"
-            size="sm"
-            variant="ghost"
-            onClick={copy}
-            aria-label={copied ? t("codeBlock.copied") : t("codeBlock.copy")}
-            className="h-8 cursor-pointer gap-1.5 rounded-lg px-2.5 text-xs text-muted-foreground hover:text-foreground"
-          >
-            {copied ? <CheckIcon className="size-3.5" /> : <CopyIcon className="size-3.5" />}
-            {copied ? t("codeBlock.copied") : t("codeBlock.copy")}
-          </Button>
-        </div>
-      ) : null}
       <span role="status" className="sr-only">
         {copied ? t("codeBlock.copied") : ""}
       </span>
