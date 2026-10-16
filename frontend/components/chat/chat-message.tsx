@@ -252,7 +252,7 @@ export function ChatMessage({
 
           return (
             <Bubble key={index} variant="ghost" align="start">
-              <BubbleContent>
+              <BubbleContent className="overflow-clip">
                 <Markdown>{part.text}</Markdown>
                 {streaming && isLast ? (
                   <span className="ms-0.5 inline-block h-3.5 w-0.5 translate-y-0.5 animate-caret-blink rounded-full bg-foreground/70 align-baseline" />

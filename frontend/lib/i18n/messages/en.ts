@@ -739,6 +739,11 @@ export const en = {
       "This is a read-only copy of a conversation someone shared. Sign in to continue one of your own.",
     signIn: "Sign in",
   },
+  codeBlock: {
+    copy: "Copy code",
+    copied: "Copied",
+    lines: "lines",
+  },
   message: {
     copyAnswer: "Copy answer",
     copyMessage: "Copy message",

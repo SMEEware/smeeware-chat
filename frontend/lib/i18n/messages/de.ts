@@ -739,6 +739,11 @@ export const de = {
       "Dies ist eine schreibgeschützte Kopie einer geteilten Unterhaltung. Melde dich an, um eine eigene fortzuführen.",
     signIn: "Anmelden",
   },
+  codeBlock: {
+    copy: "Code kopieren",
+    copied: "Kopiert",
+    lines: "Zeilen",
+  },
   message: {
     copyAnswer: "Antwort kopieren",
     copyMessage: "Nachricht kopieren",

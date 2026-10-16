@@ -116,13 +116,14 @@ const components: Components = {
       | undefined;
 
     if (!code) {
-      return <CodeBlock code={toText(children)} />;
+      return <CodeBlock code={toText(children)} variant="chat" />;
     }
 
     return (
       <CodeBlock
         code={toText(code.props.children).replace(/\n$/, "")}
         language={languageOf(code.props.className)}
+        variant="chat"
       />
     );
   },
