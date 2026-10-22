@@ -53,7 +53,7 @@ private.
 
 ## Quick start
 
-You need **Python 3.10+** and **Node.js 20+**.
+You need **Python 3.11+** and **Node.js 20+**.
 
 ```bash
 git clone <your-repo-url> smeeware-chat
@@ -77,6 +77,22 @@ Then open **http://localhost:3000**. `Ctrl+C` stops everything.
 ./start.sh -shell             # allow shell commands for this run (local use only)
 ./install.sh --configure      # change keys and switches later
 ```
+
+On Windows, use PowerShell or the batch wrappers:
+
+```powershell
+.\install.bat
+.\start.bat                   # development, with backend reload
+.\start.bat -build            # production build, without backend reload
+.\start.bat -shell            # enable run_shell for this run
+```
+
+The wrappers run `install.ps1` and `start.ps1`; both scripts also accept the
+same flags directly. The launcher prints the effective environment:
+`-build` sets `production`, and the default or `-dev` sets `development`,
+even when `ENVIRONMENT` was inherited from the shell. Set
+`SMEEWARE_ENVIRONMENT` only when deliberately overriding that choice.
+For native Windows checks, see [backend verification](backend/README.md#windows-verification).
 
 ## API keys
 

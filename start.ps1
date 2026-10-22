@@ -34,6 +34,7 @@ Environment:
   SKIP_DEPS=1      Skip the dependency check
   PYTHON_BIN       Python used to create the venv (default: python)
   SMEEWARE_ROOT    Project folder, when the script is not inside it
+  SMEEWARE_ENVIRONMENT  Override the environment chosen by -dev/-build
   BACKEND_DIR      Override the backend folder
   FRONTEND_DIR     Override the frontend folder
 "@
@@ -150,11 +151,14 @@ if (-not $dk) {
   exit 1
 }
 
-if ($MODE -eq "build") {
-  $env:ENVIRONMENT = if ($env:ENVIRONMENT) { $env:ENVIRONMENT } else { "production" }
+$env:ENVIRONMENT = if ($env:SMEEWARE_ENVIRONMENT) {
+  $env:SMEEWARE_ENVIRONMENT
+}
+elseif ($MODE -eq "build") {
+  "production"
 }
 else {
-  $env:ENVIRONMENT = if ($env:ENVIRONMENT) { $env:ENVIRONMENT } else { "development" }
+  "development"
 }
 
 if ($MODE -eq "dev") {
@@ -217,6 +221,7 @@ $env:PATH = "$venvScripts;$env:PATH"
 
 Write-Host ">> Project: $PROJECT_ROOT"
 Write-Host ">> Backend: $BACKEND_DIR"
+Write-Host ">> Environment: $env:ENVIRONMENT"
 
 $BACKEND_PID = 0
 try {
@@ -239,9 +244,11 @@ try {
       & npx next build
       if ($LASTEXITCODE -ne 0) { throw "next build failed" }
       & npx next start
+      if ($LASTEXITCODE -ne 0) { throw "next start failed" }
     }
     else {
       & npx next dev
+      if ($LASTEXITCODE -ne 0) { throw "next dev failed" }
     }
   }
   finally {

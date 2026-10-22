@@ -55,6 +55,7 @@ Environment:
   SKIP_DEPS=1      Skip the dependency check
   PYTHON_BIN       Python used to create the venv (default: python3)
   SMEEWARE_ROOT    Project folder, when the script is not inside it
+  SMEEWARE_ENVIRONMENT  Override the environment chosen by -dev/-build
   BACKEND_DIR      Override the backend folder
   FRONTEND_DIR     Override the frontend folder
 EOF
@@ -112,10 +113,12 @@ if [[ -z "${DEEPSEEK_API_KEY:-$(env_value DEEPSEEK_API_KEY)}" ]]; then
   exit 1
 fi
 
-if [[ "$MODE" == "build" ]]; then
-  export ENVIRONMENT="${ENVIRONMENT:-production}"
+if [[ -n "${SMEEWARE_ENVIRONMENT:-}" ]]; then
+  export ENVIRONMENT="$SMEEWARE_ENVIRONMENT"
+elif [[ "$MODE" == "build" ]]; then
+  export ENVIRONMENT="production"
 else
-  export ENVIRONMENT="${ENVIRONMENT:-development}"
+  export ENVIRONMENT="development"
 fi
 
 if [[ "$MODE" == "dev" ]]; then
@@ -178,6 +181,7 @@ fi
 
 echo ">> Project: $PROJECT_ROOT"
 echo ">> Backend: $BACKEND_DIR"
+echo ">> Environment: $ENVIRONMENT"
 cd "$BACKEND_DIR"
 
 source .venv/bin/activate

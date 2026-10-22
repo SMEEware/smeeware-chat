@@ -152,7 +152,7 @@ if os.name != "nt":
 
 function Check-Prerequisites {
   if (-not (Has $PYTHON_BIN)) {
-    Fail "Python 3.10+ is required ($PYTHON_BIN not found). Install it or set PYTHON_BIN."
+    Fail "Python 3.11+ is required ($PYTHON_BIN not found). Install it or set PYTHON_BIN."
   }
   if ($script:STEP_DEPS -ne 1) { return }
   if (-not (Has "node")) { Fail "Node.js 20+ is required (https://nodejs.org)." }
@@ -166,7 +166,7 @@ function Get-VenvPython {
 }
 
 function Create-Venv {
-  & $PYTHON_BIN -c "import sys; sys.exit(0 if sys.version_info >= (3, 10) else 1)"
+  & $PYTHON_BIN -c "import sys; sys.exit(0 if sys.version_info >= (3, 11) else 1)"
   if ($LASTEXITCODE -eq 0) {
     & $PYTHON_BIN -m venv "$BACKEND_DIR\.venv"
     if ($LASTEXITCODE -ne 0) { Fail "Could not create a venv with $PYTHON_BIN." }
@@ -177,7 +177,7 @@ function Create-Venv {
   }
   else {
     $v = & $PYTHON_BIN -V 2>&1
-    Fail "Python 3.10+ is required, found $v. Install a newer Python or set PYTHON_BIN."
+    Fail "Python 3.11+ is required, found $v. Install a newer Python or set PYTHON_BIN."
   }
 }
 

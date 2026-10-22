@@ -71,6 +71,9 @@ class SystemData:
 
 
 def _disk() -> tuple[str, Any]:
+    if sys.platform == "win32":
+        root = os.environ.get("SystemDrive", "C:") + "\\"
+        return root, psutil.disk_usage(root)
     if sys.platform == "darwin":
         try:
             return "/System/Volumes/Data", psutil.disk_usage("/System/Volumes/Data")
@@ -136,7 +139,7 @@ class SystemProbe:
 
         try:
             load = [round(x, 2) for x in os.getloadavg()]
-        except OSError:
+        except (OSError, AttributeError):
             load = []
 
         cores = psutil.cpu_count(logical=True) or 1

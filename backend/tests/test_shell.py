@@ -29,6 +29,7 @@ class ShellRootTests(unittest.IsolatedAsyncioTestCase):
             executable.write_text(script)
             executable.chmod(0o700)
         self.environment = {
+            **{key: os.environ[key] for key in ("SystemRoot", "COMSPEC", "PATHEXT", "TEMP", "TMP") if key in os.environ},
             "PATH": f"{commands}{os.pathsep}{os.environ.get('PATH', '')}",
             "DEEPSEEK_API_KEY": "test-not-a-real-key",
             "SHELL_ENABLED": "true",
@@ -56,6 +57,7 @@ class ShellRootTests(unittest.IsolatedAsyncioTestCase):
                     self.assertIn("privilege escalation", result.content)
                     self.assertFalse((self.root / "result.txt").exists())
 
+    @unittest.skipIf(os.name == "nt", "sudo/su executables exercise POSIX shell behavior")
     async def test_root_true_allows_sudo_and_su_through_real_shell_pipeline(self):
         for name, command in (
             ("sudo", "sudo -n sh -c 'printf sudo-allowed > sudo.txt'"),
@@ -74,6 +76,8 @@ class ShellRootTests(unittest.IsolatedAsyncioTestCase):
             ("sudo mkfs /dev/rejected", "format a disk"),
             ("printf 'unterminated", "command not parseable"),
         ):
+            if os.name == "nt" and reason == "command not parseable":
+                continue
             with self.subTest(command=command):
                 result = await self.invoke(command, "true")
                 self.assertTrue(result.is_error)
@@ -83,11 +87,12 @@ class ShellRootTests(unittest.IsolatedAsyncioTestCase):
         self.assertFalse((self.root / "disabled.txt").exists())
 
     async def test_regular_commands_still_work_with_root_disabled(self):
-        result = await self.invoke("printf regular-command", "false")
+        result = await self.invoke("echo regular-command", "false")
         self.assertFalse(result.is_error, result.content)
         self.assertIn("regular-command", result.content)
 
 
+@unittest.skipIf(os.name == "nt", "Bash launchers exercise POSIX shell behavior")
 class LauncherRootTests(unittest.TestCase):
     def test_scripts_preserve_exported_root_flag(self):
         repository = Path(__file__).resolve().parents[2]

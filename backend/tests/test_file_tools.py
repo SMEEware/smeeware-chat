@@ -8,6 +8,7 @@ import tempfile
 import unittest
 import zipfile
 from pathlib import Path
+from unittest.mock import patch
 
 from pypdf import PdfWriter
 from pypdf.generic import DictionaryObject, NameObject, DecodedStreamObject
@@ -49,7 +50,12 @@ class FileToolTests(unittest.IsolatedAsyncioTestCase):
         buffer = io.BytesIO()
         with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as archive:
             for name_in_zip, data in entries.items():
-                archive.writestr(name_in_zip, data)
+                member = zipfile.ZipInfo(name_in_zip)
+                # Preserve adversarial names instead of letting ZipInfo rewrite
+                # Windows separators or truncate NULs in the fixture itself.
+                member.filename = name_in_zip
+                member.compress_type = zipfile.ZIP_DEFLATED
+                archive.writestr(member, data)
         return self.attach(buffer.getvalue(), name)
 
     async def test_reads_only_attached_original_and_scoped_work_files(self):
@@ -82,9 +88,13 @@ class FileToolTests(unittest.IsolatedAsyncioTestCase):
         outside.mkdir()
         (outside / "secret.txt").write_text("secret")
         self.ctx.work_dir.mkdir(parents=True)
-        (self.ctx.work_dir / "link").symlink_to(outside, target_is_directory=True)
         for path in ("../../outside/secret.txt", str(outside / "secret.txt"), "link/secret.txt"):
             with self.subTest(path=path):
+                if path == "link/secret.txt":
+                    try:
+                        (self.ctx.work_dir / "link").symlink_to(outside, target_is_directory=True)
+                    except (OSError, NotImplementedError) as exc:
+                        self.skipTest(f"Symbolic links are unavailable: {exc}")
                 with self.assertRaises(ToolError):
                     await self.tools["read_file"].run(path=path)
                 with self.assertRaises(ToolError):
@@ -125,9 +135,32 @@ class FileToolTests(unittest.IsolatedAsyncioTestCase):
         for index, bad in enumerate(("../escape", "/absolute", "C:/windows", "dir\\escape", "safe/../../escape")):
             with self.subTest(path=bad):
                 upload = self.archive({bad: b"bad"}, f"bad-{index}.zip")
+                with zipfile.ZipFile(upload.path) as archive:
+                    self.assertEqual(archive.infolist()[0].orig_filename, bad)
                 with self.assertRaises(ToolError):
                     await self.tools["extract_archive"].run(path=upload.id, destination=f"bad-{index}")
                 self.assertFalse((self.ctx.work_dir / f"bad-{index}").exists())
+
+    async def test_zip_rejects_unsafe_raw_names_hidden_by_reader_normalization(self):
+        original_init = zipfile.ZipInfo.__init__
+
+        def windows_init(member, *args, **kwargs):
+            original_init(member, *args, **kwargs)
+            member.filename = member.filename.replace("\\", "/")
+
+        for index, bad in enumerate((r"dir\escape", "safe\x00hidden")):
+            with self.subTest(path=bad):
+                upload = self.archive({bad: b"bad"}, f"normalized-{index}.zip")
+                # Reproduce only the Windows ZIP reader's normalization; the
+                # actual archive, upload store and filesystem checks stay real.
+                with patch.object(zipfile.ZipInfo, "__init__", windows_init):
+                    with zipfile.ZipFile(upload.path) as archive:
+                        member = archive.infolist()[0]
+                        self.assertEqual(member.orig_filename, bad)
+                        self.assertNotEqual(member.filename, bad)
+                    with self.assertRaises(ToolError):
+                        await self.tools["extract_archive"].run(path=upload.id, destination=f"normalized-{index}")
+                self.assertFalse((self.ctx.work_dir / f"normalized-{index}").exists())
 
     async def test_zip_rejects_symlink_members(self):
         buffer = io.BytesIO()

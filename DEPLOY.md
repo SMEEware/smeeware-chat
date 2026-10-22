@@ -203,6 +203,7 @@ No Mac-specific software. On Debian, `system_check` cleanly reports
 ## Bare-metal (without Docker)
 
 If you don't want Docker — two processes, a reverse proxy in front.
+Use Python 3.11 or newer.
 
 ```bash
 sudo apt update && sudo apt install -y python3 python3-venv python3-pip git
@@ -220,3 +221,11 @@ LLM_STREAM_URL=http://127.0.0.1:8000/api/v1/chat/stream npx next start -p 3000
 For continuous operation, one `systemd` unit each (`Restart=always`, a non-root
 `User=`, `WorkingDirectory` on `backend/` and `frontend/`). Persistence here
 lives in `backend/data/` — do not delete it.
+
+On Windows, `.\install.bat` installs dependencies and `.\start.bat -build`
+starts the backend plus the production frontend. The launcher forces
+`ENVIRONMENT=production` even if the parent PowerShell session has
+`ENVIRONMENT=development`; `SMEEWARE_ENVIRONMENT` is the explicit escape
+hatch. Confirm the printed environment and absence of a reloader before
+serving traffic. Follow the [native Windows verification steps](backend/README.md#windows-verification)
+for shell commands, file workspaces, system checks, and storage guards.

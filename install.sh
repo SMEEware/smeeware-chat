@@ -59,7 +59,7 @@ env_value() {
 }
 
 check_prerequisites() {
-  has "$PYTHON_BIN" || fail "Python 3.10+ is required ($PYTHON_BIN not found). Install it or set PYTHON_BIN."
+  has "$PYTHON_BIN" || fail "Python 3.11+ is required ($PYTHON_BIN not found). Install it or set PYTHON_BIN."
   [[ "$STEP_DEPS" == "1" ]] || return 0
   has node || fail "Node.js 20+ is required (https://nodejs.org)."
   has npm || fail "npm is required (it ships with Node.js)."
@@ -291,12 +291,12 @@ pip_install() {
 }
 
 create_venv() {
-  if "$PYTHON_BIN" -c 'import sys; sys.exit(sys.version_info < (3, 10))' 2>/dev/null; then
+  if "$PYTHON_BIN" -c 'import sys; sys.exit(sys.version_info < (3, 11))' 2>/dev/null; then
     "$PYTHON_BIN" -m venv "$BACKEND_DIR/.venv" || fail "Could not create a venv with $PYTHON_BIN."
   elif has uv; then
     uv venv --quiet --python 3.12 "$BACKEND_DIR/.venv" || fail "uv could not create a Python 3.12 venv."
   else
-    fail "Python 3.10+ is required, found $("$PYTHON_BIN" -V 2>&1). Install a newer Python or set PYTHON_BIN."
+    fail "Python 3.11+ is required, found $("$PYTHON_BIN" -V 2>&1). Install a newer Python or set PYTHON_BIN."
   fi
 }
 

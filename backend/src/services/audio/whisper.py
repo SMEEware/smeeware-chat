@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import asyncio
 import json
 import shutil
 import tempfile
@@ -12,6 +11,7 @@ from src.services.audio.base import (
     TranscriptionError,
     TranscriptionService,
 )
+from src.services.proc import SubprocessTimeout, run_exec
 
 logger = get_logger(__name__)
 
@@ -131,24 +131,15 @@ class WhisperService(TranscriptionService):
         return _from_json(json.loads(json_file.read_text(encoding="utf-8")))
 
     async def _run(self, *arguments: str) -> tuple[int, str, str]:
-        process = await asyncio.create_subprocess_exec(
-            *arguments,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-        )
         try:
-            stdout, error = await asyncio.wait_for(
-                process.communicate(), timeout=self._timeout
-            )
-        except TimeoutError:
-            process.kill()
-            await process.wait()
+            code, stdout, error = await run_exec(list(arguments), timeout=self._timeout)
+        except SubprocessTimeout:
             raise TranscriptionError(
                 f"Transcription took longer than {int(self._timeout)}s."
             ) from None
 
         return (
-            process.returncode or 0,
+            code,
             stdout.decode("utf-8", "replace"),
             error.decode("utf-8", "replace"),
         )

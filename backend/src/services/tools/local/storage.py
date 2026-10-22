@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import asyncio
 import json
 import mimetypes
 import os
@@ -12,6 +11,7 @@ from typing import Any
 from urllib.parse import quote
 
 from src.core.logging import get_logger
+from src.services.proc import SubprocessTimeout, run_exec
 from src.services.tools.base import ToolError
 from src.services.tools.local.base import LocalTool, truncate
 
@@ -30,6 +30,12 @@ BLOCKED_SOURCES: tuple[tuple[re.Pattern[str], str], ...] = (
     (re.compile(r"/\.(netrc|npmrc|pypirc|git-credentials)$", re.I), "credentials"),
     (re.compile(r"/Library/Keychains/|/etc/(shadow|sudoers)", re.I), "a system secret"),
 )
+
+
+def _portable(value: str | Path) -> str:
+    """Normalize both path separators for the sensitive-source checks."""
+    return str(value).replace("\\", "/")
+
 
 TEXT_LIKE = re.compile(
     r"^text/|^application/(json|xml|javascript|x-yaml|x-sh|sql|toml)|\+xml$|\+json$",
@@ -118,35 +124,18 @@ class McClient:
         argv += list(args)
 
         logger.info("mc %s", " ".join(args))
-        try:
-            process = await asyncio.create_subprocess_exec(
-                *argv,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-            )
-        except FileNotFoundError as exc:
-            raise McError(f"{self.binary!r} not found: {exc}") from exc
-
         cap = timeout if timeout is not None else self.timeout
         try:
-            if cap and cap > 0:
-                stdout, error = await asyncio.wait_for(
-                    process.communicate(), timeout=cap
-                )
-            else:
-                stdout, error = await process.communicate()
-        except TimeoutError:
-            process.kill()
-            await process.wait()
+            code, stdout, error = await run_exec(argv, timeout=cap)
+        except FileNotFoundError as exc:
+            raise McError(f"{self.binary!r} not found: {exc}") from exc
+        except SubprocessTimeout:
             raise McError(
                 f"mc ran longer than {cap:.0f}s and was aborted."
             ) from None
-        except asyncio.CancelledError:
-            process.kill()
-            raise
 
         return (
-            process.returncode or 0,
+            code,
             stdout.decode("utf-8", "replace"),
             error.decode("utf-8", "replace"),
         )
@@ -308,8 +297,9 @@ class StoragePutTool(_StorageTool):
                     f"Uploads are restricted to {root} -- "
                     f"{source} is outside it."
                 )
+        normalised = _portable(resolved)
         for pattern, reason in BLOCKED_SOURCES:
-            if pattern.search(str(resolved)):
+            if pattern.search(normalised):
                 logger.warning("Upload rejected (%s): %s", reason, resolved)
                 return (
                     f"Rejected: {source.name} looks like {reason}. The bucket is "

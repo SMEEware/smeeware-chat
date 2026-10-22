@@ -442,7 +442,10 @@ class UploadTests(unittest.IsolatedAsyncioTestCase):
         external = self.root / "secret.png"
         external.write_bytes(b"private")
         identifier = "e" * 32
-        (self.settings.uploads_dir / f"{identifier}.png").symlink_to(external)
+        try:
+            (self.settings.uploads_dir / f"{identifier}.png").symlink_to(external)
+        except (OSError, NotImplementedError) as exc:
+            self.skipTest(f"Symbolic links are unavailable: {exc}")
         response = await self.client.get(f"/api/v1/uploads/{identifier}", headers=self.headers)
         self.assertEqual(response.status_code, 404)
 

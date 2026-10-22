@@ -74,13 +74,23 @@ def _no_symlinks(path: Path, boundary: Path) -> None:
         current = current.parent
 
 
-def _work_path(context: FileContext, raw: str) -> Path:
-    if not isinstance(raw, str) or not raw.strip():
-        raise ToolError("Give a file path inside the conversation's file workspace.")
-    if "\\" in raw or any(ord(char) < 32 for char in raw):
+def _work_path(context: FileContext, raw: str | Path) -> Path:
+    if isinstance(raw, Path):
+        # Internal native paths must retain their original separators.
+        path = raw
+    else:
+        if not isinstance(raw, str) or not raw.strip():
+            raise ToolError("Give a file path inside the conversation's file workspace.")
+        path = Path(raw.replace("\\", "/"))
+        windows = PureWindowsPath(raw)
+        if (windows.drive and not path.drive) or (
+            windows.root and not windows.drive and raw.startswith("\\")
+        ):
+            raise ToolError("That path is outside this conversation's file workspace.")
+    if any(ord(char) < 32 for char in str(path)):
         raise ToolError("Invalid file path.")
-    path = Path(raw)
-    if ".." in path.parts or (PureWindowsPath(raw).drive and not path.is_absolute()):
+    windows = PureWindowsPath(str(path))
+    if ".." in path.parts or ((windows.drive or windows.root) and not path.is_absolute()):
         raise ToolError("That path is outside this conversation's file workspace.")
     root = context.work_dir
     candidate = path if path.is_absolute() else root / path
@@ -110,10 +120,13 @@ def _read_path(context: FileContext, raw: str) -> tuple[Path, str]:
     if raw in context.file_ids:
         uploaded = _attached(context, raw)
         return uploaded.path, uploaded.filename
+    if ".." in Path(raw).parts or ".." in PureWindowsPath(raw).parts:
+        raise ToolError("That path is outside this conversation's file workspace.")
     if Path(raw).is_absolute():
+        wanted = os.path.normcase(os.path.normpath(raw))
         for file_id in context.file_ids:
             uploaded = _attached(context, file_id)
-            if str(uploaded.path) == raw:
+            if os.path.normcase(os.path.normpath(str(uploaded.path))) == wanted:
                 return uploaded.path, uploaded.filename
     path = _work_path(context, raw)
     if not path.is_file():
@@ -126,7 +139,7 @@ def _regular_files(context: FileContext, directory: Path) -> list[Path]:
     for current, folders, names in os.walk(directory, followlinks=False):
         for name in folders + names:
             path = Path(current) / name
-            _work_path(context, str(path))
+            _work_path(context, path)
             if path.is_file():
                 if not stat.S_ISREG(path.stat().st_mode):
                     raise ToolError("Only regular files can be read or exported.")
@@ -144,7 +157,7 @@ def _list_files() -> str:
         lines.append(f"- {uploaded.filename} | id={uploaded.id} | {uploaded.bytes} bytes | {uploaded.media_type} | {uploaded.path}")
     if not context.file_ids:
         lines.append("(none)")
-    root = _work_path(context, str(context.work_dir))
+    root = _work_path(context, context.work_dir)
     lines.extend(["", f"Working directory: {root}"])
     if root.exists():
         paths = _regular_files(context, root)
@@ -303,7 +316,7 @@ def _save_work_bytes(context: FileContext, path: str, data: bytes) -> Path:
         with tempfile.NamedTemporaryFile(dir=target.parent, prefix=".write-", delete=False) as output:
             temporary = Path(output.name)
             output.write(data)
-        _work_path(context, str(target))
+        _work_path(context, target)
         temporary.replace(target)
     finally:
         if temporary is not None:
@@ -387,7 +400,9 @@ def _extract_archive(path: str, destination: str | None) -> str:
                 raise ToolError(f"Archive exceeds the {context.max_archive_members} member limit.")
             paths: set[str] = set()
             for member in members:
-                relative = _archive_member(member.filename)
+                # ZipInfo.filename rewrites backslashes on Windows and drops
+                # NUL suffixes. Validate the original archive name instead.
+                relative = _archive_member(member.orig_filename)
                 mode = member.external_attr >> 16
                 if stat.S_ISLNK(mode) or (stat.S_IFMT(mode) not in (0, stat.S_IFREG, stat.S_IFDIR)):
                     raise ToolError("Archive contains a symbolic link or special file.")
@@ -403,7 +418,7 @@ def _extract_archive(path: str, destination: str | None) -> str:
             staging = Path(tempfile.mkdtemp(prefix=".extract-", dir=target.parent))
             expanded = 0
             for member in members:
-                output_path = staging / str(_archive_member(member.filename))
+                output_path = staging / str(_archive_member(member.orig_filename))
                 if member.is_dir():
                     output_path.mkdir(parents=True, exist_ok=True)
                     continue
@@ -414,7 +429,7 @@ def _extract_archive(path: str, destination: str | None) -> str:
                         if expanded > context.max_extracted_bytes:
                             raise ToolError(f"Expanded archive exceeds the {context.max_extracted_bytes} byte limit.")
                         output.write(chunk)
-            _work_path(context, str(target))
+            _work_path(context, target)
             if target.exists():
                 raise ToolError("Extraction destination already exists.")
             staging.rename(target)
@@ -449,7 +464,7 @@ def _export_file(path: str, filename: str | None) -> str:
                 temporary = Path(output.name)
             with zipfile.ZipFile(temporary, "w", zipfile.ZIP_DEFLATED) as archive:
                 for file in paths:
-                    _work_path(context, str(file))
+                    _work_path(context, file)
                     archive.write(file, file.relative_to(source).as_posix())
                     if temporary.stat().st_size > context.store.max_bytes:
                         raise ToolError("The exported ZIP exceeds the upload size limit.")

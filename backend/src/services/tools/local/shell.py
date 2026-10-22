@@ -1,11 +1,12 @@
 from __future__ import annotations
 
-import asyncio
+import os
 import re
 import shlex
 from pathlib import Path
 
 from src.core.logging import get_logger
+from src.services.proc import SubprocessTimeout, run_shell
 from src.services.tools.base import ToolError
 from src.services.tools.local.base import LocalTool, truncate
 
@@ -79,31 +80,15 @@ class ShellTool(LocalTool):
 
         logger.info("Shell: %s (cwd=%s)", command[:160], cwd or "Prozessverzeichnis")
 
-        process = await asyncio.create_subprocess_shell(
-            command,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-            cwd=str(cwd) if cwd else None,
-        )
         try:
-            if self._timeout and self._timeout > 0:
-                stdout, error = await asyncio.wait_for(
-                    process.communicate(), timeout=self._timeout
-                )
-            else:
-                stdout, error = await process.communicate()
-        except TimeoutError:
-            process.kill()
-            await process.wait()
+            code, stdout, error = await run_shell(command, cwd=cwd, timeout=self._timeout)
+        except SubprocessTimeout:
             raise ToolError(
                 f"Aborted: ran longer than {self._timeout:.0f}s. "
                 "Interactive programs do not work here."
-            )
-        except asyncio.CancelledError:
-            process.kill()
-            raise
+            ) from None
 
-        parts = [f"exit={process.returncode}"]
+        parts = [f"exit={code}"]
         if text := stdout.decode("utf-8", "replace").strip():
             parts.append(f"stdout:\n{truncate(text, self._max_output)}")
         if text := error.decode("utf-8", "replace").strip():
@@ -119,8 +104,11 @@ def _blocked(command: str, *, allow_root: bool = False) -> str | None:
             return reason
     if not allow_root and PRIVILEGE_COMMAND.search(command):
         return "privilege escalation"
-    try:
-        shlex.split(command)
-    except ValueError as exc:
-        return f"command not parseable ({exc})"
+    # shlex validates POSIX syntax, not Windows paths ending in a backslash.
+    # The security guards above apply on every platform.
+    if os.name != "nt":
+        try:
+            shlex.split(command)
+        except ValueError as exc:
+            return f"command not parseable ({exc})"
     return None

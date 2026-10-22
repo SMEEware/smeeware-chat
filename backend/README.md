@@ -19,6 +19,51 @@ python run.py               # http://127.0.0.1:8000
 In development, `GET /docs` (Swagger UI) and `GET /openapi.json` are available;
 they are turned off in production.
 
+## Windows verification
+
+Use Python 3.11 or newer. If `backend\.venv` was created with Python 3.10,
+remove that virtual environment and rerun `.\install.bat` with a supported
+Python; existing virtual environments are not upgraded automatically.
+From the repository root, run `.\install.bat`, then
+`.\start.bat -shell` (or `.\start.ps1 -shell` in a PowerShell session that
+permits local scripts). The backend should report `env=development`. Check
+`run_shell` with `echo launcher-check`, `list_files` without a path, and
+`system_check` in a signed-in chat. Shell output must include its exit code;
+file listing and system checks must complete without platform exceptions.
+
+Stop the launcher, then verify mode selection in PowerShell:
+
+```powershell
+$env:ENVIRONMENT = "development"
+.\start.bat -build
+```
+
+The banner must show `Environment: production`, the service startup log must
+show `ServiceProvider ready (env=production, ...)`, and no
+`Started reloader process` line should appear. `SMEEWARE_ENVIRONMENT` is an
+explicit override; clear it before checking the normal mode defaults.
+Frontend build or server startup failures produce a failing launcher exit
+code and stop its backend child process.
+
+With storage configured, confirm its tools appear in the startup tool count
+and that `storage_put` refuses an SSH private-key path such as
+`C:\Users\<user>\.ssh\id_rsa`. The total tool count depends on enabled
+features and credentials; the fully configured acceptance setup expects at
+least 42 local tools.
+
+Run the portable backend tests from `backend/`:
+
+```powershell
+.\.venv\Scripts\python.exe -m unittest discover -s tests -v
+```
+
+The launcher tests execute real child processes with temporary backend and
+frontend fixtures. PowerShell launcher tests run on Windows; Bash launcher
+tests run on Linux and macOS. A skipped platform test does not verify that
+platform. Python's [Windows event-loop documentation](https://docs.python.org/3/library/asyncio-platforms.html#subprocess-support-on-windows)
+and [Uvicorn's loop documentation](https://uvicorn.dev/concepts/event-loop/)
+explain why reload mode requires the subprocess fallback on Windows.
+
 ## Layers
 
 ```
@@ -131,7 +176,7 @@ change one.
 
 | Area | Setting (default) |
 | --- | --- |
-| Server | `ENVIRONMENT` (`development`; `start.sh -build` and Docker use `production`), `DEBUG` (`false`), `HOST` (`127.0.0.1`), `PORT` (`8000`), `CORS_ORIGINS` (`*`), `SESSION_TTL` (`43200` s) |
+| Server | `ENVIRONMENT` (`development`; `start.sh -build`, `start.ps1 -build` and Docker use `production`; launchers allow an explicit `SMEEWARE_ENVIRONMENT` override), `DEBUG` (`false`), `HOST` (`127.0.0.1`), `PORT` (`8000`), `CORS_ORIGINS` (`*`), `SESSION_TTL` (`43200` s) |
 | Chat model | `DEFAULT_MODEL` (`deepseek-v4-flash`), `DEEPSEEK_BASE_URL`, `LLM_TIMEOUT` (`600`), `LLM_MAX_RETRIES` (`2`) |
 | OpenAI | `OPENAI_ENABLED` (`true`), `OPENAI_BASE_URL`, `OPENAI_DEFAULT_MODEL` (`gpt-5.6-terra`), `OPENAI_REASONING_EFFORT` (`medium`), `OPENAI_REASONING_SUMMARY` (`detailed`), `OPENAI_TIMEOUT` (`600`) |
 | Images | `IMAGE_ENABLED` (`true`), `IMAGE_MODEL` (`gpt-image-2`), `IMAGE_SIZE` (`1024x1024`), `IMAGE_QUALITY` (`high`), `IMAGE_FORMAT` (`png`, keeps the live preview), `IMAGE_MAX_REFERENCES` (`4`), `IMAGE_ARCHIVE` (`true`, copies to the bucket when storage is on) |
