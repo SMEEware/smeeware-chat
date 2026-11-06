@@ -28,10 +28,12 @@ class DeepSeekProvider(OpenAICompatibleProvider):
         payload["extra_body"] = {
             **payload.get("extra_body", {}), "thinking": {"type": "enabled"},
         }
-        # DeepSeek requires the thinking from previous assistant tool rounds.
+        # With tools, DeepSeek requires the field on EVERY assistant turn,
+        # including plain answers and turns that emitted no reasoning delta.
+        # Keep actual reasoning intact; empty reasoning is still an explicit field.
         for message, wire in zip(messages, payload["messages"]):
-            if message.role == "assistant" and message.reasoning is not None:
-                wire["reasoning_content"] = message.reasoning
+            if message.role == "assistant" and (options.tools or message.reasoning is not None):
+                wire["reasoning_content"] = message.reasoning if message.reasoning is not None else ""
         return payload
 
     def _check_finish_reason(self, reason: str | None) -> None:
@@ -42,4 +44,5 @@ class DeepSeekProvider(OpenAICompatibleProvider):
             "content_filter": "DeepSeek stopped the answer because of its content filter.",
         }
         if reason in errors:
-            raise ProviderError(errors[reason], details={"provider": self.name, "finish_reason": reason})
+            raise ProviderError(errors[reason], details={"provider": self.name, "finish_reason": reason,
+                                "retryable": reason in {"aborted", "insufficient_system_resource"}})

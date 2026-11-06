@@ -34,6 +34,12 @@ authenticated `GET /api/v1/ide/capabilities` returns `protocol: 1` and
 `notifications: false`. Existing `/chat` clients keep their previous contract.
 Details: [IDE protocol and upgrade](docs/IDE.md).
 
+The DeepSeek adapter now preserves `reasoning_content` on every assistant
+tool-history message, including empty fields. Provider errors expose bounded,
+redacted diagnostics rather than only an HTTP status. Extension 1.2.1 can recover
+temporary IDE inference errors before dispatch, without replaying local actions.
+Pull this backend update and restart/rebuild to apply the HTTP-400 format fix.
+
 ## Windows verification
 
 Use Python 3.11 or newer. If `backend\.venv` was created with Python 3.10,

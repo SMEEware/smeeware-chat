@@ -16,11 +16,13 @@ from src.services.tools.base import ToolSpec
 
 
 class DeepSeekTests(unittest.IsolatedAsyncioTestCase):
-    async def request(self, *, stream=False, finish='stop', options=None, messages=None, tool_turn=False):
+    async def request(self, *, stream=False, finish='stop', options=None, messages=None, tool_turn=False, require_reasoning=False):
         captured = []
 
         def respond(request):
             captured.append(json.loads(request.content))
+            if require_reasoning and any(message['role'] == 'assistant' and 'reasoning_content' not in message for message in captured[-1]['messages']):
+                return httpx.Response(400, json={'error': {'message': 'Missing reasoning_content in assistant message.', 'code': 'invalid_request_error'}})
             tool_call = {'id': 'call_test', 'type': 'function',
                          'function': {'name': 'test_tool', 'arguments': '{}'}}
             first_tool_round = tool_turn and len(captured) == 1
@@ -87,6 +89,21 @@ class DeepSeekTests(unittest.IsolatedAsyncioTestCase):
     async def test_reasoning_is_forwarded_for_tool_continuations(self):
         payload, _ = await self.request(messages=[Message('assistant', '', reasoning='tool planning')])
         self.assertEqual(payload['messages'][0]['reasoning_content'], 'tool planning')
+
+    async def test_all_assistant_turns_include_reasoning_even_when_empty(self):
+        for stream in (False, True):
+            messages = [Message('user', 'First question'), Message('assistant', 'A plain answer'),
+                        Message('user', 'Next question'), Message('assistant', '', reasoning=''),
+                        Message('assistant', 'Another answer', reasoning='preserve this thinking'),
+                        Message('user', 'Continue')]
+            payload, _ = await self.request(stream=stream, messages=messages, require_reasoning=True,
+                options=CompletionOptions(tools=(ToolSpec('test_tool', 'Test tool'),)))
+            assistant = [message for message in payload['messages'] if message['role'] == 'assistant']
+            self.assertEqual([message['reasoning_content'] for message in assistant], ['', '', 'preserve this thinking'])
+
+    async def test_no_tool_completion_does_not_invent_reasoning_history(self):
+        payload, _ = await self.request(messages=[Message('user', 'First question'), Message('assistant', 'Answer'), Message('user', 'Next')])
+        self.assertNotIn('reasoning_content', payload['messages'][1])
 
     async def test_agent_preserves_thinking_across_actual_tool_rounds(self):
         for stream in (False, True):

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from collections.abc import AsyncIterator, Sequence
 from dataclasses import dataclass
 from typing import Any
@@ -226,6 +227,48 @@ def _usage_of(usage: Any) -> Usage | None:
     )
 
 
+def _provider_details(exc: openai.APIError, provider: str) -> dict[str, Any]:
+    """Forward bounded error fields, never the request, headers, or raw body."""
+    details: dict[str, Any] = {"provider": provider}
+    body = exc.body if isinstance(exc.body, dict) else {}
+    error = body.get("error", body)
+    if not isinstance(error, dict):
+        error = {}
+
+    def safe(value: object, limit: int = 1000) -> str | None:
+        if not isinstance(value, (str, int)):
+            return None
+        text = str(value)
+        authorization = exc.request.headers.get("authorization", "")
+        if authorization.lower().startswith("bearer "):
+            secret = authorization[7:].strip()
+            if secret:
+                text = text.replace(secret, "[redacted]")
+        text = re.sub(r"(?i)\b(?:sk[-_]|ghp_|github_pat_)[A-Za-z0-9_-]{8,}", "[redacted]", text)
+        text = re.sub(r"(?i)\bBearer\s+[^\s\"']+", "Bearer [redacted]", text)
+        text = re.sub(r"(https?://)[^\s/@]+:[^\s/@]+@", r"\1[redacted]@", text)
+        return " ".join(text.split())[:limit] or None
+
+    for field, source in (("upstream_message", error.get("message")),
+                          ("upstream_code", error.get("code", exc.code)),
+                          ("upstream_type", error.get("type", exc.type)),
+                          ("upstream_param", error.get("param", exc.param))):
+        if value := safe(source, 1000 if field == "upstream_message" else 128):
+            details[field] = value
+    if isinstance(exc, openai.APIStatusError):
+        details["status_code"] = exc.status_code
+        details["retryable"] = exc.status_code in {408, 429, 500, 502, 503, 504}
+        if request_id := safe(exc.request_id, 128):
+            details["request_id"] = request_id
+        try:
+            retry_after = float(exc.response.headers.get("retry-after", ""))
+            if 0 <= retry_after <= 300:
+                details["retry_after"] = retry_after
+        except ValueError:
+            pass
+    return details
+
+
 class _translate_errors:
     def __init__(self, provider: str) -> None:
         self._provider = provider
@@ -237,11 +280,11 @@ class _translate_errors:
         if exc is None:
             return False
 
-        details = {"provider": self._provider}
+        details = _provider_details(exc, self._provider) if isinstance(exc, openai.APIError) else {"provider": self._provider}
 
         if isinstance(exc, openai.APITimeoutError):
             raise ProviderTimeoutError(
-                f"{self._provider} did not respond in time.", details=details
+                f"{self._provider} did not respond in time.", details={**details, "retryable": True}
             ) from exc
         if isinstance(exc, openai.RateLimitError):
             raise RateLimitedError(
@@ -249,14 +292,19 @@ class _translate_errors:
             ) from exc
         if isinstance(exc, openai.AuthenticationError):
             raise UnauthorizedError(
-                f"API key for {self._provider} was rejected.", details=details
+                f"API key for {self._provider} was rejected.", details={"provider": self._provider, "retryable": False}
             ) from exc
         if isinstance(exc, openai.APIStatusError):
+            reason = details.get("upstream_message")
             raise ProviderError(
-                f"{self._provider} responded with HTTP {exc.status_code}.",
-                details={**details, "status_code": exc.status_code},
+                f"{self._provider} responded with HTTP {exc.status_code}" + (f": {reason}" if reason else "."),
+                details=details,
+            ) from exc
+        if isinstance(exc, openai.APIConnectionError):
+            raise ProviderError(
+                f"Connection to {self._provider} was interrupted.", details={**details, "retryable": True}
             ) from exc
         if isinstance(exc, openai.APIError):
-            raise ProviderError(str(exc), details=details) from exc
+            raise ProviderError(f"Invalid response from {self._provider}.", details=details) from exc
 
         return False

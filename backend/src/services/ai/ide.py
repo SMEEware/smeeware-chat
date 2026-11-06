@@ -109,6 +109,6 @@ async def stream_turn(llm: LLMProvider, payload: IdeChatRequest,
         raise ValidationError("The IDE model returned no answer or tool request.")
     message = {"role": "assistant", "content": "".join(content),
                "tool_calls": [call.model_dump() for call in calls],
-               "reasoning": "".join(reasoning) or None}
+               "reasoning": "".join(reasoning)}
     yield {"type": "ide_turn", "protocol": 1, "message": message,
            "targets": {call.id: targets[call.name] for call in calls}}

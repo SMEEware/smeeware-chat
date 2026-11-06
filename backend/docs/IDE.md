@@ -107,3 +107,19 @@ Die Proxy-Konfiguration muss `/api/v1/ide/*` durchreichen und SSE nicht puffern.
 Danach die VSIX 1.1.0 installieren, das VS-Code-Fenster neu laden und einen neuen
 Coding-Chat starten. Die neue Extension sendet an alte Backends keine normalen
 Agentenanfragen als stillen Fallback.
+
+## DeepSeek request recovery
+
+With tools enabled, every assistant message now includes `reasoning_content`,
+including an explicit empty string when no reasoning was emitted. Actual
+reasoning is preserved. A neutral live comparison reproduced HTTP 400 without
+the field and HTTP 200 with it. Existing lost reasoning cannot be reconstructed.
+
+Provider errors retain bounded, redacted upstream message/code/parameter and
+request ID, plus retry metadata. Raw request bodies and headers are not exposed.
+The VS Code extension 1.2.1 can retry temporary inference failures before a
+confirmed handoff; completed local actions are not replayed. Invalid requests,
+content filters, authentication and token budget failures are not blindly retried.
+
+Pull this backend update and restart/rebuild before installing extension 1.2.1.
+The IDE protocol remains v1; no new dependencies or migrations are required.
