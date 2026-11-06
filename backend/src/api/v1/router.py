@@ -11,6 +11,7 @@ from src.api.v1.routes import (
     events,
     fs,
     health,
+    ide,
     models,
     notifications,
     plugins,
@@ -33,6 +34,7 @@ router.include_router(events.router)
 router.include_router(fs.router)
 router.include_router(notifications.router)
 router.include_router(chat.router)
+router.include_router(ide.router)
 router.include_router(chats.router)
 router.include_router(public.router)
 router.include_router(models.router)

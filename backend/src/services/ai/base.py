@@ -41,6 +41,7 @@ class CompletionOptions:
     stop: Sequence[str] | None = None
     tools: tuple[ToolSpec, ...] = ()
     extra: dict[str, Any] = field(default_factory=dict)
+    require_complete: bool = False
 
     def merged(self, **overrides: Any) -> "CompletionOptions":
         values = {
@@ -51,6 +52,7 @@ class CompletionOptions:
             "stop": self.stop,
             "tools": self.tools,
             "extra": self.extra,
+            "require_complete": self.require_complete,
         }
         values.update({k: v for k, v in overrides.items() if v is not None})
         return CompletionOptions(**values)

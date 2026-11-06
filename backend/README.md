@@ -19,6 +19,21 @@ python run.py               # http://127.0.0.1:8000
 In development, `GET /docs` (Swagger UI) and `GET /openapi.json` are available;
 they are turned off in production.
 
+## VS Code / IDE protocol v1
+
+The VS Code extension from 1.1.0 uses the separate `/api/v1/ide/*` API.
+Workspace actions are native client tool requests; only an explicit research
+allowlist can run on the backend. This profile does not instantiate the normal
+desktop/web toolbox, notifications, server shell or MCP task tools. Inline
+completion calls the provider directly without any tools.
+
+Deploy the updated backend before installing the new extension. No additional
+Python packages, database migration or environment variables are required.
+Restart/rebuild the backend with the existing deployment procedure and verify
+authenticated `GET /api/v1/ide/capabilities` returns `protocol: 1` and
+`notifications: false`. Existing `/chat` clients keep their previous contract.
+Details: [IDE protocol and upgrade](docs/IDE.md).
+
 ## Windows verification
 
 Use Python 3.11 or newer. If `backend\.venv` was created with Python 3.10,

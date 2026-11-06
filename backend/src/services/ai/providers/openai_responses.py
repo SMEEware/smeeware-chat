@@ -7,6 +7,7 @@ from typing import Any
 from openai import AsyncOpenAI
 
 from src.core.logging import get_logger
+from src.core.exceptions import ProviderError
 from src.services.ai.base import (
     Completion,
     CompletionOptions,
@@ -59,6 +60,8 @@ class OpenAIResponsesProvider(LLMProvider):
             )
 
         text: list[str] = []
+        if options.require_complete and response.status != "completed":
+            raise ProviderError("The model reached its token/context limit or returned an incomplete IDE answer. No pending tool was executed.")
         reasoning: list[str] = []
         calls: list[ToolCall] = []
 
@@ -95,8 +98,13 @@ class OpenAIResponsesProvider(LLMProvider):
                 stream=True, **self._payload(messages, options)
             )
 
+            finished = False
             async for event in stream:
                 label = event.type
+                if label == "response.completed":
+                    finished = True
+                elif label == "response.incomplete" and options.require_complete:
+                    raise ProviderError("The model reached its token/context limit before completing the IDE answer. No pending tool was executed.")
 
                 if label == "response.reasoning_summary_text.delta":
                     if event.delta:
@@ -119,6 +127,9 @@ class OpenAIResponsesProvider(LLMProvider):
 
                 elif label in ("error", "response.failed"):
                     raise _error_from(event)
+
+            if options.require_complete and not finished:
+                raise ProviderError("The model stream ended without a complete IDE answer. No pending tool was executed.")
 
     async def aclose(self) -> None:
         await self._client.close()

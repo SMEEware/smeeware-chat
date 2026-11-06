@@ -412,6 +412,17 @@ class ServiceProvider:
             return self.toolbox
         return FilteredToolBox(self.toolbox, allowed)
 
+    @property
+    def ide_web_toolbox(self) -> ToolBox:
+        from src.services.tools.ide_web import IdeWebToolBox
+        return self._singleton("ide_web_toolbox", lambda: IdeWebToolBox(self.settings.tools))
+
+    async def ide_web_selection(self) -> frozenset[str]:
+        # Respect installed research plugins without initializing the generic
+        # toolbox, MCP connections, notifications or other desktop services.
+        existing = [spec.name for spec in await self.ide_web_toolbox.specs()]
+        return allowed_tools(existing, await self.plugins.installed())
+
     def _create_vision(self) -> VisionService | None:
         vision = self.settings.vision
         if not vision.enabled:

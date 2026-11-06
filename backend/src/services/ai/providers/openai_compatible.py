@@ -64,6 +64,8 @@ class OpenAICompatibleProvider(LLMProvider):
 
         choice = response.choices[0]
         self._check_finish_reason(choice.finish_reason)
+        if options.require_complete and choice.finish_reason not in {"stop", "tool_calls"}:
+            raise ProviderError("The model reached its token/context limit or returned an incomplete IDE answer. No pending tool was executed.")
         return Completion(
             content=choice.message.content or "",
             model=response.model,
@@ -92,12 +94,18 @@ class OpenAICompatibleProvider(LLMProvider):
                 **self._payload(messages, options),
             )
             partial: dict[int, _PartialCall] = {}
+            finished = False
 
             async with stream:
                 async for chunk in stream:
                     if not chunk.choices:
                         continue
                     self._check_finish_reason(chunk.choices[0].finish_reason)
+                    reason = chunk.choices[0].finish_reason
+                    if reason is not None:
+                        if options.require_complete and reason not in {"stop", "tool_calls"}:
+                            raise ProviderError("The model reached its token/context limit or returned an incomplete IDE answer. No pending tool was executed.")
+                        finished = True
                     delta = chunk.choices[0].delta
                     if delta is None:
                         continue
@@ -114,6 +122,8 @@ class OpenAICompatibleProvider(LLMProvider):
                         slot = partial.setdefault(raw.index, _PartialCall())
                         slot.absorb(raw)
 
+            if options.require_complete and not finished:
+                raise ProviderError("The model stream ended without a complete IDE answer. No pending tool was executed.")
             for slot in sorted(partial.values(), key=lambda s: s.index):
                 call = slot.finish()
                 yield StreamChunk(
